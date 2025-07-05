@@ -22,20 +22,20 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
         <div
           className={`flex flex-col ${
             isUser
-              ? 'items-end self-end bg-white border border-gray-200 rounded-lg p-4'
-              : 'items-start self-start bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-xs'
+              ? 'items-end self-end bg-gray-100 border border-gray-300 rounded-xl p-4 shadow-sm'
+              : 'items-start self-start bg-gray-50 border border-gray-300 rounded-xl p-4 max-w-xs shadow-sm'
           }`}
         >
           <div className="flex items-center gap-2 mb-1 w-full">
-            <span className="font-medium text-gray-900 text-left">
+            <span className="font-medium text-black text-left">
               {isUser ? 'You' : 'Assistant'}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-600">
               {new Date(message.timestamp).toLocaleTimeString()}
             </span>
           </div>
           <div className="prose prose-sm max-w-none w-full">
-            <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-left">
+            <p className="text-black leading-relaxed whitespace-pre-wrap text-left">
               {message.content}
             </p>
           </div>

@@ -15,6 +15,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     chats,
     currentChat,
     currentChatId,
+    isTyping,
     createChat,
     selectChat,
     sendMessage,
@@ -42,7 +43,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="flex h-screen bg-gray-100"
+      className="flex h-screen bg-white"
     >
       <Sidebar
         user={user}
@@ -57,6 +58,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
       <ChatArea
         chat={currentChat || null}
         onSendMessage={sendMessage}
+        isTyping={isTyping}
       />
       {isSearchOpen && (
         <SearchModal

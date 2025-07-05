@@ -47,20 +47,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       initial={{ x: -300 }}
       animate={{ x: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-80 bg-gray-900 h-screen flex flex-col border-r border-gray-800"
+      className="w-80 bg-white h-screen flex flex-col border-r border-gray-300"
     >
       {/* Header */}
-      <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-white font-medium text-sm">{user.name}</p>
-              <p className="text-gray-400 text-xs">{user.email}</p>
-            </div>
-          </div>
+      <div className="p-6 border-b border-gray-300">
+        <div className="flex items-center gap-3">
+          <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-10 h-10 rounded-lg" />
+          <h1 className="text-2xl font-bold text-black">Smart Spidy</h1>
         </div>
       </div>
 
@@ -70,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsCreatingChat(true)}
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+          className="w-full bg-black text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-all duration-200"
         >
           <Plus className="w-4 h-4" />
           New Chat
@@ -83,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="text"
           readOnly
           placeholder="Search chats, questions, answers..."
-          className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          className="w-full p-2 bg-gray-100 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 cursor-pointer"
           onFocus={onOpenSearch}
           onClick={onOpenSearch}
         />
@@ -102,10 +95,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   whileHover={{ scale: 1.02 }}
-                  className={`group relative p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                  className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
                     currentChatId === chat.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800'
+                      ? 'bg-black text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
                   }`}
                   onClick={() => onSelectChat(chat.id)}
                 >
@@ -143,16 +136,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-800 rounded-lg p-6 w-full max-w-sm"
+              className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg"
             >
-              <h3 className="text-white font-semibold mb-4">Create New Chat</h3>
+              <h3 className="text-black font-semibold mb-4">Create New Chat</h3>
               <form onSubmit={handleCreateChat}>
                 <input
                   type="text"
                   value={chatName}
                   onChange={(e) => setChatName(e.target.value)}
                   placeholder="Enter chat name"
-                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                  className="w-full p-3 bg-gray-100 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 mb-4"
                   autoFocus
                 />
                 <div className="flex gap-2">
@@ -162,13 +155,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setIsCreatingChat(false);
                       setChatName('');
                     }}
-                    className="flex-1 py-2 px-4 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
+                    className="flex-1 py-2 px-4 bg-gray-300 text-black rounded-xl hover:bg-gray-400 transition-colors duration-200"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    className="flex-1 py-2 px-4 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors duration-200"
                   >
                     Create
                   </button>
@@ -179,11 +172,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Logout Button at Bottom */}
-      <div className="p-4 border-t border-gray-800">
+      {/* User Info Above Logout */}
+      <div className="p-4 border-t border-gray-300">
+        <div className="flex items-center gap-3 mb-3 p-3 bg-gray-100 rounded-xl">
+          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+            <User className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p className="text-black font-medium text-sm">{user.name}</p>
+            <p className="text-gray-600 text-xs">{user.email}</p>
+          </div>
+        </div>
+        
+        {/* Logout Button */}
         <button
           onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-all duration-200"
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
         >
           <LogOut className="w-4 h-4" />
           Logout

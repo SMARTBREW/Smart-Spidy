@@ -42,8 +42,11 @@ export const storage = {
   },
 
   clear: () => {
+    console.log('Clearing storage...'); // Debug log
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
+      console.log(`Removed ${key} from localStorage`); // Debug log
     });
+    console.log('Storage cleared successfully'); // Debug log
   },
 };

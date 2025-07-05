@@ -74,25 +74,25 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
           initial={{ scale: 0.98, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.98, opacity: 0 }}
-          className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 relative"
+          className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 relative border border-gray-300"
           onClick={e => e.stopPropagation()}
         >
           <button
-            className="absolute top-1 right-1 text-gray-400 hover:text-black"
+            className="absolute top-1 right-1 text-gray-500 hover:text-black"
             onClick={onClose}
             title="Close"
           >
             <X className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 mb-4">
-            <Search className="w-5 h-5 text-gray-500" />
+            <Search className="w-5 h-5 text-gray-600" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search chats, questions, answers..."
-              className="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
             />
           </div>
           {query.trim() && results.length === 0 && (
@@ -102,15 +102,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
             {results.map(({ chat, matches }) => (
               <div
                 key={chat.id}
-                className={`bg-gray-100 rounded-lg p-4 border border-gray-200 cursor-pointer transition-shadow hover:shadow-lg active:shadow-inner ${currentChatId === chat.id ? 'ring-2 ring-blue-400' : ''}`}
+                className={`bg-gray-100 rounded-lg p-4 border border-gray-300 cursor-pointer transition-shadow hover:shadow-lg active:shadow-inner ${currentChatId === chat.id ? 'ring-2 ring-gray-400' : ''}`}
                 onClick={() => {
                   onSelectChat(chat.id);
                   onClose();
                 }}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="w-4 h-4 text-blue-500" />
-                  <div className={`font-semibold text-left ${currentChatId === chat.id ? 'text-blue-600' : 'text-gray-900'} hover:underline`}>
+                  <MessageSquare className="w-4 h-4 text-gray-600" />
+                  <div className={`font-semibold text-left ${currentChatId === chat.id ? 'text-black' : 'text-black'} hover:underline`}>
                     {chat.name}
                   </div>
                 </div>
@@ -119,16 +119,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
                     <li key={i} className="text-gray-700 text-sm">
                       {m.type === 'name' ? (
                         <>
-                          <span className="bg-blue-100 text-blue-700 px-1 rounded">Chat name match</span>{' '}
+                          <span className="bg-gray-200 text-black px-1 rounded">Chat name match</span>{' '}
                           <span className="break-words">{m.value}</span>
                         </>
                       ) : (
-                        <div className="bg-gray-50 rounded p-2 border border-gray-200 mb-1">
-                          <div className="text-xs text-gray-500 mb-1">Question:</div>
-                          <div className="mb-1 text-gray-900">{m.question}</div>
+                        <div className="bg-gray-50 rounded p-2 border border-gray-300 mb-1">
+                          <div className="text-xs text-gray-600 mb-1">Question:</div>
+                          <div className="mb-1 text-black">{m.question}</div>
                           {m.answer && <>
-                            <div className="text-xs text-gray-500 mb-1">Answer:</div>
-                            <div className="text-gray-800">{m.answer}</div>
+                            <div className="text-xs text-gray-600 mb-1">Answer:</div>
+                            <div className="text-black">{m.answer}</div>
                           </>}
                         </div>
                       )}

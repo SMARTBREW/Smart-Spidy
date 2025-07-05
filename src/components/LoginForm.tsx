@@ -40,20 +40,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
           className="w-full max-w-4xl bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
         >
           <div className="flex min-h-[600px]">
-            <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100">
-              <img 
-                src="/logo 2.jpeg" 
-                alt="Company Logo" 
-                className="w-full h-full object-cover object-center"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  console.log('Image failed to load. Make sure logo.jpeg is in your public folder.');
-                }}
-              />
-              <div className="absolute inset-0 bg-white bg-opacity-20"></div>
-              <div className="absolute bottom-8 left-8 text-gray-900">
-                <h2 className="text-2xl font-bold mb-2">SmartBrew</h2>
-                <p className="text-lg opacity-90">Smart Reply System</p>
+            <div className="flex-1 relative overflow-hidden bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <img 
+                  src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" 
+                  alt="Smart Spidy Logo" 
+                  className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+                />
+                <h2 className="text-3xl font-bold mb-2 text-black">Smart Spidy</h2>
+                <p className="text-lg text-gray-600">Professional AI Assistant</p>
               </div>
             </div>
 
@@ -65,8 +60,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                 className="w-full max-w-sm mx-auto"
               >
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to ChatApp</h1>
-                  <p className="text-gray-600">Sign in to start your conversations</p>
+                  <h1 className="text-3xl font-bold text-black mb-2">Welcome to Smart Spidy</h1>
+                  <p className="text-gray-600">Sign in to start your professional conversations</p>
                 </div>
 
                 <div className="space-y-6">
@@ -76,11 +71,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     transition={{ delay: 0.3 }}
                     className="space-y-2"
                   >
-                    <label htmlFor="email" className="block text-gray-700 text-sm font-medium">
+                    <label htmlFor="email" className="block text-black text-sm font-medium">
                       Email Address
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
                       <motion.input
                         whileFocus={{ scale: 1.01 }}
                         type="email"
@@ -88,7 +83,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                         name="email"
                         value={email}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-white focus:ring-blue-500 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
                         placeholder="Enter your email"
                         required
                       />
@@ -101,11 +96,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     transition={{ delay: 0.4 }}
                     className="space-y-2"
                   >
-                    <label htmlFor="password" className="block text-gray-700 text-sm font-medium">
+                    <label htmlFor="password" className="block text-black text-sm font-medium">
                       Password
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
                       <motion.input
                         whileFocus={{ scale: 1.01 }}
                         type={showPassword ? 'text' : 'password'}
@@ -113,14 +108,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                         name="password"
                         value={password}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-12 py-3 border border-gray-300 bg-white focus:ring-blue-500 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
+                        className="w-full pl-10 pr-12 py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
                         placeholder="Enter your password"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                       >
                         {showPassword ? (
                           <EyeOff className="w-5 h-5" />
@@ -133,11 +128,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
                   <div className="flex items-center justify-between">
                     <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                      />
-                      <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                                          <input
+                      type="checkbox"
+                      className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-gray-500 focus:ring-2"
+                    />
+                    <span className="ml-2 text-sm text-gray-600">Remember me</span>
                     </label>
                   </div>
 
@@ -149,7 +144,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     onClick={handleSubmit}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full bg-black text-white py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
                     Sign In
                     <ArrowRight className="w-5 h-5" />
