@@ -128,7 +128,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
                 <div className="flex flex-row gap-4 max-w-xl">
                   <div className="flex flex-col items-start self-start bg-gray-50 border border-gray-300 rounded-xl p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-1 w-full">
-                      <span className="font-medium text-black text-left">Assistant</span>
+                      <span className="font-medium text-black text-left">Smart Spidy</span>
                       <span className="text-xs text-gray-600">typing...</span>
                     </div>
                     <div className="flex items-center gap-1">

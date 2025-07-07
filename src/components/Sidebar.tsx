@@ -285,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       whileHover={{ scale: 1.02, x: 4 }}
                       className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
                         currentChatId === chat.id
-                          ? 'bg-black text-white'
+                          ? 'bg-gray-100 text-black'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                       onClick={() => onSelectChat(chat.id)}
@@ -305,7 +305,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <p className="font-medium truncate">{chat.name}</p>
                           {chat.pinned && (
                             <Pin
-                              className={`w-4 h-4 ml-1 ${currentChatId === chat.id ? 'text-white' : 'text-yellow-600'}`}
+                              className={`w-4 h-4 ml-1 ${currentChatId === chat.id ? 'text-black' : 'text-yellow-600'}`}
                             />
                           )}
                         </div>
