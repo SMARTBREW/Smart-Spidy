@@ -64,6 +64,8 @@ export const useChat = () => {
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      pinned: false,
+      status: null,
     };
 
     setState(prev => {
@@ -98,6 +100,8 @@ export const useChat = () => {
           messages: [],
           createdAt: new Date(),
           updatedAt: new Date(),
+          pinned: false,
+          status: null,
         };
 
         const userMessage: Message = {
@@ -259,6 +263,28 @@ export const useChat = () => {
     });
   }, []);
 
+  // Pin or unpin a chat
+  const pinChat = useCallback((chatId: string, pinned: boolean) => {
+    setState(prev => {
+      const updatedChats = prev.chats.map(chat =>
+        chat.id === chatId ? { ...chat, pinned } : chat
+      );
+      storage.setChats(updatedChats);
+      return { ...prev, chats: updatedChats };
+    });
+  }, []);
+
+  // Set chat status (color dot)
+  const setChatStatus = useCallback((chatId: string, status: 'green' | 'yellow' | 'red' | null) => {
+    setState(prev => {
+      const updatedChats = prev.chats.map(chat =>
+        chat.id === chatId ? { ...chat, status } : chat
+      );
+      storage.setChats(updatedChats);
+      return { ...prev, chats: updatedChats };
+    });
+  }, []);
+
   const currentChat = state.chats.find(chat => chat.id === state.currentChatId);
 
   return {
@@ -271,5 +297,7 @@ export const useChat = () => {
     selectChat,
     sendMessage,
     deleteChat,
+    pinChat,
+    setChatStatus,
   };
 };

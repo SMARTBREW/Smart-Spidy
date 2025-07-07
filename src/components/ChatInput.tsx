@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Paperclip } from 'lucide-react';
+import { Send, Paperclip, Mic } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => Promise<void> | void;
@@ -9,6 +9,44 @@ interface ChatInputProps {
 
 export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled }) => {
   const [message, setMessage] = useState('');
+  const [listening, setListening] = useState(false);
+
+  // Voice recognition logic
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    setListening(true);
+    recognition.start();
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setMessage((prev) => prev ? prev + ' ' + transcript : transcript);
+    };
+    recognition.onerror = () => {
+      setListening(false);
+    };
+    recognition.onend = () => {
+      setListening(false);
+    };
+  };
+
+  // File upload handler (images only)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setMessage((prev) => prev ? prev + ' [Image attached: ' + file.name + ']' : '[Image attached: ' + file.name + ']');
+      // You can add logic here to actually upload or process the image as needed
+    } else if (file) {
+      alert('Only image files are allowed.');
+    }
+    e.target.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,10 +84,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
               />
               <button
                 type="button"
-                className="absolute right-2 top-2 p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                className="absolute right-10 top-2 p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                tabIndex={-1}
+                onClick={handleVoiceInput}
+                aria-label="Start voice input"
+                title="Start voice input"
+                disabled={disabled || listening}
               >
-                <Paperclip className="w-4 h-4" />
+                <Mic className={`w-4 h-4 ${listening ? 'animate-pulse text-blue-500' : ''}`} />
               </button>
+              <label className="absolute right-2 top-2 p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200 cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                  disabled={disabled}
+                />
+                <Paperclip className="w-4 h-4" />
+              </label>
             </div>
           </div>
           <motion.button

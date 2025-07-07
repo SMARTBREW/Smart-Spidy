@@ -1,8 +1,30 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, User, LogOut, Trash2, X } from 'lucide-react';
-import { Chat, User as UserType } from '../types';
+import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical } from 'lucide-react';
 
+// TypeScript type definitions
+interface Chat {
+  id: string;
+  name: string;
+  messages: Array<{
+    id: string;
+    content: string;
+    timestamp: Date;
+    sender: 'user' | 'assistant';
+  }>;
+  createdAt: Date;
+  pinned: boolean;
+  status: 'green' | 'yellow' | 'red' | null;
+}
+
+interface UserType {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+// Props interface with detailed TypeScript typing
 interface SidebarProps {
   user: UserType;
   chats: Chat[];
@@ -13,6 +35,18 @@ interface SidebarProps {
   onLogout: () => void;
   onOpenSearch?: () => void;
   onClose?: () => void;
+  isCreatingChat: boolean;
+  setIsCreatingChat: React.Dispatch<React.SetStateAction<boolean>>;
+  onPinChat: (chatId: string, pinned: boolean) => void;
+  onSetChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | null) => void;
+}
+
+// Animation transition types
+interface TransitionConfig {
+  type: "spring";
+  stiffness: number;
+  damping: number;
+  mass: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -25,12 +59,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onOpenSearch,
   onClose,
+  isCreatingChat,
+  setIsCreatingChat,
+  onPinChat,
+  onSetChatStatus,
 }) => {
-  const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const [chatName, setChatName] = useState('');
-  const [search, setSearch] = useState('');
+  // State with explicit TypeScript types
+  const [chatName, setChatName] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
 
-  const handleCreateChat = (e: React.FormEvent) => {
+  // Event handlers with proper TypeScript typing
+  const handleCreateChat = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     if (chatName.trim()) {
       onCreateChat(chatName.trim());
@@ -39,143 +80,412 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleDeleteChat = (e: React.MouseEvent, chatId: string) => {
+  const handleDeleteChat = (e: React.MouseEvent<HTMLButtonElement>, chatId: string): void => {
     e.stopPropagation();
     onDeleteChat(chatId);
   };
 
+  const toggleSidebar = (): void => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  const expandSidebar = (): void => {
+    if (isCollapsed) {
+      setIsCollapsed(false);
+    }
+  };
+
+  // Smooth transition configuration with proper typing
+  const sidebarTransition: TransitionConfig = {
+    type: "spring",
+    stiffness: 300,
+    damping: 30,
+    mass: 0.8
+  };
+
+  const contentTransition: TransitionConfig = {
+    type: "spring",
+    stiffness: 400,
+    damping: 35,
+    mass: 0.6
+  };
+
+  // Split chats into pinned and others
+  const pinnedChats = chats.filter(chat => chat.pinned);
+  const otherChats = chats.filter(chat => !chat.pinned);
+
+  // Context menu handler
+  const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, chatId });
+  };
+  const closeContextMenu = () => setContextMenu(null);
+
   return (
     <motion.div
-      initial={{ x: -320 }}
-      animate={{ x: 0 }}
-      exit={{ x: -320 }}
-      transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 30 }}
-      className="w-80 bg-white h-screen flex flex-col border-r border-gray-300 shadow-lg"
+      initial={false}
+      animate={{ 
+        width: isCollapsed ? 72 : 320,
+      }}
+      transition={sidebarTransition}
+      className={`h-screen flex flex-col border-r border-gray-300 shadow-lg bg-white relative z-20 overflow-hidden`}
+      style={{ minWidth: 72, maxWidth: 400 }}
     >
-      {/* Header */}
-      <div className="p-6 border-b border-gray-300">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-10 h-10 rounded-lg" />
-            <h1 className="text-2xl font-bold text-black">Smart Spidy</h1>
-          </div>
-          {onClose && (
-            <button
-              onClick={onClose}
+      {/* Header Section */}
+      <div className={`flex flex-col items-center w-full transition-all duration-300 ${
+        isCollapsed ? 'py-4 min-h-[160px]' : 'p-6 border-b border-gray-300 min-h-[120px]'
+      }`}>
+        {isCollapsed ? (
+          // Collapsed Header
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={contentTransition}
+            className="flex flex-col items-center w-full"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={expandSidebar}
+              className="w-10 h-10 flex items-center justify-center mb-4 transition-all duration-200"
+              title="Expand Sidebar"
+            >
+              <img 
+                src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" 
+                alt="Smart Spidy" 
+                className="w-10 h-10 rounded-lg"
+              />
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (isCollapsed) {
+                  expandSidebar();
+                  setTimeout(() => setIsCreatingChat(true), 300);
+                } else {
+                  setIsCreatingChat(true);
+                }
+              }}
+              className="w-10 h-10 flex items-center justify-center mb-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200"
+              title="New Chat"
+            >
+              <Plus className="w-6 h-6" />
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                expandSidebar();
+                if (onOpenSearch) onOpenSearch();
+              }}
+              className="w-10 h-10 flex items-center justify-center mb-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200"
+              title="Search"
+            >
+              <Search className="w-6 h-6" />
+            </motion.button>
+          </motion.div>
+        ) : (
+          // Expanded Header
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, x: 0 }}
+            transition={contentTransition}
+            className="flex items-center justify-between w-full"
+          >
+            <div className="flex items-center gap-3">
+              <img 
+                src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" 
+                alt="Smart Spidy" 
+                className="w-10 h-10 rounded-lg"
+              />
+              <motion.h1 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ ...contentTransition, delay: 0.1 }}
+                className="text-2xl font-bold text-black"
+              >
+                Smart Spidy
+              </motion.h1>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05, rotate: 90 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleSidebar}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              aria-label="Close sidebar"
+              aria-label="Collapse sidebar"
             >
               <X className="w-5 h-5 text-gray-700" />
-            </button>
-          )}
-        </div>
+            </motion.button>
+          </motion.div>
+        )}
       </div>
 
-      {/* New Chat Button */}
-      <div className="p-4">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setIsCreatingChat(true)}
-          className="w-full bg-black text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-all duration-200"
-        >
-          <Plus className="w-4 h-4" />
-          New Chat
-        </motion.button>
-      </div>
-
-      {/* Search Input */}
-      <div className="px-4 pb-2">
-        <input
-          type="text"
-          readOnly
-          placeholder="Search chats, questions, answers..."
-          className="w-full p-2 bg-gray-100 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 cursor-pointer"
-          onFocus={onOpenSearch}
-          onClick={onOpenSearch}
-        />
-      </div>
+      {/* New Chat Button and Search Input */}
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={contentTransition}
+            className="w-full"
+          >
+            <div className="p-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsCreatingChat(true)}
+                className="w-full bg-black text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-all duration-200"
+              >
+                <Plus className="w-4 h-4" />
+                New Chat
+              </motion.button>
+            </div>
+            <div className="px-4 pb-2">
+              <motion.input
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...contentTransition, delay: 0.1 }}
+                type="text"
+                readOnly
+                placeholder="Search chats, questions, answers..."
+                className="w-full p-2 bg-gray-100 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 cursor-pointer"
+                onFocus={onOpenSearch}
+                onClick={onOpenSearch}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-2">
-          <AnimatePresence>
-            {chats
-              .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
-              .map((chat) => (
-                <motion.div
-                  key={chat.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  whileHover={{ scale: 1.02 }}
-                  className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-                    currentChatId === chat.id
-                      ? 'bg-black text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                  onClick={() => onSelectChat(chat.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{chat.name}</p>
-                      <p className="text-xs opacity-70 truncate">
-                        {chat.messages.length} messages
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeleteChat(e, chat.id)}
-                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all duration-200 p-1"
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={contentTransition}
+            className="flex-1 overflow-y-auto"
+          >
+            <div className="p-4 space-y-2">
+              <AnimatePresence>
+                {[...pinnedChats, ...otherChats]
+                  .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
+                  .map((chat, index) => (
+                    <motion.div
+                      key={chat.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ ...contentTransition, delay: index * 0.05 }}
+                      whileHover={{ scale: 1.02, x: 4 }}
+                      className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                        currentChatId === chat.id
+                          ? 'bg-black text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      onClick={() => onSelectChat(chat.id)}
+                      onContextMenu={e => handleContextMenu(e, chat.id)}
                     >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                      <div className="flex items-center gap-3">
+                        {/* Color dot */}
+                        {chat.status && (
+                          <span
+                            className={`w-3 h-3 rounded-full border border-gray-300 ${
+                              chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
+                            }`}
+                          />
+                        )}
+                        <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                        <div className="flex-1 min-w-0 flex items-center gap-1">
+                          <p className="font-medium truncate">{chat.name}</p>
+                          {chat.pinned && (
+                            <Pin
+                              className={`w-4 h-4 ml-1 ${currentChatId === chat.id ? 'text-white' : 'text-yellow-600'}`}
+                            />
+                          )}
+                        </div>
+                        <motion.button
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          whileHover={{ opacity: 1, scale: 1 }}
+                          onClick={e => handleDeleteChat(e, chat.id)}
+                          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all duration-200 p-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </motion.button>
+                        <button
+                          className="ml-2 p-1 rounded hover:bg-gray-200"
+                          onClick={e => { e.stopPropagation(); handleContextMenu(e, chat.id); }}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+              </AnimatePresence>
+            </div>
+            {/* Context Menu */}
+            {contextMenu && (
+              <div
+                className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 px-3"
+                style={{ top: contextMenu.y, left: contextMenu.x }}
+                onMouseLeave={closeContextMenu}
+              >
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
+                  onClick={() => { onPinChat(contextMenu.chatId, true); closeContextMenu(); }}
+                >Pin Chat</button>
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
+                  onClick={() => { onPinChat(contextMenu.chatId, false); closeContextMenu(); }}
+                >Unpin Chat</button>
+                <div className="border-t my-1" />
+                <div className="text-xs text-gray-500 px-2 py-1">Set Status</div>
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-green-100 rounded"
+                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'green'); closeContextMenu(); }}
+                >Green (Healthy)</button>
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-yellow-100 rounded"
+                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'yellow'); closeContextMenu(); }}
+                >Yellow (50-50)</button>
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-red-100 rounded"
+                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'red'); closeContextMenu(); }}
+                >Red (Low chance)</button>
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
+                  onClick={() => { onSetChatStatus(contextMenu.chatId, null); closeContextMenu(); }}
+                >Clear Status</button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom Profile Section */}
+      <div className="w-full mt-auto">
+        {isCollapsed ? (
+          // Collapsed Profile
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={contentTransition}
+            className="flex flex-col items-center mb-4 w-full"
+          >
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="w-10 h-10 bg-black rounded-lg flex items-center justify-center mb-2"
+              title={user.name}
+            >
+              <User className="w-5 h-5 text-white" />
+            </motion.div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onLogout}
+              className="w-10 h-10 flex items-center justify-center bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </motion.button>
+          </motion.div>
+        ) : (
+          // Expanded Profile
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={contentTransition}
+              className="p-4 border-t border-gray-300"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...contentTransition, delay: 0.1 }}
+                className="flex items-center gap-3 mb-3 p-3 bg-gray-100 rounded-xl"
+              >
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-black font-medium text-sm">{user.name}</p>
+                  <p className="text-gray-600 text-xs">{user.email}</p>
+                </div>
+              </motion.div>
+              <motion.button
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...contentTransition, delay: 0.15 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </motion.button>
+            </motion.div>
           </AnimatePresence>
-        </div>
+        )}
       </div>
 
-      {/* Create Chat Modal */}
+      {/* Modal for Creating New Chat */}
       <AnimatePresence>
         {isCreatingChat && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 flex items-center justify-center p-4"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+            onClick={() => setIsCreatingChat(false)}
+            aria-modal="true"
+            role="dialog"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg"
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative"
+              onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-black font-semibold mb-4">Create New Chat</h3>
-              <form onSubmit={handleCreateChat}>
+              <button
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                onClick={() => setIsCreatingChat(false)}
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold mb-4 text-black">Create New Chat</h2>
+              <form onSubmit={handleCreateChat} className="flex flex-col gap-4">
                 <input
                   type="text"
                   value={chatName}
-                  onChange={(e) => setChatName(e.target.value)}
-                  placeholder="Enter chat name"
-                  className="w-full p-3 bg-gray-100 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 mb-4"
+                  onChange={e => setChatName(e.target.value)}
+                  placeholder="Enter chat name..."
+                  className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
                   autoFocus
+                  maxLength={50}
+                  required
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 justify-end">
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsCreatingChat(false);
-                      setChatName('');
-                    }}
-                    className="flex-1 py-2 px-4 bg-gray-300 text-black rounded-xl hover:bg-gray-400 transition-colors duration-200"
+                    className="px-4 py-2 rounded-xl bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all"
+                    onClick={() => setIsCreatingChat(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2 px-4 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors duration-200"
+                    className="px-4 py-2 rounded-xl bg-black text-white font-medium hover:bg-gray-800 transition-all"
                   >
                     Create
                   </button>
@@ -185,28 +495,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* User Info Above Logout */}
-      <div className="p-4 border-t border-gray-300">
-        <div className="flex items-center gap-3 mb-3 p-3 bg-gray-100 rounded-xl">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p className="text-black font-medium text-sm">{user.name}</p>
-            <p className="text-gray-600 text-xs">{user.email}</p>
-          </div>
-        </div>
-        
-        {/* Logout Button */}
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
-        >
-          <LogOut className="w-4 h-4" />
-          Logout
-        </button>
-      </div>
     </motion.div>
   );
 };

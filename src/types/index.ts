@@ -17,6 +17,8 @@ export interface Chat {
   messages: Message[];
   createdAt: Date;
   updatedAt: Date;
+  pinned: boolean;
+  status: 'green' | 'yellow' | 'red' | null;
 }
 
 export interface AppState {

@@ -21,6 +21,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     sendMessage,
     deleteChat,
     logout,
+    pinChat,
+    setChatStatus,
   } = useChat();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -39,6 +41,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
       return newState;
     });
   }, []);
+
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -75,6 +79,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
             onLogout={logout}
             onOpenSearch={openSearch}
             onClose={() => setIsSidebarOpen(false)}
+            isCreatingChat={isCreatingChat}
+            setIsCreatingChat={setIsCreatingChat}
+            onPinChat={pinChat}
+            onSetChatStatus={setChatStatus}
           />
         )}
       </AnimatePresence>
@@ -84,6 +92,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         isTyping={isTyping}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
+        isCreatingChat={isCreatingChat}
       />
       {isSearchOpen && (
         <SearchModal
