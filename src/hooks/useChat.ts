@@ -66,6 +66,7 @@ export const useChat = () => {
       updatedAt: new Date(),
       pinned: false,
       status: null,
+      pinnedAt: null,
     };
 
     setState(prev => {
@@ -102,6 +103,7 @@ export const useChat = () => {
           updatedAt: new Date(),
           pinned: false,
           status: null,
+          pinnedAt: null,
         };
 
         const userMessage: Message = {
@@ -267,7 +269,9 @@ export const useChat = () => {
   const pinChat = useCallback((chatId: string, pinned: boolean) => {
     setState(prev => {
       const updatedChats = prev.chats.map(chat =>
-        chat.id === chatId ? { ...chat, pinned } : chat
+        chat.id === chatId
+          ? { ...chat, pinned, pinnedAt: pinned ? new Date() : null }
+          : chat
       );
       storage.setChats(updatedChats);
       return { ...prev, chats: updatedChats };
@@ -275,7 +279,7 @@ export const useChat = () => {
   }, []);
 
   // Set chat status (color dot)
-  const setChatStatus = useCallback((chatId: string, status: 'green' | 'yellow' | 'red' | null) => {
+  const setChatStatus = useCallback((chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => {
     setState(prev => {
       const updatedChats = prev.chats.map(chat =>
         chat.id === chatId ? { ...chat, status } : chat

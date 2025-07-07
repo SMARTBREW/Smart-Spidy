@@ -18,7 +18,8 @@ export interface Chat {
   createdAt: Date;
   updatedAt: Date;
   pinned: boolean;
-  status: 'green' | 'yellow' | 'red' | null;
+  pinnedAt: Date | null;
+  status: 'green' | 'yellow' | 'red' | 'gold' | null;
 }
 
 export interface AppState {

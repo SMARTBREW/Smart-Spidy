@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical } from 'lucide-react';
+import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star } from 'lucide-react';
 
 // TypeScript type definitions
 interface Chat {
@@ -14,7 +14,8 @@ interface Chat {
   }>;
   createdAt: Date;
   pinned: boolean;
-  status: 'green' | 'yellow' | 'red' | null;
+  pinnedAt: Date | null;
+  status: 'green' | 'yellow' | 'red' | 'gold' | null;
 }
 
 interface UserType {
@@ -38,7 +39,7 @@ interface SidebarProps {
   isCreatingChat: boolean;
   setIsCreatingChat: React.Dispatch<React.SetStateAction<boolean>>;
   onPinChat: (chatId: string, pinned: boolean) => void;
-  onSetChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | null) => void;
+  onSetChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => void;
 }
 
 // Animation transition types
@@ -66,6 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   // State with explicit TypeScript types
   const [chatName, setChatName] = useState<string>('');
+  const [instagramUsername, setInstagramUsername] = useState<string>('');
+  const [gender, setGender] = useState<string>('');
   const [search, setSearch] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
@@ -74,8 +77,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleCreateChat = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     if (chatName.trim()) {
+      // For now, just log the new fields
+      console.log('Creating chat with:', { chatName, instagramUsername, gender });
       onCreateChat(chatName.trim());
       setChatName('');
+      setInstagramUsername('');
+      setGender('');
       setIsCreatingChat(false);
     }
   };
@@ -111,7 +118,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // Split chats into pinned and others
-  const pinnedChats = chats.filter(chat => chat.pinned);
+  const pinnedChats = chats
+    .filter(chat => chat.pinned)
+    .sort((a, b) => {
+      if (!a.pinnedAt && !b.pinnedAt) return 0;
+      if (!a.pinnedAt) return 1;
+      if (!b.pinnedAt) return -1;
+      return new Date(b.pinnedAt).getTime() - new Date(a.pinnedAt).getTime();
+    });
   const otherChats = chats.filter(chat => !chat.pinned);
 
   // Context menu handler
@@ -292,14 +306,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onContextMenu={e => handleContextMenu(e, chat.id)}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Color dot */}
-                        {chat.status && (
+                        {/* Color dot or golden star */}
+                        {chat.status === 'gold' ? (
+                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                        ) : chat.status ? (
                           <span
                             className={`w-3 h-3 rounded-full border border-gray-300 ${
                               chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
                             }`}
                           />
-                        )}
+                        ) : null}
                         <MessageSquare className="w-4 h-4 flex-shrink-0" />
                         <div className="flex-1 min-w-0 flex items-center gap-1">
                           <p className="font-medium truncate">{chat.name}</p>
@@ -357,6 +373,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className="block w-full text-left px-2 py-1 hover:bg-red-100 rounded"
                   onClick={() => { onSetChatStatus(contextMenu.chatId, 'red'); closeContextMenu(); }}
                 >Red (Low chance)</button>
+                <button
+                  className="block w-full text-left px-2 py-1 hover:bg-yellow-100 rounded flex items-center gap-2"
+                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'gold'); closeContextMenu(); }}
+                ><Star className="w-4 h-4 text-yellow-400 fill-yellow-400" /> Fundraiser Done</button>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
                   onClick={() => { onSetChatStatus(contextMenu.chatId, null); closeContextMenu(); }}
@@ -475,6 +495,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   maxLength={50}
                   required
                 />
+                <input
+                  type="text"
+                  value={instagramUsername}
+                  onChange={e => setInstagramUsername(e.target.value)}
+                  placeholder="Instagram username"
+                  className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  maxLength={50}
+                />
+                <select
+                  value={gender}
+                  onChange={e => setGender(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  required
+                >
+                  <option value="" disabled>Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
                 <div className="flex gap-2 justify-end">
                   <button
                     type="button"
