@@ -39,6 +39,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
     );
   } else {
     // Assistant message - no box, starts from left edge, extends to full width
+    const formattedContent = message.content.replace(/\*\*(.*?)\*\*/g, '"$1"');
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -55,7 +56,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
           </div>
           <div className="prose prose-sm max-w-none">
             <p className="text-black leading-relaxed whitespace-pre-wrap break-words">
-              {message.content}
+              {formattedContent}
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Menu, X } from 'lucide-react';
 import { Chat } from '../types';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -9,9 +9,11 @@ interface ChatAreaProps {
   chat: Chat | null;
   onSendMessage: (message: string) => void;
   isTyping?: boolean;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,12 +22,29 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
 
   if (!chat) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-2xl w-full px-4"
-        >
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Header with toggle button */}
+        <div className="bg-white border-b border-gray-300 p-4">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 group relative"
+            aria-label="Toggle sidebar"
+            title="Toggle sidebar (Cmd/Ctrl + B)"
+          >
+            {isSidebarOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+              {isSidebarOpen ? 'Close sidebar' : 'Open sidebar'} (⌘B)
+            </span>
+          </button>
+        </div>
+        
+        {/* Welcome content */}
+        <div className="flex-1 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center max-w-2xl w-full px-4"
+          >
           <div className="w-20 h-20 flex items-center justify-center mx-auto mb-6">
             <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-20 h-20 rounded-xl shadow-lg" />
           </div>
@@ -38,10 +57,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
           <p className="text-gray-500 mb-8 text-sm">
             Create a new chat or select an existing one to start your conversation
           </p>
-          <div className="w-full max-w-3xl mx-auto">
-            <ChatInput onSendMessage={onSendMessage} />
-          </div>
-        </motion.div>
+            <div className="w-full max-w-3xl mx-auto">
+              <ChatInput onSendMessage={onSendMessage} />
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -49,11 +69,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
   return (
     <div className="flex-1 flex flex-col bg-white">
       {/* Chat Header */}
-      <div className="bg-white border-b border-gray-300 p-4">
-        <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
-        <p className="text-sm text-gray-600 text-left">
-          {chat.messages.length} messages • Last updated {new Date(chat.updatedAt).toLocaleString()}
-        </p>
+      <div className="bg-white border-b border-gray-300 p-4 flex items-center gap-4">
+        <button
+          onClick={onToggleSidebar}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 group relative"
+          aria-label="Toggle sidebar"
+          title="Toggle sidebar (Cmd/Ctrl + B)"
+        >
+          {isSidebarOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+            {isSidebarOpen ? 'Close sidebar' : 'Open sidebar'} (⌘B)
+          </span>
+        </button>
+        <div className="flex-1">
+          <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
+        </div>
       </div>
 
       {/* Messages */}

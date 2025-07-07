@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, User, LogOut, Trash2 } from 'lucide-react';
+import { Plus, MessageSquare, User, LogOut, Trash2, X } from 'lucide-react';
 import { Chat, User as UserType } from '../types';
 
 interface SidebarProps {
@@ -12,6 +12,7 @@ interface SidebarProps {
   onDeleteChat: (chatId: string) => void;
   onLogout: () => void;
   onOpenSearch?: () => void;
+  onClose?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -23,6 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteChat,
   onLogout,
   onOpenSearch,
+  onClose,
 }) => {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [chatName, setChatName] = useState('');
@@ -44,16 +46,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <motion.div
-      initial={{ x: -300 }}
+      initial={{ x: -320 }}
       animate={{ x: 0 }}
-      transition={{ duration: 0.3 }}
-      className="w-80 bg-white h-screen flex flex-col border-r border-gray-300"
+      exit={{ x: -320 }}
+      transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 30 }}
+      className="w-80 bg-white h-screen flex flex-col border-r border-gray-300 shadow-lg"
     >
       {/* Header */}
       <div className="p-6 border-b border-gray-300">
-        <div className="flex items-center gap-3">
-          <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-10 h-10 rounded-lg" />
-          <h1 className="text-2xl font-bold text-black">Smart Spidy</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-10 h-10 rounded-lg" />
+            <h1 className="text-2xl font-bold text-black">Smart Spidy</h1>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5 text-gray-700" />
+            </button>
+          )}
         </div>
       </div>
 

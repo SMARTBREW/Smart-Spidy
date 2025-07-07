@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../types';
 import { Sidebar } from './Sidebar';
 import { ChatArea } from './ChatArea';
@@ -24,8 +24,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   } = useChat();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebar-open');
+    return saved !== null ? saved === 'true' : true;
+  });
+  
   const openSearch = useCallback(() => setIsSearchOpen(true), []);
   const closeSearch = useCallback(() => setIsSearchOpen(false), []);
+  
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => {
+      const newState = !prev;
+      localStorage.setItem('sidebar-open', String(newState));
+      return newState;
+    });
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -33,10 +46,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         e.preventDefault();
         setIsSearchOpen(true);
       }
+      // Toggle sidebar with Cmd/Ctrl + B
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggleSidebar]);
 
   return (
     <motion.div
@@ -45,20 +63,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
       transition={{ duration: 0.3 }}
       className="flex h-screen bg-white"
     >
-      <Sidebar
-        user={user}
-        chats={chats}
-        currentChatId={currentChatId}
-        onSelectChat={selectChat}
-        onCreateChat={createChat}
-        onDeleteChat={deleteChat}
-        onLogout={logout}
-        onOpenSearch={openSearch}
-      />
+      <AnimatePresence mode="wait">
+        {isSidebarOpen && (
+          <Sidebar
+            user={user}
+            chats={chats}
+            currentChatId={currentChatId}
+            onSelectChat={selectChat}
+            onCreateChat={createChat}
+            onDeleteChat={deleteChat}
+            onLogout={logout}
+            onOpenSearch={openSearch}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
       <ChatArea
         chat={currentChat || null}
         onSendMessage={sendMessage}
         isTyping={isTyping}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={toggleSidebar}
       />
       {isSearchOpen && (
         <SearchModal

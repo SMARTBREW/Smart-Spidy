@@ -44,7 +44,7 @@ class GeminiService {
           `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
         ).join('\n');
         
-        prompt = `Previous conversation:\n${conversation}\n\nUser: ${newMessage}\n\nPlease respond as a helpful AI assistant:`;
+        prompt = `Previous conversation:\n${conversation}\n\nUser: ${newMessage}\n\nPlease respond as a helpful AI assistant. When emphasizing a word, use double quotes ("word") instead of markdown's bold ( **word** ).`;
       }
       
       const result = await this.model.generateContent(prompt);
