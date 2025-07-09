@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star } from 'lucide-react';
+import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star, Shield, Settings } from 'lucide-react';
 
 // TypeScript type definitions
 interface Chat {
@@ -18,11 +19,14 @@ interface Chat {
   status: 'green' | 'yellow' | 'red' | 'gold' | null;
 }
 
+type UserRole = 'admin' | 'user';
+
 interface UserType {
   id: string;
   name: string;
   email: string;
   avatar?: string;
+  role?: UserRole;
 }
 
 // Props interface with detailed TypeScript typing
@@ -65,6 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onPinChat,
   onSetChatStatus,
 }) => {
+  const navigate = useNavigate();
+  
   // State with explicit TypeScript types
   const [chatName, setChatName] = useState<string>('');
   const [instagramUsername, setInstagramUsername] = useState<string>('');
@@ -72,6 +78,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [search, setSearch] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
+
+  // Check if user is admin
+  const isAdmin = user.role === 'admin';
 
   // Event handlers with proper TypeScript typing
   const handleCreateChat = (e: React.FormEvent<HTMLFormElement>): void => {
@@ -100,6 +109,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (isCollapsed) {
       setIsCollapsed(false);
     }
+  };
+
+  const handleAdminPanelClick = (): void => {
+    navigate('/admin');
   };
 
   // Smooth transition configuration with proper typing
@@ -198,8 +211,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="w-10 h-10 flex items-center justify-center mb-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200"
               title="Search"
             >
-              <Search className="w-6 h-6" />
+              <Search className="w-5 h-5" />
             </motion.button>
+
+            {/* Admin Panel Button - Collapsed */}
+            {isAdmin && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAdminPanelClick}
+                className="w-10 h-10 flex items-center justify-center mb-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200"
+                title="Admin Panel"
+              >
+                <Shield className="w-5 h-5" />
+              </motion.button>
+            )}
           </motion.div>
         ) : (
           // Expanded Header
@@ -258,6 +284,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 New Chat
               </motion.button>
             </div>
+            
+            {/* Admin Panel Button - Expanded */}
+            {isAdmin && (
+              <div className="px-4 pb-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAdminPanelClick}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin Panel
+                </motion.button>
+              </div>
+            )}
+            
             <div className="px-4 pb-2">
               <motion.input
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -287,61 +329,143 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="p-4 space-y-2">
               <AnimatePresence>
-                {[...pinnedChats, ...otherChats]
-                  .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
-                  .map((chat, index) => (
-                    <motion.div
-                      key={chat.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ ...contentTransition, delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, x: 4 }}
-                      className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-                        currentChatId === chat.id
-                          ? 'bg-gray-100 text-black'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                      onClick={() => onSelectChat(chat.id)}
-                      onContextMenu={e => handleContextMenu(e, chat.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Color dot or golden star */}
-                        {chat.status === 'gold' ? (
-                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                        ) : chat.status ? (
-                          <span
-                            className={`w-3 h-3 rounded-full border border-gray-300 ${
-                              chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
-                            }`}
-                          />
-                        ) : null}
-                        <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                        <div className="flex-1 min-w-0 flex items-center gap-1">
-                          <p className="font-medium truncate">{chat.name}</p>
-                          {chat.pinned && (
-                            <Pin
-                              className={`w-4 h-4 ml-1 ${currentChatId === chat.id ? 'text-black' : 'text-yellow-600'}`}
-                            />
-                          )}
-                        </div>
-                        <motion.button
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          whileHover={{ opacity: 1, scale: 1 }}
-                          onClick={e => handleDeleteChat(e, chat.id)}
-                          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all duration-200 p-1"
+                {/* Pinned Chats */}
+                {pinnedChats.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 font-medium mb-2 px-2">
+                      <Pin className="w-3 h-3" />
+                      PINNED
+                    </div>
+                    {pinnedChats
+                      .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
+                      .map((chat, index) => (
+                        <motion.div
+                          key={chat.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ ...contentTransition, delay: index * 0.05 }}
+                          whileHover={{ scale: 1.02, x: 4 }}
+                          className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                            currentChatId === chat.id
+                              ? 'bg-gray-100 text-black'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                          onClick={() => onSelectChat(chat.id)}
+                          onContextMenu={e => handleContextMenu(e, chat.id)}
                         >
-                          <Trash2 className="w-3 h-3" />
-                        </motion.button>
-                        <button
-                          className="ml-2 p-1 rounded hover:bg-gray-200"
-                          onClick={e => { e.stopPropagation(); handleContextMenu(e, chat.id); }}
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
+                          <div className="flex items-center gap-3">
+                            {/* Color dot or golden star */}
+                            {chat.status === 'gold' ? (
+                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                            ) : chat.status ? (
+                              <span
+                                className={`w-3 h-3 rounded-full border border-gray-300 ${
+                                  chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
+                                }`}
+                              />
+                            ) : null}
+                            <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                            <div className="flex-1 min-w-0 flex items-center gap-1">
+                              <p className="font-medium truncate">{chat.name}</p>
+                              <Pin
+                                className={`w-4 h-4 ml-1 ${currentChatId === chat.id ? 'text-black' : 'text-yellow-600'}`}
+                              />
+                            </div>
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              whileHover={{ opacity: 1, scale: 1 }}
+                              onClick={e => handleDeleteChat(e, chat.id)}
+                              className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all duration-200 p-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </motion.button>
+                            <button
+                              className="ml-2 p-1 rounded hover:bg-gray-200"
+                              onClick={e => { e.stopPropagation(); handleContextMenu(e, chat.id); }}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                  </div>
+                )}
+
+                {/* Other Chats */}
+                {otherChats.length > 0 && (
+                  <div>
+                    {pinnedChats.length > 0 && (
+                      <div className="text-xs text-gray-500 font-medium mb-2 px-2">
+                        RECENT
                       </div>
-                    </motion.div>
-                  ))}
+                    )}
+                    {otherChats
+                      .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
+                      .map((chat, index) => (
+                        <motion.div
+                          key={chat.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ ...contentTransition, delay: index * 0.05 }}
+                          whileHover={{ scale: 1.02, x: 4 }}
+                          className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                            currentChatId === chat.id
+                              ? 'bg-gray-100 text-black'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                          onClick={() => onSelectChat(chat.id)}
+                          onContextMenu={e => handleContextMenu(e, chat.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Color dot or golden star */}
+                            {chat.status === 'gold' ? (
+                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                            ) : chat.status ? (
+                              <span
+                                className={`w-3 h-3 rounded-full border border-gray-300 ${
+                                  chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
+                                }`}
+                              />
+                            ) : null}
+                            <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                            <div className="flex-1 min-w-0 flex items-center gap-1">
+                              <p className="font-medium truncate">{chat.name}</p>
+                            </div>
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              whileHover={{ opacity: 1, scale: 1 }}
+                              onClick={e => handleDeleteChat(e, chat.id)}
+                              className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all duration-200 p-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </motion.button>
+                            <button
+                              className="ml-2 p-1 rounded hover:bg-gray-200"
+                              onClick={e => { e.stopPropagation(); handleContextMenu(e, chat.id); }}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {chats.length === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={contentTransition}
+                    className="text-center py-8"
+                  >
+                    <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">No chats yet</p>
+                    <p className="text-gray-400 text-xs">Create your first chat to get started</p>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
             {/* Context Menu */}
@@ -399,10 +523,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <motion.div
               whileHover={{ scale: 1.05 }}
-              className="w-10 h-10 bg-black rounded-lg flex items-center justify-center mb-2"
-              title={user.name}
+              className="w-10 h-10 bg-black rounded-lg flex items-center justify-center mb-2 relative"
+              title={`${user.name}${isAdmin ? ` (${user.role})` : ''}`}
             >
               <User className="w-5 h-5 text-white" />
+              {isAdmin && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full border border-white flex items-center justify-center">
+                  <Shield className="w-2 h-2 text-white" />
+                </div>
+              )}
             </motion.div>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -430,12 +559,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 transition={{ ...contentTransition, delay: 0.1 }}
                 className="flex items-center gap-3 mb-3 p-3 bg-gray-100 rounded-xl"
               >
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center relative">
                   <User className="w-4 h-4 text-white" />
+                  {isAdmin && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full border border-white flex items-center justify-center">
+                      <Shield className="w-2 h-2 text-white" />
+                    </div>
+                  )}
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-black font-medium text-sm">{user.name}</p>
-                  <p className="text-gray-600 text-xs">{user.email}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-600 text-xs">{user.email}</p>
+                    {isAdmin && (
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                        {user.role}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
               <motion.button

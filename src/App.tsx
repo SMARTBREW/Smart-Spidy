@@ -1,8 +1,11 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { LoginForm } from './components/LoginForm';
 import { ChatInterface } from './components/ChatInterface';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   const { user, login, isLoading } = useChat();
@@ -26,29 +29,76 @@ function App() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {user ? (
-        <motion.div
-          key="chat-interface"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <ChatInterface user={user} />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="login-form"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <LoginForm onLogin={login} />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <Router>
+      <AnimatePresence mode="wait">
+        <Routes>
+          {/* Login Route */}
+          <Route 
+            path="/login" 
+            element={
+              user ? (
+                <Navigate to="/" replace />
+              ) : (
+                <motion.div
+                  key="login-form"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <LoginForm onLogin={login} />
+                </motion.div>
+              )
+            } 
+          />
+          
+          {/* Main Chat Interface Route */}
+          <Route 
+            path="/" 
+            element={
+              user ? (
+                <motion.div
+                  key="chat-interface"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ChatInterface user={user} />
+                </motion.div>
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
+          
+          {/* Admin Panel Route - Protected for admin users only */}
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute 
+                user={user} 
+                requiredRole="admin"
+                redirectTo="/"
+              >
+                <motion.div
+                  key="admin-dashboard"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <AdminDashboard userRole={user?.role as 'admin'} />
+                </motion.div>
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Catch all route - redirect to main page */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
+    </Router>
   );
 }
 

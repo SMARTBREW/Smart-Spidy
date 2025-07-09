@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
-
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Shield, User } from 'lucide-react';
 
 const motion = {
   div: ({ children, initial, animate, transition, whileHover, whileTap, className, ...props }: any) => (
@@ -11,22 +10,26 @@ const motion = {
   ),
   input: ({ className, ...props }: any) => (
     <input className={className} {...props} />
+  ),
+  select: ({ className, ...props }: any) => (
+    <select className={className} {...props} />
   )
 };
 
 interface LoginFormProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string, role: 'user' | 'admin') => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [role, setRole] = useState<'user' | 'admin'>('user');
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim() && password.trim()) {
-      onLogin(email.trim(), password.trim());
+      onLogin(email.trim(), password.trim(), role);
     }
   };
 
@@ -64,7 +67,49 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                   <p className="text-gray-600">Sign in to start your professional conversations</p>
                 </div>
 
-                <div className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Role Selection */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="space-y-2"
+                  >
+                    <label className="block text-black text-sm font-medium">
+                      Login as
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setRole('user')}
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
+                          role === 'user'
+                            ? 'border-black bg-black text-white'
+                            : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-gray-400'
+                        }`}
+                      >
+                        <User className="w-4 h-4" />
+                        User
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setRole('admin')}
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
+                          role === 'admin'
+                            ? 'border-black bg-black text-white'
+                            : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-gray-400'
+                        }`}
+                      >
+                        <Shield className="w-4 h-4" />
+                        Admin
+                      </motion.button>
+                    </div>
+                  </motion.div>
+
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -128,11 +173,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
                   <div className="flex items-center justify-between">
                     <label className="flex items-center">
-                                          <input
-                      type="checkbox"
-                      className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-gray-500 focus:ring-2"
-                    />
-                    <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-gray-500 focus:ring-2"
+                      />
+                      <span className="ml-2 text-sm text-gray-600">Remember me</span>
                     </label>
                   </div>
 
@@ -143,13 +188,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    onClick={handleSubmit}
-                    className="w-full bg-black text-white py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className={`w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl ${
+                      role === 'admin'
+                        ? 'bg-black text-white hover:bg-gray-800'
+                        : 'bg-black text-white hover:bg-gray-800'
+                    }`}
                   >
-                    Sign In
+                    Sign In as {role === 'admin' ? 'Admin' : 'User'}
                     <ArrowRight className="w-5 h-5" />
                   </motion.button>
-                </div>
+                </form>
               </motion.div>
             </div>
           </div>

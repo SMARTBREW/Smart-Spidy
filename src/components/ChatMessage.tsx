@@ -86,10 +86,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
             </button>
             <button
               aria-label="Copy message"
-              className="p-1"
+              className="p-1 flex items-center"
               onClick={handleCopy}
             >
-              {copied ? <Check size={18} /> : <Copy size={18} />}
+              <Copy size={18} />
+              {copied && (
+                <span className="text-xs text-black font-semibold ml-1">Copied!</span>
+              )}
             </button>
             {feedback && (
               <span className="text-xs text-gray-500 ml-2">{feedback === 'up' ? 'Thanks for your feedback!' : 'Sorry to hear that!'}</span>

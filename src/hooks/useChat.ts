@@ -26,11 +26,14 @@ export const useChat = () => {
     });
   }, []);
 
-  const login = useCallback((email: string, name: string) => {
+  const login = useCallback((email: string, password: string, role: 'user' | 'admin') => {
+    // For demo purposes, we'll create users with predefined roles
+    // In a real app, this would validate credentials with a backend
     const user: User = {
       id: crypto.randomUUID(),
       email,
-      name,
+      name: email.split('@')[0], // Use part before @ as name
+      role: role, // Only 'admin' or 'user'
     };
     
     storage.setUser(user);
