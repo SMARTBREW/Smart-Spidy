@@ -177,38 +177,37 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
     );
   }
 
+  // Analytics Header
+  const totalSessions = sessions.length;
+  const activeSessions = sessions.filter(s => s.isActive).length;
+  const avgDuration = sessions.length > 0 ? 
+    Math.round(sessions.filter(s => s.sessionDuration).reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / sessions.filter(s => s.sessionDuration).length) : 0;
+  // Removed uniqueUsers calculation
+
   return (
     <div className="space-y-6">
       {/* Analytics Header */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Active Sessions"
-          value={stats?.activeSessions || 0}
+          value={activeSessions}
           icon={Activity}
           color="text-teal-600"
           bgColor="bg-gradient-to-br from-teal-50 to-teal-100"
-          trend="+5% today"
         />
         <StatCard
           title="Total Sessions"
-          value={localStats.total}
+          value={totalSessions}
           icon={Wifi}
           color="text-blue-600"
           bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
         />
         <StatCard
-          title="Average Duration"
-          value={formatDuration(localStats.avgDuration)}
+          title="Average Duration (s)"
+          value={avgDuration}
           icon={Clock}
-          color="text-purple-600"
-          bgColor="bg-gradient-to-br from-purple-50 to-purple-100"
-        />
-        <StatCard
-          title="Unique Users"
-          value={localStats.uniqueUsers}
-          icon={User}
-          color="text-green-600"
-          bgColor="bg-gradient-to-br from-green-50 to-green-100"
+          color="text-yellow-600"
+          bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
         />
       </div>
 
@@ -261,7 +260,6 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">User</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Status</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Duration</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Device & Location</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Login Time</th>
                 <th className="text-right py-4 px-6 font-semibold text-gray-900">Actions</th>
               </tr>
@@ -313,24 +311,6 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                         <span className="text-gray-600 font-medium">
                           {formatDuration(session.sessionDuration)}
                         </span>
-                      </div>
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Monitor className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-600 text-sm">
-                            {getBrowserInfo(session.userAgent)} on {getOSInfo(session.userAgent)}
-                          </span>
-                        </div>
-                        {session.ipAddress && (
-                          <div className="flex items-center space-x-2">
-                            <Globe className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-500 text-sm font-mono">
-                              {session.ipAddress}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </td>
                     <td className="py-5 px-6">

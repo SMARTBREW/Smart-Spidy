@@ -58,16 +58,6 @@ export interface Chat {
   user?: User;
 }
 
-export interface MessageFeedback {
-  id: string;
-  messageId: string;
-  userId: string;
-  feedbackType: 'up' | 'down';
-  createdAt: Date;
-  message?: Message;
-  user?: User;
-}
-
 export interface TrainingData {
   id: string;
   userQuestion: string;
@@ -75,8 +65,6 @@ export interface TrainingData {
   userId: string | null;
   chatId: string | null;
   messageId: string | null;
-  feedbackType: 'up' | 'down' | null;
-  feedbackScore: number;
   qualityScore: number;
   version: number;
   loopIteration: number;
@@ -84,6 +72,7 @@ export interface TrainingData {
   embeddingVector: number[] | null;
   source: 'chat' | 'auto' | 'imported' | 'manual';
   tags: string[] | null;
+  keywords: string[] | null;
   category: string | null;
   difficultyLevel: 'beginner' | 'intermediate' | 'advanced' | null;
   isActive: boolean;
@@ -92,6 +81,7 @@ export interface TrainingData {
   user?: User;
   chat?: Chat;
   message?: Message;
+  feedback?: string | null;
 }
 
 export interface AppState {
@@ -106,7 +96,13 @@ export interface AdminStats {
   activeUsers: number;
   totalChats: number;
   totalMessages: number;
-  totalFeedback: number;
   trainingDataCount: number;
   activeSessions: number;
+}
+
+export interface Fundraiser {
+  id: string;
+  name: string;
+  createdBy: User;
+  createdAt: Date;
 }

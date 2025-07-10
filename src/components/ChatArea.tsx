@@ -59,7 +59,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             Create a new chat or select an existing one to start your conversation
           </p>
             <div className="w-full max-w-3xl mx-auto">
-              {!isCreatingChat && <ChatInput onSendMessage={onSendMessage} />}
+              {/* ChatInput removed from welcome screen */}
             </div>
           </motion.div>
         </div>

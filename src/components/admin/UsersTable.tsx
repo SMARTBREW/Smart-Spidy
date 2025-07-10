@@ -28,7 +28,7 @@ interface UsersTableProps {
   isLoading: boolean;
 }
 
-export const UsersTable: React.FC<UsersTableProps> = ({ stats, isLoading: statsLoading }) => {
+export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading: _statsLoading }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -170,6 +170,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats, isLoading: statsL
     console.log('Toggle status for user:', userId, 'to:', !currentStatus);
   };
 
+  // StatCard component for analytics
   const StatCard: React.FC<{ 
     title: string; 
     value: number; 
@@ -249,30 +250,34 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats, isLoading: statsL
     );
   }
 
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.isActive).length;
+  const inactiveUsers = users.filter(u => !u.isActive).length;
+
   return (
     <div className="space-y-6">
       {/* Analytics Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Users"
-          value={stats?.totalUsers || 0}
+          value={totalUsers}
           icon={Users}
-          color="text-blue-600"
-          bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
-        />
-        <StatCard
-          title="Active Users"
-          value={stats?.activeUsers || 0}
-          icon={UserCheck}
           color="text-green-600"
           bgColor="bg-gradient-to-br from-green-50 to-green-100"
         />
         <StatCard
-          title="User Sessions"
-          value={stats?.activeSessions || 0}
-          icon={Activity}
-          color="text-purple-600"
-          bgColor="bg-gradient-to-br from-purple-50 to-purple-100"
+          title="Active Users"
+          value={activeUsers}
+          icon={UserCheck}
+          color="text-blue-600"
+          bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
+        />
+        <StatCard
+          title="Inactive Users"
+          value={inactiveUsers}
+          icon={UserX}
+          color="text-red-600"
+          bgColor="bg-gradient-to-br from-red-50 to-red-100"
         />
       </div>
 
@@ -328,7 +333,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats, isLoading: statsL
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">User</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Role</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Status</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Messages</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Last Login</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Created</th>
                 <th className="text-right py-4 px-6 font-semibold text-gray-900">Actions</th>
@@ -373,12 +377,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats, isLoading: statsL
                     </td>
                     <td className="py-5 px-6">
                       <StatusBadge isActive={user.isActive || false} />
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center space-x-2">
-                        <MessageSquare className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600 font-medium">0</span>
-                      </div>
                     </td>
                     <td className="py-5 px-6">
                       <div className="flex items-center space-x-2">

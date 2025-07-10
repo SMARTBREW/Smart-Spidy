@@ -21,7 +21,7 @@ interface ChatsTableProps {
   isLoading: boolean;
 }
 
-export const ChatsTable: React.FC<ChatsTableProps> = ({ stats, isLoading: statsLoading }) => {
+export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading: _statsLoading }) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,28 +166,32 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats, isLoading: statsL
     );
   }
 
+  // Analytics Header
+  const totalChats = chats.length;
+  const activeChats = chats.filter(chat => chat.status === 'green').length;
+  const pinnedChats = chats.filter(chat => chat.pinned).length;
+
   return (
     <div className="space-y-6">
       {/* Analytics Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Chats"
-          value={stats?.totalChats || 0}
+          value={totalChats}
           icon={MessageSquare}
           color="text-orange-600"
           bgColor="bg-gradient-to-br from-orange-50 to-orange-100"
-          trend="+12% this week"
         />
         <StatCard
           title="Active Chats"
-          value={filteredChats.filter(chat => chat.status === 'green').length || 0}
+          value={activeChats}
           icon={TrendingUp}
           color="text-green-600"
           bgColor="bg-gradient-to-br from-green-50 to-green-100"
         />
         <StatCard
           title="Pinned Chats"
-          value={filteredChats.filter(chat => chat.pinned).length || 0}
+          value={pinnedChats}
           icon={Pin}
           color="text-indigo-600"
           bgColor="bg-gradient-to-br from-indigo-50 to-indigo-100"
@@ -228,10 +232,9 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats, isLoading: statsL
                 className="border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
               >
                 <option value="all">All Status</option>
-                <option value="green">Good</option>
-                <option value="yellow">Warning</option>
-                <option value="red">Issue</option>
-                <option value="gold">Premium</option>
+                <option value="green">Green</option>
+                <option value="yellow">Yellow</option>
+                <option value="red">Red</option>
               </select>
             </div>
             <select
@@ -255,7 +258,6 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats, isLoading: statsL
               <tr>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Chat</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">User</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Messages</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Status</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Pinned</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Last Activity</th>
@@ -312,12 +314,6 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats, isLoading: statsL
                       ) : (
                         <span className="text-gray-400 text-sm">No user assigned</span>
                       )}
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center space-x-2">
-                        <MessageSquare className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600 font-medium">{chat.messageCount || chat.messages?.length || 0}</span>
-                      </div>
                     </td>
                     <td className="py-5 px-6">
                       <StatusBadge status={chat.status} />

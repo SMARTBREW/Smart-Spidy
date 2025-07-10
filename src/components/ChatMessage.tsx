@@ -12,6 +12,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
   const isUser = message.sender === 'user';
 
   if (isUser) {
+    const [copied, setCopied] = React.useState(false);
+    const handleCopy = () => {
+      navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1000);
+    };
     // User message - boxed and positioned on the right half
     return (
       <motion.div
@@ -33,6 +39,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
                 {message.content}
               </p>
             </div>
+            <div className="flex gap-2 mt-2 justify-end">
+              <button
+                aria-label="Copy question"
+                className="p-1 flex items-center"
+                onClick={handleCopy}
+              >
+                <Copy size={18} />
+                {copied && (
+                  <span className="text-xs text-black font-semibold ml-1">Copied!</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -40,7 +58,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
   } else {
     // Assistant message - no box, starts from left edge, extends to full width
     const formattedContent = message.content.replace(/\*\*(.*?)\*\*/g, '"$1"');
-    const [feedback, setFeedback] = React.useState<null | 'up' | 'down'>(null);
     const [copied, setCopied] = React.useState(false);
     const handleCopy = () => {
       navigator.clipboard.writeText(message.content);
@@ -66,24 +83,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
               {formattedContent}
             </p>
           </div>
-          {/* Feedback buttons */}
           <div className="flex gap-2 mt-2">
-            <button
-              aria-label="Thumbs up"
-              className="p-1"
-              onClick={() => setFeedback('up')}
-              disabled={feedback === 'up'}
-            >
-              <ThumbsUp size={20} fill={feedback === 'up' ? '#6B7280' : 'none'} stroke="black" />
-            </button>
-            <button
-              aria-label="Thumbs down"
-              className="p-1"
-              onClick={() => setFeedback('down')}
-              disabled={feedback === 'down'}
-            >
-              <ThumbsDown size={20} fill={feedback === 'down' ? '#6B7280' : 'none'} stroke="black" />
-            </button>
             <button
               aria-label="Copy message"
               className="p-1 flex items-center"
@@ -94,9 +94,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => 
                 <span className="text-xs text-black font-semibold ml-1">Copied!</span>
               )}
             </button>
-            {feedback && (
-              <span className="text-xs text-gray-500 ml-2">{feedback === 'up' ? 'Thanks for your feedback!' : 'Sorry to hear that!'}</span>
-            )}
           </div>
         </div>
       </motion.div>

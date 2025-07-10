@@ -572,7 +572,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center gap-2">
                     <p className="text-gray-600 text-xs">{user.email}</p>
                     {isAdmin && (
-                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">
                         {user.role}
                       </span>
                     )}

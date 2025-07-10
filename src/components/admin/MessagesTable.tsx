@@ -14,40 +14,80 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import { Message, AdminStats } from '../../types';
+import { Message, AdminStats, Chat, TrainingData } from '../../types';
 
 interface MessagesTableProps {
   stats: AdminStats | null;
-  isLoading: boolean;
 }
 
-export const MessagesTable: React.FC<MessagesTableProps> = ({ stats, isLoading: statsLoading }) => {
+export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [senderFilter, setSenderFilter] = useState<'all' | 'user' | 'assistant'>('all');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
   useEffect(() => {
-    // TODO: Fetch messages from API
-    const fetchMessages = async () => {
+    // TODO: Replace with real API calls
+    const fetchAll = async () => {
       try {
-        // Placeholder data for now
-        setMessages([]);
+        setMessages([]); // Placeholder
+        setChats([]); // Placeholder
+        setTrainingData([]); // Placeholder
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    fetchMessages();
+    fetchAll();
   }, []);
 
-  const filteredMessages = messages.filter(message => {
-    const matchesSearch = message.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSender = senderFilter === 'all' || message.sender === senderFilter;
-    return matchesSearch && matchesSender;
+  // Helper: Map chatId to chat name
+  const chatIdToName: Record<string, string> = {};
+  chats.forEach(chat => {
+    chatIdToName[chat.id] = chat.name;
+  });
+
+  // Helper: Map messageId to feedback (qualityScore or improvementNotes)
+  const messageIdToFeedback: Record<string, string> = {};
+  trainingData.forEach(td => {
+    if (td.messageId) {
+      messageIdToFeedback[td.messageId] = td.improvementNotes || `Score: ${td.qualityScore}`;
+    }
+  });
+
+  // Filter only user messages for queries
+  const userMessages = messages.filter(
+    m => m.sender === 'user' && m.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Build rows: each user message (query) and its answer (assistant message right after in same chat)
+  // Update table headers and all references to match new column names
+  // Query, Spidy Answer, Users, Chats, Feedbacks, Timestamp
+  // Update variable names for clarity
+
+  // In the rows array, rename chatName to chatLabel, feedback to feedbackLabel, etc.
+  const rows: Array<{
+    query: Message;
+    spidyAnswer?: Message;
+    users: string;
+    chats: string;
+    feedbacks: string;
+    timestamp: Date;
+  }> = [];
+  userMessages.forEach(userMsg => {
+    const chats = chatIdToName[userMsg.chatId || ''] || 'Unknown';
+    const feedbacks = messageIdToFeedback[userMsg.id] || '-';
+    // Find next assistant message in same chat
+    const spidyAnswer = messages.find(
+      m => m.sender === 'assistant' && m.chatId === userMsg.chatId && m.messageOrder === (userMsg.messageOrder ?? 0) + 1
+    );
+    // For Users column, you can use userMsg.userId or a placeholder (since user name is not directly available)
+    const users = userMsg.userId || 'User';
+    rows.push({ query: userMsg, spidyAnswer, users, chats, feedbacks, timestamp: userMsg.timestamp });
   });
 
   const handleViewMessage = (message: Message) => {
@@ -134,28 +174,32 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats, isLoading: 
     );
   }
 
+  // Analytics Header
+  const totalMessages = messages.length;
+  const userMessagesCount = messages.filter(m => m.sender === 'user').length;
+  const assistantMessages = messages.filter(m => m.sender === 'assistant').length;
+
   return (
     <div className="space-y-6">
       {/* Analytics Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Messages"
-          value={stats?.totalMessages || 0}
+          value={totalMessages}
           icon={MessageCircle}
           color="text-purple-600"
           bgColor="bg-gradient-to-br from-purple-50 to-purple-100"
-          trend="+8% this week"
         />
         <StatCard
           title="User Messages"
-          value={filteredMessages.filter(msg => msg.sender === 'user').length || 0}
+          value={userMessagesCount}
           icon={User}
           color="text-blue-600"
           bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
         />
         <StatCard
           title="Assistant Messages"
-          value={filteredMessages.filter(msg => msg.sender === 'assistant').length || 0}
+          value={assistantMessages}
           icon={Bot}
           color="text-green-600"
           bgColor="bg-gradient-to-br from-green-50 to-green-100"
@@ -166,7 +210,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats, isLoading: 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Messages Overview</h1>
-          <p className="text-gray-600 mt-2">Monitor all messages sent and received</p>
+          <p className="text-gray-600 mt-2">Monitor all queries and answers</p>
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <Clock className="w-4 h-4" />
@@ -194,9 +238,9 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats, isLoading: 
               onChange={(e) => setSenderFilter(e.target.value as 'all' | 'user' | 'assistant')}
               className="border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
             >
-              <option value="all">All Senders</option>
-              <option value="user">User Messages</option>
-              <option value="assistant">Assistant Messages</option>
+              <option value="all">All Feedbacks</option>
+              <option value="user">Thumbs Up</option>
+              <option value="assistant">Thumbs Down</option>
             </select>
           </div>
         </div>
@@ -208,21 +252,21 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats, isLoading: 
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Message</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Sender</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Chat</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Order</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-900">Query</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-900">Spidy Answer</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-900">Users</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-900">Chats</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-900">Feedbacks</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Timestamp</th>
-                <th className="text-right py-4 px-6 font-semibold text-gray-900">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredMessages.length === 0 ? (
+              {rows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-16 text-center text-gray-500">
                     <div className="flex flex-col items-center space-y-3">
                       <MessageCircle className="w-16 h-16 text-gray-300" />
-                      <p className="text-lg font-medium">No messages found</p>
+                      <p className="text-lg font-medium">No queries found</p>
                       {searchTerm && (
                         <p className="text-sm text-gray-400">Try adjusting your search terms</p>
                       )}
@@ -230,68 +274,36 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats, isLoading: 
                   </td>
                 </tr>
               ) : (
-                filteredMessages.map((message) => (
-                  <motion.tr
-                    key={message.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    <td className="py-5 px-6">
+                rows.map((row, idx) => (
+                  <tr key={row.query.id}>
+                    <td className="py-5 px-6 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium">
-                          {message.content.length > 100 
-                            ? `${message.content.substring(0, 100)}...` 
-                            : message.content
-                          }
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1 flex items-center">
-                          <Hash className="w-3 h-3 mr-1" />
-                          {message.content.length} characters
-                        </p>
+                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.content}</p>
                       </div>
                     </td>
-                    <td className="py-5 px-6">
-                      <SenderBadge sender={message.sender} />
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
-                        {message.chatId?.substring(0, 8)}...
+                    <td className="py-5 px-6 align-top">
+                      <div className="max-w-md">
+                        <p className="text-gray-900 truncate font-medium mt-1">{row.spidyAnswer ? row.spidyAnswer.content : <span className='text-gray-400'>No answer</span>}</p>
                       </div>
                     </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center space-x-2">
-                        <Hash className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600 font-medium">{message.messageOrder || 'N/A'}</span>
-                      </div>
+                    <td className="py-5 px-6 align-top">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border bg-blue-100 text-blue-800 border-blue-200">
+                        {row.users}
+                      </span>
                     </td>
-                    <td className="py-5 px-6">
+                    <td className="py-5 px-6 align-top">
+                      <div className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">{row.chats}</div>
+                    </td>
+                    <td className="py-5 px-6 align-top">
+                      <span className="text-gray-600 font-medium">{row.feedbacks}</span>
+                    </td>
+                    <td className="py-5 px-6 align-top">
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-500 text-sm">
-                          {new Date(message.timestamp).toLocaleString()}
-                        </span>
+                        <span className="text-gray-500 text-sm">{new Date(row.timestamp).toLocaleString()}</span>
                       </div>
                     </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleViewMessage(message)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150"
-                          title="View message details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMessage(message.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150"
-                          title="Delete message"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
+                  </tr>
                 ))
               )}
             </tbody>

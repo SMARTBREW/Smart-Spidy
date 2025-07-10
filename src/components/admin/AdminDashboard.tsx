@@ -13,15 +13,16 @@ import { AdminStats } from '../../types';
 import { UsersTable } from './UsersTable';
 import { ChatsTable } from './ChatsTable';
 import { MessagesTable } from './MessagesTable';
-import { MessageFeedbackTable } from './MessageFeedbackTable';
 import { TrainingDataTable } from './TrainingDataTable';
 import { UserSessionsTable } from './UserSessionsTable';
+import { FundraisersTable } from './FundraisersTable';
+import { NotificationTable } from './NotificationTable';
 
 interface AdminDashboardProps {
   userRole: 'admin';
 }
 
-type AdminView = 'users' | 'chats' | 'messages' | 'feedback' | 'training' | 'sessions';
+type AdminView = 'users' | 'fundraisers' | 'chats' | 'messages' | 'training' | 'sessions' | 'notifications';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
   const [currentView, setCurrentView] = useState<AdminView>('users');
@@ -38,7 +39,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
           activeUsers: 0,
           totalChats: 0,
           totalMessages: 0,
-          totalFeedback: 0,
           trainingDataCount: 0,
           activeSessions: 0
         });
@@ -54,27 +54,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
 
   const navigationItems = [
     { id: 'users', label: 'Users', icon: Users, color: 'text-green-600' },
+    { id: 'fundraisers', label: 'Fundraisers', icon: Database, color: 'text-blue-600' },
     { id: 'chats', label: 'Chats', icon: MessageSquare, color: 'text-orange-600' },
     { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'text-red-600' },
-    { id: 'feedback', label: 'Feedback', icon: ThumbsUp, color: 'text-yellow-600' },
     { id: 'training', label: 'Training Data', icon: Database, color: 'text-indigo-600' },
     { id: 'sessions', label: 'User Sessions', icon: Activity, color: 'text-teal-600' },
+    { id: 'notifications', label: 'Notifications', icon: ThumbsUp, color: 'text-yellow-600' },
   ];
 
   const renderContent = () => {
     switch (currentView) {
       case 'users':
         return <UsersTable stats={stats} isLoading={isLoading} />;
+      case 'fundraisers':
+        return <FundraisersTable />;
       case 'chats':
         return <ChatsTable stats={stats} isLoading={isLoading} />;
       case 'messages':
-        return <MessagesTable stats={stats} isLoading={isLoading} />;
-      case 'feedback':
-        return <MessageFeedbackTable stats={stats} isLoading={isLoading} />;
+        return <MessagesTable stats={stats}  />;
       case 'training':
         return <TrainingDataTable stats={stats} isLoading={isLoading} />;
       case 'sessions':
         return <UserSessionsTable stats={stats} isLoading={isLoading} />;
+      case 'notifications':
+        return <NotificationTable />;
       default:
         return null;
     }
@@ -84,9 +87,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-lg border-r border-gray-200">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
-          <h2 className="text-lg font-semibold text-white">Admin Panel</h2>
-          <p className="text-blue-100 text-sm capitalize mt-1">{userRole.replace('_', ' ')}</p>
+        <div className="p-6 border-b border-gray-200 ">
+          <h2 className="text-lg font-semibold text-black">Admin Panel</h2>
+          <p className="text-gary-500 text-sm capitalize mt-1">{userRole.replace('_', ' ')}</p>
         </div>
         
         <nav className="p-4">
