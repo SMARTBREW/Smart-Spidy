@@ -9,7 +9,6 @@ export const FundraisersTable: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'month'>('all');
 
-  // Analytics calculations
   const totalFundraisers = fundraisers.length;
   const now = new Date();
   const fundraisersThisMonth = fundraisers.filter(f => {
@@ -18,10 +17,8 @@ export const FundraisersTable: React.FC = () => {
   }).length;
 
   useEffect(() => {
-    // TODO: Fetch fundraisers from API
     const fetchFundraisers = async () => {
       try {
-        // Placeholder data for now
         setFundraisers([]);
       } catch (error) {
         console.error('Error fetching fundraisers:', error);
@@ -32,15 +29,12 @@ export const FundraisersTable: React.FC = () => {
     fetchFundraisers();
   }, []);
 
-  // Remove handleCreateFundraiser and handleEditFundraiser
   const handleDeleteFundraiser = async (fundraiserId: string) => {
     if (window.confirm('Are you sure you want to delete this fundraiser?')) {
-      // TODO: Implement delete fundraiser API call
       console.log('Delete fundraiser:', fundraiserId);
     }
   };
 
-  // StatCard component for analytics
   const StatCard: React.FC<{ title: string; value: number; icon: React.ElementType; color: string; bgColor: string }> = ({ title, value, icon: Icon, color, bgColor }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -59,7 +53,6 @@ export const FundraisersTable: React.FC = () => {
     </motion.div>
   );
 
-  // Filter fundraisers by search and filter
   const filteredFundraisers = fundraisers.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase());
     const created = new Date(f.createdAt);
@@ -86,7 +79,6 @@ export const FundraisersTable: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Analytics Header */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatCard
           title="Total Fundraisers"
@@ -103,14 +95,12 @@ export const FundraisersTable: React.FC = () => {
           bgColor="bg-gradient-to-br from-green-50 to-green-100"
         />
       </div>
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fundraisers</h1>
           <p className="text-gray-500 mt-1">Manage all fundraisers</p>
         </div>
       </div>
-      {/* Search and Filters */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
           <div className="relative flex-1">
@@ -136,7 +126,6 @@ export const FundraisersTable: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* Fundraisers Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -183,7 +172,6 @@ export const FundraisersTable: React.FC = () => {
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        {/* Only keep delete action for now */}
                         <button
                           onClick={() => handleDeleteFundraiser(fundraiser.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -200,7 +188,6 @@ export const FundraisersTable: React.FC = () => {
           </table>
         </div>
       </div>
-      {/* Removed CreateFundraiserModal */}
     </div>
   );
 }; 

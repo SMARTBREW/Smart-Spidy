@@ -35,13 +35,13 @@ export interface UserSession {
 
 export interface Message {
   id: string;
-  content: string;
-  sender: 'user' | 'assistant';
-  timestamp: Date;
+  query: string; // User's question
+  answer: string | null; // Assistant's answer (can be null until answered)
   chatId?: string;
   userId?: string;
   messageOrder?: number;
   createdAt?: Date;
+  sender: 'user' | 'assistant'; // Added for admin/MessagesTable.tsx compatibility
 }
 
 export interface Chat {

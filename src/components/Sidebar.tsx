@@ -2,32 +2,35 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star, Shield, Settings } from 'lucide-react';
+import { LogoutModal } from './LogoutModal';
+import { Chat, User as UserType } from '../types';
 
 // TypeScript type definitions
-interface Chat {
-  id: string;
-  name: string;
-  messages: Array<{
-    id: string;
-    content: string;
-    timestamp: Date;
-    sender: 'user' | 'assistant';
-  }>;
-  createdAt: Date;
-  pinned: boolean;
-  pinnedAt: Date | null;
-  status: 'green' | 'yellow' | 'red' | 'gold' | null;
-}
+// Remove the local Chat and UserType interfaces
+// interface Chat {
+//   id: string;
+//   name: string;
+//   messages: Array<{
+//     id: string;
+//     content: string;
+//     timestamp: Date;
+//     sender: 'user' | 'assistant';
+//   }>;
+//   createdAt: Date;
+//   pinned: boolean;
+//   pinnedAt: Date | null;
+//   status: 'green' | 'yellow' | 'red' | 'gold' | null;
+// }
 
-type UserRole = 'admin' | 'user';
+// type UserRole = 'admin' | 'user';
 
-interface UserType {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  role?: UserRole;
-}
+// interface UserType {
+//   id: string;
+//   name: string;
+//   email: string;
+//   avatar?: string;
+//   role?: UserRole;
+// }
 
 // Props interface with detailed TypeScript typing
 interface SidebarProps {
@@ -74,10 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // State with explicit TypeScript types
   const [chatName, setChatName] = useState<string>('');
   const [instagramUsername, setInstagramUsername] = useState<string>('');
+  const [product, setProduct] = useState<string>('');
+  const [occupation, setOccupation] = useState<string>('');
   const [gender, setGender] = useState<string>('');
   const [search, setSearch] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
 
   // Check if user is admin
   const isAdmin = user.role === 'admin';
@@ -87,10 +93,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     e.preventDefault();
     if (chatName.trim()) {
       // For now, just log the new fields
-      console.log('Creating chat with:', { chatName, instagramUsername, gender });
+      console.log('Creating chat with:', { chatName, instagramUsername, occupation, product, gender });
       onCreateChat(chatName.trim());
       setChatName('');
       setInstagramUsername('');
+      setOccupation('');
+      setProduct('');
       setGender('');
       setIsCreatingChat(false);
     }
@@ -113,6 +121,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleAdminPanelClick = (): void => {
     navigate('/admin');
+  };
+
+  const handleLogoutClick = (): void => {
+    setShowLogoutModal(true);
+  };
+
+  const handleCloseLogoutModal = (): void => {
+    setShowLogoutModal(false);
   };
 
   // Smooth transition configuration with proper typing
@@ -536,7 +552,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={onLogout}
+              onClick={handleLogoutClick}
               className="w-10 h-10 flex items-center justify-center bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
               title="Logout"
             >
@@ -585,7 +601,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 transition={{ ...contentTransition, delay: 0.15 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={onLogout}
+                onClick={handleLogoutClick}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-800 transition-all duration-200"
               >
                 <LogOut className="w-4 h-4" />
@@ -644,6 +660,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
                   maxLength={50}
                 />
+                <input
+                  type="text"
+                  value={occupation}
+                  onChange={e => setOccupation(e.target.value)}
+                  placeholder="Occupation"
+                  className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  maxLength={50}
+                />
+                <select
+                  value={product}
+                  onChange={e => setProduct(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  required
+                >
+                  <option value="" disabled>Select product</option>
+                  <option value="khushi">khushi</option>
+                  <option value="animal care">animal care</option>
+                  <option value="WAL">WAL</option>
+                </select>
                 <select
                   value={gender}
                   onChange={e => setGender(e.target.value)}
@@ -675,6 +710,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleCloseLogoutModal}
+        onConfirm={onLogout}
+      />
     </motion.div>
   );
 };

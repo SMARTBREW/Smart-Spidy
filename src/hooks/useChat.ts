@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Chat, Message, AppState } from '../types';
 import { storage } from '../utils/storage';
 import { geminiService } from '../services/gemini';
 
 export const useChat = () => {
+  const navigate = useNavigate();
   const [state, setState] = useState<AppState>({
     user: null,
     chats: [],
@@ -57,8 +59,11 @@ export const useChat = () => {
       isLoading: false,
     });
     
-    console.log('Logout completed'); // Debug log
-  }, []);
+    // Navigate to login page
+    navigate('/');
+    
+    console.log('Logout completed, navigated to /'); // Debug log
+  }, [navigate]);
 
   const createChat = useCallback((name: string) => {
     const newChat: Chat = {
@@ -91,13 +96,12 @@ export const useChat = () => {
     storage.setCurrentChatId(chatId);
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (query: string) => {
     setIsTyping(true);
-    
     try {
       // If no chat is selected, create a new one
       if (!state.currentChatId) {
-        const newChatName = content.length > 50 ? content.substring(0, 50) + '...' : content;
+        const newChatName = query.length > 50 ? query.substring(0, 50) + '...' : query;
         const newChat: Chat = {
           id: crypto.randomUUID(),
           name: newChatName,
@@ -109,15 +113,17 @@ export const useChat = () => {
           pinnedAt: null,
         };
 
-        const userMessage: Message = {
+        // Create a message with query and null answer
+        const message: Message = {
           id: crypto.randomUUID(),
-          content,
-          sender: 'user',
-          timestamp: new Date(),
+          query,
+          answer: null,
+          userId: state.user?.id,
+          chatId: newChat.id,
+          createdAt: new Date(),
+          sender: 'user', // <-- Add this line
         };
-
-        // Add user message immediately
-        newChat.messages = [userMessage];
+        newChat.messages = [message];
 
         setState(prev => {
           const updatedChats = [...prev.chats, newChat];
@@ -131,16 +137,18 @@ export const useChat = () => {
         });
 
         // Get AI response
-        const aiResponse = await geminiService.generateResponse(content);
-        
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          content: aiResponse,
-          sender: 'assistant',
-          timestamp: new Date(),
-        };
+        const aiResponse = await geminiService.generateResponse(query);
 
         // Add assistant message
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          query: '',
+          answer: aiResponse,
+          userId: state.user?.id,
+          chatId: newChat.id,
+          createdAt: new Date(),
+          sender: 'assistant',
+        };
         setState(prev => {
           const updatedChats = prev.chats.map(chat => {
             if (chat.id === newChat.id) {
@@ -152,57 +160,52 @@ export const useChat = () => {
             }
             return chat;
           });
-
           storage.setChats(updatedChats);
           return { ...prev, chats: updatedChats };
         });
-        
         setIsTyping(false);
         return;
       }
 
-      const userMessage: Message = {
+      // Add message to existing chat
+      const message: Message = {
         id: crypto.randomUUID(),
-        content,
-        sender: 'user',
-        timestamp: new Date(),
+        query,
+        answer: null,
+        userId: state.user?.id,
+        chatId: state.currentChatId,
+        createdAt: new Date(),
+        sender: 'user', // <-- Add this line
       };
 
-      // Add user message immediately
       setState(prev => {
         const updatedChats = prev.chats.map(chat => {
           if (chat.id === state.currentChatId) {
             return {
               ...chat,
-              messages: [...chat.messages, userMessage],
+              messages: [...chat.messages, message],
               updatedAt: new Date(),
             };
           }
           return chat;
         });
-
         storage.setChats(updatedChats);
         return { ...prev, chats: updatedChats };
       });
 
-      // Get conversation history for context
-      const currentChatData = state.chats.find(chat => chat.id === state.currentChatId);
-      const conversationHistory = currentChatData?.messages.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      })) || [];
-
-      // Get AI response with context
-      const aiResponse = await geminiService.generateChatResponse(conversationHistory, content);
-      
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        content: aiResponse,
-        sender: 'assistant',
-        timestamp: new Date(),
-      };
+      // Get AI response
+      const aiResponse = await geminiService.generateResponse(query);
 
       // Add assistant message
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        query: '',
+        answer: aiResponse,
+        userId: state.user?.id,
+        chatId: state.currentChatId,
+        createdAt: new Date(),
+        sender: 'assistant',
+      };
       setState(prev => {
         const updatedChats = prev.chats.map(chat => {
           if (chat.id === state.currentChatId) {
@@ -214,41 +217,15 @@ export const useChat = () => {
           }
           return chat;
         });
-
         storage.setChats(updatedChats);
         return { ...prev, chats: updatedChats };
       });
-      
     } catch (error) {
       console.error('Error sending message:', error);
-      
-      // Add error message
-      const errorMessage: Message = {
-        id: crypto.randomUUID(),
-        content: 'Sorry, I encountered an error. Please try again.',
-        sender: 'assistant',
-        timestamp: new Date(),
-      };
-
-      setState(prev => {
-        const updatedChats = prev.chats.map(chat => {
-          if (chat.id === state.currentChatId) {
-            return {
-              ...chat,
-              messages: [...chat.messages, errorMessage],
-              updatedAt: new Date(),
-            };
-          }
-          return chat;
-        });
-
-        storage.setChats(updatedChats);
-        return { ...prev, chats: updatedChats };
-      });
+      setIsTyping(false);
     }
-    
     setIsTyping(false);
-  }, [state.currentChatId, state.chats]);
+  }, [state.currentChatId, state.chats, state.user]);
 
   const deleteChat = useCallback((chatId: string) => {
     setState(prev => {

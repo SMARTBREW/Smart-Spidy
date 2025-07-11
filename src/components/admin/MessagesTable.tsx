@@ -61,33 +61,26 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
 
   // Filter only user messages for queries
   const userMessages = messages.filter(
-    m => m.sender === 'user' && m.content.toLowerCase().includes(searchTerm.toLowerCase())
+    m => m.query.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Build rows: each user message (query) and its answer (assistant message right after in same chat)
-  // Update table headers and all references to match new column names
   // Query, Spidy Answer, Users, Chats, Feedbacks, Timestamp
   // Update variable names for clarity
 
   // In the rows array, rename chatName to chatLabel, feedback to feedbackLabel, etc.
   const rows: Array<{
     query: Message;
-    spidyAnswer?: Message;
     users: string;
     chats: string;
     feedbacks: string;
-    timestamp: Date;
+    timestamp: string;
   }> = [];
   userMessages.forEach(userMsg => {
     const chats = chatIdToName[userMsg.chatId || ''] || 'Unknown';
     const feedbacks = messageIdToFeedback[userMsg.id] || '-';
-    // Find next assistant message in same chat
-    const spidyAnswer = messages.find(
-      m => m.sender === 'assistant' && m.chatId === userMsg.chatId && m.messageOrder === (userMsg.messageOrder ?? 0) + 1
-    );
-    // For Users column, you can use userMsg.userId or a placeholder (since user name is not directly available)
     const users = userMsg.userId || 'User';
-    rows.push({ query: userMsg, spidyAnswer, users, chats, feedbacks, timestamp: userMsg.timestamp });
+    rows.push({ query: userMsg, users, chats, feedbacks, timestamp: userMsg.createdAt ? new Date(userMsg.createdAt).toLocaleString() : '' });
   });
 
   const handleViewMessage = (message: Message) => {
@@ -225,7 +218,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search messages by content..."
+              placeholder="Search messages by question..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -278,12 +271,12 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                   <tr key={row.query.id}>
                     <td className="py-5 px-6 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.content}</p>
+                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.query}</p>
                       </div>
                     </td>
                     <td className="py-5 px-6 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium mt-1">{row.spidyAnswer ? row.spidyAnswer.content : <span className='text-gray-400'>No answer</span>}</p>
+                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.answer ? row.query.answer : <span className='text-gray-400'>No answer</span>}</p>
                       </div>
                     </td>
                     <td className="py-5 px-6 align-top">
@@ -300,7 +293,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                     <td className="py-5 px-6 align-top">
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-500 text-sm">{new Date(row.timestamp).toLocaleString()}</span>
+                        <span className="text-gray-500 text-sm">{row.timestamp}</span>
                       </div>
                     </td>
                   </tr>
@@ -339,11 +332,20 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message Content</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Message Query</label>
                   <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.content}</p>
+                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.query}</p>
                   </div>
                 </div>
+                
+                {selectedMessage.answer && (
+                  <>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">Assistant Answer</label>
+                    <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                      <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.answer}</p>
+                    </div>
+                  </>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -362,9 +364,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Timestamp</label>
-                  <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
-                    {new Date(selectedMessage.timestamp).toLocaleString()}
-                  </p>
+                 
                 </div>
               </div>
             </div>

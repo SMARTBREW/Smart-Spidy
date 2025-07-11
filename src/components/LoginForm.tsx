@@ -68,45 +68,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Role Selection */}
+                  {/* Role Selection Dropdown */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
                     className="space-y-2"
                   >
-                    <label className="block text-black text-sm font-medium">
+                    <label htmlFor="role" className="block text-black text-sm font-medium">
                       Login as
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <motion.button
-                        type="button"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setRole('user')}
-                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
-                          role === 'user'
-                            ? 'border-black bg-black text-white'
-                            : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-gray-400'
-                        }`}
+                    <div className="relative">
+                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
+                      <motion.select
+                        id="role"
+                        name="role"
+                        value={role}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as 'user' | 'admin')}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
+                        required
                       >
-                        <User className="w-4 h-4" />
-                        User
-                      </motion.button>
-                      <motion.button
-                        type="button"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setRole('admin')}
-                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
-                          role === 'admin'
-                            ? 'border-black bg-black text-white'
-                            : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-gray-400'
-                        }`}
-                      >
-                        <Shield className="w-4 h-4" />
-                        Admin
-                      </motion.button>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </motion.select>
                     </div>
                   </motion.div>
 

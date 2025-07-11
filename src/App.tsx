@@ -7,7 +7,8 @@ import { ChatInterface } from './components/ChatInterface';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-function App() {
+// Inner App component that uses hooks inside Router context
+function AppContent() {
   const { user, login, isLoading } = useChat();
   
   // Debug logging
@@ -29,15 +30,14 @@ function App() {
   }
 
   return (
-    <Router>
-      <AnimatePresence mode="wait">
-        <Routes>
+    <AnimatePresence mode="wait">
+      <Routes>
           {/* Login Route */}
           <Route 
-            path="/login" 
+            path="/" 
             element={
               user ? (
-                <Navigate to="/" replace />
+                <Navigate to="/user" replace />
               ) : (
                 <motion.div
                   key="login-form"
@@ -54,9 +54,9 @@ function App() {
           
           {/* Main Chat Interface Route */}
           <Route 
-            path="/" 
+            path="/user" 
             element={
-              user ? (
+              <ProtectedRoute user={user}>
                 <motion.div
                   key="chat-interface"
                   initial={{ opacity: 0 }}
@@ -64,11 +64,9 @@ function App() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <ChatInterface user={user} />
+                  <ChatInterface user={user!} />
                 </motion.div>
-              ) : (
-                <Navigate to="/login" replace />
-              )
+              </ProtectedRoute>
             } 
           />
           
@@ -93,11 +91,18 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          
-          {/* Catch all route - redirect to main page */}
+      
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
+  );
+}
+
+// Main App component that provides Router context
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
