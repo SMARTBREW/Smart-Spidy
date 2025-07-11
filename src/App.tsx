@@ -9,7 +9,22 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Inner App component that uses hooks inside Router context
 function AppContent() {
-  const { user, login, isLoading } = useChat();
+  const { 
+    user, 
+    login, 
+    isLoading,
+    chats,
+    currentChat,
+    currentChatId,
+    isTyping,
+    createChat,
+    selectChat,
+    sendMessage,
+    deleteChat,
+    logout,
+    pinChat,
+    setChatStatus,
+  } = useChat();
   
   // Debug logging
   console.log('App component render - user:', user, 'isLoading:', isLoading);
@@ -64,7 +79,20 @@ function AppContent() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <ChatInterface user={user!} />
+                  <ChatInterface 
+                    user={user!}
+                    chats={chats}
+                    currentChat={currentChat || null}
+                    currentChatId={currentChatId}
+                    isTyping={isTyping}
+                    createChat={createChat}
+                    selectChat={selectChat}
+                    sendMessage={sendMessage}
+                    deleteChat={deleteChat}
+                    logout={logout}
+                    pinChat={pinChat}
+                    setChatStatus={setChatStatus}
+                  />
                 </motion.div>
               </ProtectedRoute>
             } 

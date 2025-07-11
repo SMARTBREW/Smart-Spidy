@@ -59,9 +59,8 @@ export const useChat = () => {
       isLoading: false,
     });
     
-    // Navigate to login page
-    navigate('/');
-    
+    // Navigate to login page immediately
+    navigate('/', { replace: true });
     console.log('Logout completed, navigated to /'); // Debug log
   }, [navigate]);
 

@@ -3,28 +3,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Chat, User } from '../types';
 import { Sidebar } from './Sidebar';
 import { ChatArea } from './ChatArea';
-import { useChat } from '../hooks/useChat';
 import { SearchModal } from './SearchModal';
 import { Bell, Star, X, Clock, MessageCircle } from 'lucide-react';
 
 interface ChatInterfaceProps {
   user: User;
+  chats: Chat[];
+  currentChat: Chat | null;
+  currentChatId: string | null;
+  isTyping: boolean;
+  createChat: (name: string) => string;
+  selectChat: (chatId: string) => void;
+  sendMessage: (query: string) => Promise<void>;
+  deleteChat: (chatId: string) => void;
+  logout: () => void;
+  pinChat: (chatId: string, pinned: boolean) => void;
+  setChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => void;
 }
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
-  const {
-    chats,
-    currentChat,
-    currentChatId,
-    isTyping,
-    createChat,
-    selectChat,
-    sendMessage,
-    deleteChat,
-    logout,
-    pinChat,
-    setChatStatus,
-  } = useChat();
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  user,
+  chats,
+  currentChat,
+  currentChatId,
+  isTyping,
+  createChat,
+  selectChat,
+  sendMessage,
+  deleteChat,
+  logout,
+  pinChat,
+  setChatStatus,
+}) => {
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
