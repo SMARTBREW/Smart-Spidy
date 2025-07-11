@@ -56,6 +56,10 @@ export interface Chat {
   userId?: string;
   messageCount?: number;
   user?: User;
+  instagramUsername?: string;
+  occupation?: string;
+  product?: string;
+  gender?: string;
 }
 
 export interface TrainingData {

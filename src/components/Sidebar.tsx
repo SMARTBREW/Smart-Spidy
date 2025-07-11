@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star, Shield, Settings } from 'lucide-react';
 import { LogoutModal } from './LogoutModal';
 import { Chat, User as UserType } from '../types';
+import { CreateChatModal } from './CreateChatModal';
 
 // TypeScript type definitions
 // Remove the local Chat and UserType interfaces
@@ -38,13 +39,11 @@ interface SidebarProps {
   chats: Chat[];
   currentChatId: string | null;
   onSelectChat: (chatId: string) => void;
-  onCreateChat: (name: string) => void;
+  onCreateChat: () => void;
   onDeleteChat: (chatId: string) => void;
   onLogout: () => void;
   onOpenSearch?: () => void;
   onClose?: () => void;
-  isCreatingChat: boolean;
-  setIsCreatingChat: React.Dispatch<React.SetStateAction<boolean>>;
   onPinChat: (chatId: string, pinned: boolean) => void;
   onSetChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => void;
 }
@@ -67,43 +66,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onOpenSearch,
   onClose,
-  isCreatingChat,
-  setIsCreatingChat,
   onPinChat,
   onSetChatStatus,
 }) => {
   const navigate = useNavigate();
   
   // State with explicit TypeScript types
-  const [chatName, setChatName] = useState<string>('');
-  const [instagramUsername, setInstagramUsername] = useState<string>('');
-  const [product, setProduct] = useState<string>('');
-  const [occupation, setOccupation] = useState<string>('');
-  const [gender, setGender] = useState<string>('');
   const [search, setSearch] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Check if user is admin
   const isAdmin = user.role === 'admin';
 
   // Event handlers with proper TypeScript typing
-  const handleCreateChat = (e: React.FormEvent<HTMLFormElement>): void => {
-    e.preventDefault();
-    if (chatName.trim()) {
-      // For now, just log the new fields
-      console.log('Creating chat with:', { chatName, instagramUsername, occupation, product, gender });
-      onCreateChat(chatName.trim());
-      setChatName('');
-      setInstagramUsername('');
-      setOccupation('');
-      setProduct('');
-      setGender('');
-      setIsCreatingChat(false);
-    }
-  };
-
   const handleDeleteChat = (e: React.MouseEvent<HTMLButtonElement>, chatId: string): void => {
     e.stopPropagation();
     onDeleteChat(chatId);
@@ -206,9 +184,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => {
                 if (isCollapsed) {
                   expandSidebar();
-                  setTimeout(() => setIsCreatingChat(true), 300);
                 } else {
-                  setIsCreatingChat(true);
+                  onCreateChat();
                 }
               }}
               className="w-10 h-10 flex items-center justify-center mb-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200"
@@ -293,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setIsCreatingChat(true)}
+                onClick={onCreateChat}
                 className="w-full bg-black text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
@@ -611,105 +588,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </AnimatePresence>
         )}
       </div>
-
-      {/* Modal for Creating New Chat */}
-      <AnimatePresence>
-        {isCreatingChat && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
-            onClick={() => setIsCreatingChat(false)}
-            aria-modal="true"
-            role="dialog"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative"
-              onClick={e => e.stopPropagation()}
-            >
-              <button
-                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
-                onClick={() => setIsCreatingChat(false)}
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <h2 className="text-xl font-bold mb-4 text-black">Create New Chat</h2>
-              <form onSubmit={handleCreateChat} className="flex flex-col gap-4">
-                <input
-                  type="text"
-                  value={chatName}
-                  onChange={e => setChatName(e.target.value)}
-                  placeholder="Enter chat name..."
-                  className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  autoFocus
-                  maxLength={50}
-                  required
-                />
-                <input
-                  type="text"
-                  value={instagramUsername}
-                  onChange={e => setInstagramUsername(e.target.value)}
-                  placeholder="Instagram username"
-                  className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  maxLength={50}
-                />
-                <input
-                  type="text"
-                  value={occupation}
-                  onChange={e => setOccupation(e.target.value)}
-                  placeholder="Occupation"
-                  className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  maxLength={50}
-                />
-                <select
-                  value={product}
-                  onChange={e => setProduct(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  required
-                >
-                  <option value="" disabled>Select product</option>
-                  <option value="khushi">khushi</option>
-                  <option value="animal care">animal care</option>
-                  <option value="WAL">WAL</option>
-                </select>
-                <select
-                  value={gender}
-                  onChange={e => setGender(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  required
-                >
-                  <option value="" disabled>Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    className="px-4 py-2 rounded-xl bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all"
-                    onClick={() => setIsCreatingChat(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-black text-white font-medium hover:bg-gray-800 transition-all"
-                  >
-                    Create
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Logout Confirmation Modal */}
       <LogoutModal

@@ -33,9 +33,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             title="Toggle sidebar (Cmd/Ctrl + B)"
           >
             <Menu className="w-5 h-5 text-gray-700" />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
-              Open sidebar (⌘B)
-            </span>
+            
           </button>
         </div>
         
@@ -84,6 +82,23 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
         </button> */}
         <div className="flex-1">
           <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
+          {/* Additional chat details */}
+          {(chat.instagramUsername || chat.occupation || chat.product || chat.gender) && (
+            <div className="mt-1 text-sm text-gray-600 flex flex-wrap gap-4">
+              {chat.instagramUsername && (
+                <span>Instagram: <span className="font-medium text-gray-800">@{chat.instagramUsername}</span></span>
+              )}
+              {chat.occupation && (
+                <span>Occupation: <span className="font-medium text-gray-800">{chat.occupation}</span></span>
+              )}
+              {chat.product && (
+                <span>Product: <span className="font-medium text-gray-800">{chat.product}</span></span>
+              )}
+              {chat.gender && (
+                <span>Gender: <span className="font-medium text-gray-800">{chat.gender}</span></span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -145,7 +160,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { ChatArea } from './ChatArea';
 import { SearchModal } from './SearchModal';
 import { Bell, Star, X, Clock, MessageCircle } from 'lucide-react';
+import { CreateChatModal } from './CreateChatModal';
 
 interface ChatInterfaceProps {
   user: User;
@@ -12,7 +13,7 @@ interface ChatInterfaceProps {
   currentChat: Chat | null;
   currentChatId: string | null;
   isTyping: boolean;
-  createChat: (name: string) => string;
+  createChat: (name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string) => string;
   selectChat: (chatId: string) => void;
   sendMessage: (query: string) => Promise<void>;
   deleteChat: (chatId: string) => void;
@@ -244,15 +245,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             chats={chats}
             currentChatId={currentChatId}
             onSelectChat={selectChat}
-            onCreateChat={createChat}
+            onCreateChat={() => setIsCreatingChat(true)}
             onDeleteChat={deleteChat}
+            onPinChat={pinChat}
+            onSetChatStatus={setChatStatus}
             onLogout={logout}
             onOpenSearch={openSearch}
             onClose={() => setIsSidebarOpen(false)}
-            isCreatingChat={isCreatingChat}
-            setIsCreatingChat={setIsCreatingChat}
-            onPinChat={pinChat}
-            onSetChatStatus={setChatStatus}
           />
         )}
       </AnimatePresence>
@@ -272,6 +271,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           currentChatId={currentChatId}
         />
       )}
+      <CreateChatModal
+        isOpen={isCreatingChat}
+        onClose={() => setIsCreatingChat(false)}
+        onCreateChat={({ name, instagramUsername, occupation, product, gender }) => {
+          createChat(name, instagramUsername, occupation, product, gender);
+          setIsCreatingChat(false);
+        }}
+      />
     </motion.div>
   );
 };

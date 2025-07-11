@@ -64,7 +64,7 @@ export const useChat = () => {
     console.log('Logout completed, navigated to /'); // Debug log
   }, [navigate]);
 
-  const createChat = useCallback((name: string) => {
+  const createChat = useCallback((name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string) => {
     const newChat: Chat = {
       id: crypto.randomUUID(),
       name,
@@ -74,6 +74,10 @@ export const useChat = () => {
       pinned: false,
       status: null,
       pinnedAt: null,
+      instagramUsername,
+      occupation,
+      product,
+      gender,
     };
 
     setState(prev => {
