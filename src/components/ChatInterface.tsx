@@ -147,7 +147,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Temperature ranges and colors
   const getTemperatureLabel = (temp: number): string => {
     if (temp <= 33) return 'Cold';
-    if (temp <= 66) return 'Humid';
+    if (temp <= 66) return 'Warm';
     return 'Hot';
   };
 
