@@ -6,6 +6,7 @@ import { ChatArea } from './ChatArea';
 import { SearchModal } from './SearchModal';
 import { Bell, Star, X, Clock, MessageCircle } from 'lucide-react';
 import { CreateChatModal } from './CreateChatModal';
+import { Plus, Minus } from 'lucide-react';
 
 interface ChatInterfaceProps {
   user: User;
@@ -128,6 +129,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleSidebar]);
 
+  // Temperature state (0-100%)
+  const [temperature, setTemperature] = useState<number>(() => {
+    const saved = localStorage.getItem('temperature');
+    return saved !== null ? Number(saved) : 50;
+  });
+
+  // Persist temperature in localStorage
+  useEffect(() => {
+    localStorage.setItem('temperature', String(temperature));
+  }, [temperature]);
+
+  const incrementTemp = () => setTemperature(t => Math.min(100, t + 1));
+  const decrementTemp = () => setTemperature(t => Math.max(0, t - 1));
+  const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value));
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -135,6 +151,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       transition={{ duration: 0.3 }}
       className="flex h-screen bg-white"
     >
+      {/* Temperature Control - Top Right */}
+      <div className="fixed top-4 right-32 z-50 flex items-center bg-white shadow-lg rounded-full px-4 py-2 gap-2 border border-gray-200">
+        <button
+          onClick={decrementTemp}
+          className="p-1 rounded-full hover:bg-gray-100 transition"
+          aria-label="Decrease temperature"
+        >
+          <Minus className="w-4 h-4 text-gray-700" />
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={temperature}
+          onChange={handleSlider}
+          className="mx-2 accent-blue-500"
+          style={{ width: 80 }}
+        />
+        <span className="font-medium text-gray-700 min-w-[36px] text-center">{temperature}%</span>
+        <button
+          onClick={incrementTemp}
+          className="p-1 rounded-full hover:bg-gray-100 transition"
+          aria-label="Increase temperature"
+        >
+          <Plus className="w-4 h-4 text-gray-700" />
+        </button>
+      </div>
       {/* Notification Bell - Top Right */}
       <div className="fixed top-4 right-8 z-50">
         <button
