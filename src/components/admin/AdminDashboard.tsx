@@ -7,7 +7,8 @@ import {
   MessageCircle, 
   ThumbsUp, 
   Database, 
-  Activity
+  Activity,
+  Brain
 } from 'lucide-react';
 import { AdminStats } from '../../types';
 import { UsersTable } from './UsersTable';
@@ -17,12 +18,13 @@ import { TrainingDataTable } from './TrainingDataTable';
 import { UserSessionsTable } from './UserSessionsTable';
 import { FundraisersTable } from './FundraisersTable';
 import { NotificationTable } from './NotificationTable';
+import { KnowledgeManager } from './KnowledgeManager';
 
 interface AdminDashboardProps {
   userRole: 'admin';
 }
 
-type AdminView = 'users' | 'fundraisers' | 'chats' | 'messages' | 'training' | 'sessions' | 'notifications';
+type AdminView = 'users' | 'fundraisers' | 'chats' | 'messages' | 'training' | 'sessions' | 'notifications' | 'knowledge';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
   const [currentView, setCurrentView] = useState<AdminView>('users');
@@ -60,6 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
     { id: 'training', label: 'Training Data', icon: Database, color: 'text-indigo-600' },
     { id: 'sessions', label: 'User Sessions', icon: Activity, color: 'text-teal-600' },
     { id: 'notifications', label: 'Notifications', icon: ThumbsUp, color: 'text-yellow-600' },
+    { id: 'knowledge', label: 'Knowledge Manager', icon: Brain, color: 'text-purple-600' },
   ];
 
   const renderContent = () => {
@@ -78,6 +81,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
         return <UserSessionsTable stats={stats} isLoading={isLoading} />;
       case 'notifications':
         return <NotificationTable />;
+      case 'knowledge':
+        return <KnowledgeManager />;
       default:
         return null;
     }

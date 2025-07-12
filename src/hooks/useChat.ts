@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Chat, Message, AppState, RAGResponse } from '../types';
+import { User, Chat, Message, AppState } from '../types';
 import { storage } from '../utils/storage';
 import { openaiService } from '../services/openai';
-import { ragService } from '../services/ragService';
 
 export const useChat = () => {
   const navigate = useNavigate();
@@ -140,16 +139,8 @@ export const useChat = () => {
           };
         });
 
-        // Get AI response using RAG system
-        let aiResponse: string;
-        try {
-          const ragResponse: RAGResponse = await ragService.getSmartSpidyAnswer(query);
-          aiResponse = ragResponse.answer;
-          console.log(`RAG Response - Confidence: ${ragResponse.confidence}, Sources: ${ragResponse.sources.length}, Time: ${ragResponse.processingTime}ms`);
-        } catch (error) {
-          console.error('RAG system failed, falling back to direct OpenAI:', error);
-          aiResponse = await openaiService.generateResponse(query);
-        }
+        // Get AI response
+        const aiResponse = await openaiService.generateResponse(query);
 
         // Add assistant message
         const assistantMessage: Message = {
@@ -205,16 +196,8 @@ export const useChat = () => {
         return { ...prev, chats: updatedChats };
       });
 
-      // Get AI response using RAG system
-      let aiResponse: string;
-      try {
-        const ragResponse: RAGResponse = await ragService.getSmartSpidyAnswer(query);
-        aiResponse = ragResponse.answer;
-        console.log(`RAG Response - Confidence: ${ragResponse.confidence}, Sources: ${ragResponse.sources.length}, Time: ${ragResponse.processingTime}ms`);
-      } catch (error) {
-        console.error('RAG system failed, falling back to direct OpenAI:', error);
-        aiResponse = await openaiService.generateResponse(query);
-      }
+      // Get AI response
+      const aiResponse = await openaiService.generateResponse(query);
 
       // Add assistant message
       const assistantMessage: Message = {

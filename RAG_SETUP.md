@@ -1,21 +1,12 @@
-# SmartSpidy RAG System Setup Guide
+# SmartSpidy RAG Pipeline Setup
+
+This document explains how to set up the hybrid RAG (Retrieval-Augmented Generation) pipeline for SmartSpidy.
 
 ## Overview
 
-This guide covers the complete setup and usage of the SmartSpidy RAG (Retrieval-Augmented Generation) system, which combines OpenAI GPT-4o with Supabase vector search for context-aware responses.
-
-## Architecture
-
-```
-User Query → OpenAI Embeddings → Supabase Vector Search → Context Retrieval → GPT-4o Response
-```
-
-## Prerequisites
-
-1. **OpenAI API Key** - With access to GPT-4o and text-embedding-3-large
-2. **Supabase Project** - With pgvector extension enabled
-3. **Node.js** - Version 18 or higher
-4. **Knowledge Base** - Populated `SmartSpidy_KnowledgeBase` table
+The RAG pipeline combines:
+1. **Vector similarity search** from Supabase to retrieve relevant context
+2. **OpenAI GPT-4** for generating contextual responses
 
 ## Environment Variables
 
@@ -25,302 +16,145 @@ Create a `.env` file in your project root with the following variables:
 # OpenAI Configuration
 VITE_OPENAI_API_KEY=your_openai_api_key_here
 
-# Supabase Configuration  
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_project_url_here
+VITE_SUPABASE_SERVICE_KEY=your_supabase_service_role_key_here
+
+# Optional: Adjust RAG settings
+VITE_MATCH_THRESHOLD=0.75
+VITE_MATCH_COUNT=5
 ```
 
-## Database Setup
+## Supabase Setup
 
-### 1. Enable pgvector Extension
+### 1. Create Supabase Project
+1. Go to [supabase.com](https://supabase.com)
+2. Create a new project
+3. Note your project URL and service role key
+
+### 2. Enable Vector Extension
+Run this SQL in your Supabase SQL editor:
 
 ```sql
--- Enable the pgvector extension
+-- Enable the vector extension
 CREATE EXTENSION IF NOT EXISTS vector;
-```
 
-### 2. Create Knowledge Base Table
-
-```sql
--- Create the knowledge base table
-CREATE TABLE SmartSpidy_KnowledgeBase (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    combined_text TEXT NOT NULL,
-    smartspidy_chunk TEXT NOT NULL,
-    smartspidy_embedding VECTOR(1536), -- text-embedding-3-small dimension
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create the embeddings table
+CREATE TABLE IF NOT EXISTS public.smartspidy_embeddings (
+  id BIGSERIAL PRIMARY KEY,
+  text TEXT NOT NULL,
+  embedding vector(1536),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-```
 
-### 3. Create Vector Index
+-- Create an index for similarity search
+CREATE INDEX IF NOT EXISTS smartspidy_embeddings_embedding_idx 
+ON public.smartspidy_embeddings 
+USING hnsw (embedding vector_l2_ops);
 
-```sql
--- Create ivfflat index for cosine similarity
-CREATE INDEX ON SmartSpidy_KnowledgeBase 
-USING ivfflat (smartspidy_embedding vector_cosine_ops) 
-WITH (lists = 100);
-```
-
-### 4. Create RPC Function
-
-```sql
--- Create the match function for similarity search
-CREATE OR REPLACE FUNCTION match_smartspidy_chunks(
-    query_embedding VECTOR(1536),
-    match_threshold FLOAT DEFAULT 0.7,
-    match_count INT DEFAULT 5
+-- Create the similarity search function
+CREATE OR REPLACE FUNCTION match_smartspidy_embeddings(
+  query_embedding vector(1536),
+  match_count int
 )
-RETURNS TABLE (
-    id UUID,
-    smartspidy_chunk TEXT,
-    combined_text TEXT,
-    similarity FLOAT
+RETURNS TABLE(
+  id bigint,
+  text text,
+  similarity float
 )
-LANGUAGE plpgsql
+LANGUAGE sql
+STABLE
 AS $$
-BEGIN
-    RETURN QUERY
-    SELECT
-        SmartSpidy_KnowledgeBase.id,
-        SmartSpidy_KnowledgeBase.smartspidy_chunk,
-        SmartSpidy_KnowledgeBase.combined_text,
-        (SmartSpidy_KnowledgeBase.smartspidy_embedding <=> query_embedding) * -1 + 1 AS similarity
-    FROM SmartSpidy_KnowledgeBase
-    WHERE (SmartSpidy_KnowledgeBase.smartspidy_embedding <=> query_embedding) * -1 + 1 > match_threshold
-    ORDER BY SmartSpidy_KnowledgeBase.smartspidy_embedding <=> query_embedding
-    LIMIT match_count;
-END;
+  SELECT
+    id,
+    text,
+    1 - (embedding <=> query_embedding) as similarity
+  FROM public.smartspidy_embeddings
+  ORDER BY embedding <=> query_embedding
+  LIMIT match_count;
 $$;
 ```
 
+### 3. Training Data Table
+Note: The system uses the `smartspidy_embeddings` table for both embeddings and training data. No separate training data table is needed.
+
 ## Installation
 
-1. **Install Dependencies**
-
+1. Install dependencies:
 ```bash
-npm install @supabase/supabase-js openai
+npm install
 ```
 
-2. **Verify Installation**
+2. Set up environment variables (see above)
 
-The following files should be created in your project:
-
-```
-src/
-├── services/
-│   ├── openai.ts          # OpenAI service with embeddings
-│   ├── supabaseClient.ts  # Supabase client configuration
-│   └── ragService.ts      # Main RAG pipeline
-├── types/
-│   └── index.ts           # TypeScript interfaces
-└── utils/
-    └── ragTest.ts         # Testing utilities
+3. Start the development server:
+```bash
+npm run dev
 ```
 
-## Usage
+## How It Works
 
-### Basic RAG Query
+1. **User Query**: When a user asks a question, the system:
+   - Generates an embedding for the query using OpenAI's text-embedding-3-small model
+   - Searches for similar embeddings in Supabase using cosine similarity
+   - Retrieves relevant context from the database
 
-```typescript
-import { ragService } from './services/ragService';
+2. **Response Generation**: The system:
+   - Combines the user query with retrieved context
+   - Sends the enhanced prompt to OpenAI GPT-4
+   - Returns a contextual response
 
-// Get an answer using the RAG system
-const response = await ragService.getSmartSpidyAnswer(
-  "What are effective fundraising strategies for NGOs?"
-);
-
-console.log(response.answer);        // AI-generated answer
-console.log(response.confidence);   // Confidence score (0-1)
-console.log(response.sources);      // Retrieved knowledge base chunks
-console.log(response.processingTime); // Processing time in ms
-```
-
-### Advanced Usage with Custom Parameters
-
-```typescript
-import { getSmartSpidyAnswer } from './services/ragService';
-
-// Custom similarity threshold and result count
-const response = await getSmartSpidyAnswer(
-  "How can I improve donor engagement?",
-  0.8,  // Higher similarity threshold
-  10    // More results
-);
-```
-
-### Integration with Chat System
-
-The RAG system is automatically integrated with your existing chat functionality. When users send messages, the system:
-
-1. Generates embeddings for the query
-2. Searches the knowledge base for relevant chunks
-3. Uses GPT-4o to generate contextual responses
-4. Falls back to direct OpenAI if RAG fails
-
-## Testing
-
-### Console Testing
-
-Open your browser's developer console and run:
-
-```javascript
-// Comprehensive health check
-await window.ragTest.healthCheck();
-
-// Test with sample queries
-await window.ragTest.testQueries();
-
-// Validate environment variables
-window.ragTest.validateEnv();
-
-// Get system information
-window.ragTest.systemInfo();
-```
-
-### Programmatic Testing
-
-```typescript
-import { 
-  performSystemHealthCheck, 
-  testRAGWithSampleQueries 
-} from './utils/ragTest';
-
-// Run health check
-const healthCheck = await performSystemHealthCheck();
-console.log(healthCheck);
-
-// Test with sample queries
-await testRAGWithSampleQueries();
-```
+3. **Learning**: The system optionally stores:
+   - User questions and assistant answers
+   - Embeddings for future retrieval
+   - Metadata for analysis
 
 ## Configuration
 
-### RAG System Defaults
+You can adjust the RAG behavior by modifying these parameters in `src/services/supabase.ts`:
 
-```typescript
-const DEFAULT_CONFIG = {
-  matchThreshold: 0.7,      // Minimum similarity score
-  matchCount: 5,            // Number of chunks to retrieve
-  embeddingModel: 'text-embedding-3-small',
-  chatModel: 'gpt-4o',
-  maxTokens: 1500,
-  temperature: 0.7
-};
-```
+- `match_threshold`: Minimum similarity score (0.0 to 1.0)
+- `match_count`: Number of context pieces to retrieve
+- `max_tokens`: Maximum response length
+- `temperature`: Response creativity (0.0 to 1.0)
 
-### Customizing the System
+## Adding Knowledge
 
-```typescript
-// Modify the RAG service configuration
-const customResponse = await ragService.getSmartSpidyAnswer(
-  query,
-  0.8,  // Higher threshold for more relevant results
-  3     // Fewer chunks for faster processing
-);
-```
+To add knowledge to your vector database:
 
-## Error Handling
-
-The system includes comprehensive error handling:
-
-- **Embedding Errors**: Falls back to direct OpenAI chat
-- **Search Errors**: Provides informative error messages
-- **Generation Errors**: Attempts retry with simplified context
-- **Validation Errors**: Clear feedback on missing requirements
-
-## Performance Optimization
-
-### Best Practices
-
-1. **Chunk Size**: Keep chunks between 200-500 tokens
-2. **Embedding Quality**: Use descriptive, well-structured text
-3. **Index Maintenance**: Regularly update vector indices
-4. **Caching**: Consider implementing response caching
-5. **Batch Processing**: Process multiple queries efficiently
-
-### Monitoring
-
-```typescript
-// Monitor RAG performance
-const response = await ragService.getSmartSpidyAnswer(query);
-console.log({
-  confidence: response.confidence,
-  sources: response.sources.length,
-  processingTime: response.processingTime,
-  avgSimilarity: response.sources.reduce((sum, s) => sum + s.similarity, 0) / response.sources.length
-});
-```
-
-## Security Considerations
-
-⚠️ **Important**: This implementation calls OpenAI directly from the frontend, which exposes your API key. For production use:
-
-1. **Create a Backend API**: Move OpenAI calls to a secure backend
-2. **Use Environment Variables**: Never commit API keys to version control
-3. **Implement Rate Limiting**: Prevent API abuse
-4. **Add Authentication**: Secure your endpoints
-
-### Production Architecture
-
-```
-Frontend → Your Backend API → OpenAI API
-                ↓
-            Supabase (with RLS)
-```
+1. **Manual Entry**: Use the Supabase dashboard to insert embeddings
+2. **Bulk Import**: Create a script to process documents and insert embeddings
+3. **API Integration**: Use the `storeTrainingData` function in your application
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues:
 
-1. **"VITE_OPENAI_API_KEY is not defined"**
-   - Check your `.env` file
-   - Ensure variable names start with `VITE_`
-   - Restart your development server
+1. **"Supabase environment variables are not defined"**
+   - Check your `.env` file exists and has correct values
 
-2. **"Supabase connection failed"**
-   - Verify your Supabase URL and anon key
-   - Check if pgvector extension is enabled
-   - Ensure RPC function exists
+2. **"API key authentication failed"**
+   - Verify your OpenAI API key is valid and has sufficient credits
 
-3. **"No similar chunks found"**
-   - Check if your knowledge base has data
-   - Lower the similarity threshold
-   - Verify embedding dimensions match
+3. **"Supabase search error"**
+   - Ensure the `match_smartspidy_embeddings` function exists in your database
+   - Check that your service role key has the necessary permissions
 
-4. **"API quota exceeded"**
-   - Check your OpenAI usage limits
-   - Implement request throttling
-   - Consider using a smaller embedding model
+4. **No relevant context found**
+   - Lower the `match_threshold` value
+   - Add more knowledge to your vector database
+   - Check that embeddings are being generated correctly
 
-### Debug Mode
+## Performance Tips
 
-Enable detailed logging:
+1. **Index Optimization**: Ensure your vector index is properly configured
+2. **Batch Operations**: Group multiple embedding operations when possible
+3. **Caching**: Consider caching frequently accessed embeddings
+4. **Monitoring**: Monitor API usage and costs
 
-```typescript
-// Enable debug mode in the console
-localStorage.setItem('ragDebug', 'true');
+## Security Notes
 
-// View detailed RAG processing logs
-await ragService.getSmartSpidyAnswer("test query");
-```
-
-## Next Steps
-
-1. **Populate Knowledge Base**: Add your NGO fundraising content
-2. **Test Thoroughly**: Run comprehensive tests with real queries
-3. **Monitor Performance**: Track response quality and speed
-4. **Optimize Chunks**: Refine your content chunking strategy
-5. **Implement Security**: Move to production-ready architecture
-
-## Support
-
-For issues or questions:
-1. Check the browser console for detailed error messages
-2. Run the health check utility
-3. Verify all environment variables are set
-4. Test individual components (OpenAI, Supabase, RAG pipeline)
-
----
-
-**SmartSpidy RAG System v1.0.0**  
-*Powering intelligent NGO fundraising assistance* 
+- Never expose your service role key in client-side code in production
+- Consider implementing a backend API for sensitive operations
+- Use row-level security (RLS) policies in Supabase
+- Regularly rotate API keys 

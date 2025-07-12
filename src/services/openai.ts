@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { supabaseService } from './supabase';
 
 const API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
@@ -18,19 +19,52 @@ class OpenAIService {
 
   async generateResponse(prompt: string): Promise<string> {
     try {
+      // Get relevant context from Supabase vector database
+      const relevantContext = await supabaseService.getRelevantContext(prompt);
+      
+      // Create enhanced prompt with context
+      const enhancedPrompt = relevantContext 
+        ? `You are SmartSpidy AI Assistant.
+
+Use the following context to answer the user's query. Be precise and helpful.
+
+Context:
+${relevantContext}
+
+User Query:
+${prompt}`
+        : prompt;
+
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {
             role: 'user',
-            content: prompt
+            content: enhancedPrompt
           }
         ],
         max_tokens: 1000,
         temperature: 0.7
       });
 
-      return completion.choices[0]?.message?.content || 'No response generated';
+      const response = completion.choices[0]?.message?.content || 'No response generated';
+
+      // Store training data for future learning (optional)
+      // Temporarily disabled to debug storage issues
+      /*
+      if (relevantContext) {
+        try {
+          await supabaseService.storeTrainingData({
+            userQuestion: prompt,
+            assistantAnswer: response
+          });
+        } catch (error) {
+          console.warn('Failed to store training data:', error);
+        }
+      }
+      */
+
+      return response;
     } catch (error: any) {
       console.error('Error generating response:', error);
       
@@ -73,65 +107,6 @@ class OpenAIService {
       console.error('Error generating chat response:', error);
       // Fallback to simple generation if context fails
       return await this.generateResponse(newMessage);
-    }
-  }
-
-  async generateEmbedding(text: string): Promise<number[]> {
-    try {
-      const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: text,
-        encoding_format: 'float'
-      });
-
-      return response.data[0]?.embedding || [];
-    } catch (error: any) {
-      console.error('Error generating embedding:', error);
-      
-      // More specific error messages
-      if (error.message?.includes('401')) {
-        throw new Error('API key authentication failed. Please check your API key.');
-      } else if (error.message?.includes('429')) {
-        throw new Error('API rate limit exceeded. Please try again later.');
-      } else if (error.message?.includes('quota')) {
-        throw new Error('API quota exceeded. Please try again later.');
-      } else {
-        throw new Error('Failed to generate embedding. Please try again.');
-      }
-    }
-  }
-
-  async generateContextualResponse(context: string, query: string): Promise<string> {
-    try {
-      const prompt = `You are SmartSpidy, a personalized assistant for NGO fundraising campaigns. Use the provided context to answer the user's question accurately and helpfully.
-
-Context:
-${context}
-
-User Question: ${query}
-
-Please provide a comprehensive answer based on the context provided. If the context doesn't contain enough information to fully answer the question, mention what information is available and suggest what additional details might be needed.`;
-
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are SmartSpidy, a knowledgeable assistant specializing in NGO fundraising campaigns. Provide helpful, accurate, and actionable advice based on the context provided.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 1500,
-        temperature: 0.7
-      });
-
-      return completion.choices[0]?.message?.content || 'No response generated';
-    } catch (error) {
-      console.error('Error generating contextual response:', error);
-      throw error;
     }
   }
 }
