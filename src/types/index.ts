@@ -110,3 +110,57 @@ export interface Fundraiser {
   createdBy: User;
   createdAt: Date;
 }
+
+// RAG System Types
+export interface RAGResponse {
+  answer: string;
+  sources: KnowledgeBaseSource[];
+  confidence: number;
+  processingTime: number;
+  metadata?: {
+    queryEmbedding?: number[];
+    searchResults?: number;
+    contextLength?: number;
+  };
+}
+
+export interface KnowledgeBaseSource {
+  id: string;
+  smartspidy_chunk: string;
+  combined_text: string;
+  similarity: number;
+  metadata?: {
+    source?: string;
+    category?: string;
+    lastUpdated?: string;
+  };
+}
+
+export interface RAGError {
+  message: string;
+  type: 'embedding' | 'search' | 'generation' | 'validation' | 'unknown';
+  details?: any;
+  timestamp?: Date;
+}
+
+export interface RAGConfig {
+  matchThreshold: number;
+  matchCount: number;
+  embeddingModel: string;
+  chatModel: string;
+  maxContextLength: number;
+  temperature: number;
+}
+
+export interface SmartSpidyKnowledgeBase {
+  id: string;
+  combined_text: string;
+  smartspidy_chunk: string;
+  smartspidy_embedding: number[];
+  created_at: string;
+  metadata?: {
+    source?: string;
+    category?: string;
+    tags?: string[];
+  };
+}
