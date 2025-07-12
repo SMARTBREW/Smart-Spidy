@@ -129,13 +129,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
           <div className="max-w-4xl mx-auto">
             {chat.messages.map((message, index) => (
               <React.Fragment key={message.id}>
-                {/* User's query */}
-                <ChatMessage
-                  message={message}
-                  isLast={false}
-                  type="user"
-                />
-                {/* Assistant's answer, only if present */}
+                {message.query && (
+                  <ChatMessage
+                    message={message}
+                    isLast={false}
+                    type="user"
+                  />
+                )}
                 {message.answer && (
                   <ChatMessage
                     message={message}

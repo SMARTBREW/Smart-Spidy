@@ -65,7 +65,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
           >
             <X className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold mb-4 text-black">Create New Chat</h2>
+          <h2 className="text-xl font-bold mb-4 text-black">Start New Conversation</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               type="text"
@@ -82,14 +82,6 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               value={fields.instagramUsername}
               onChange={e => setFields(f => ({ ...f, instagramUsername: e.target.value }))}
               placeholder="Instagram username"
-              className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              maxLength={50}
-            />
-            <input
-              type="text"
-              value={fields.occupation}
-              onChange={e => setFields(f => ({ ...f, occupation: e.target.value }))}
-              placeholder="Occupation"
               className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
               maxLength={50}
             />
