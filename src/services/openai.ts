@@ -109,6 +109,25 @@ ${prompt}`
       return await this.generateResponse(newMessage);
     }
   }
+  async classifyStatus(prompt: string): Promise<string> {
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 10,
+        temperature: 0
+      });
+      return completion.choices[0]?.message?.content || 'green';
+    } catch (error) {
+      console.error('Error classifying chat status:', error);
+      throw new Error('Failed to classify chat status.');
+    }
+  }
 }
 
 export const openaiService = new OpenAIService(); 
