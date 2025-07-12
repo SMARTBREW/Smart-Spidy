@@ -12,9 +12,10 @@ interface ChatAreaProps {
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   isCreatingChat?: boolean;
+  temperatureBar?: React.ReactNode;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false, temperatureBar }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,7 +25,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
   if (!chat) {
     return (
       <div className="flex-1 flex flex-col bg-white">
-        {/* Header with toggle button */}
         <div className="bg-white border-b border-gray-300 p-4">
           <button
             onClick={onToggleSidebar}
@@ -82,14 +82,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
         </button> */}
         <div className="flex-1">
           <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
-          {/* Additional chat details */}
           {(chat.instagramUsername || chat.occupation || chat.product || chat.gender) && (
             <div className="mt-1 text-sm text-gray-600 flex flex-wrap gap-4">
               {chat.instagramUsername && (
                 <span>Instagram: <span className="font-medium text-gray-800">@{chat.instagramUsername}</span></span>
-              )}
-              {chat.occupation && (
-                <span>Occupation: <span className="font-medium text-gray-800">{chat.occupation}</span></span>
               )}
               {chat.product && (
                 <span>Product: <span className="font-medium text-gray-800">{chat.product}</span></span>
@@ -100,6 +96,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             </div>
           )}
         </div>
+        {temperatureBar && (
+          <div className="mr-20 flex-shrink-0 flex items-center">{temperatureBar}</div>
+        )}
       </div>
 
       {/* Messages */}

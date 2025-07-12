@@ -144,6 +144,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const decrementTemp = () => setTemperature(t => Math.max(0, t - 1));
   const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value));
 
+  // Temperature ranges and colors
+  const getTemperatureLabel = (temp: number): string => {
+    if (temp <= 33) return 'Cold';
+    if (temp <= 66) return 'Humid';
+    return 'Hot';
+  };
+
+  const getTemperatureColor = (temp: number): string => {
+    if (temp <= 33) return 'text-blue-600';
+    if (temp <= 66) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getTemperatureBg = (temp: number): string => {
+    if (temp <= 33) return 'bg-blue-50 border-blue-200';
+    if (temp <= 66) return 'bg-yellow-50 border-yellow-200';
+    return 'bg-red-50 border-red-200';
+  };
+
+  // New: Get accent color for slider
+  const getTemperatureAccent = (temp: number): string => {
+    if (temp <= 33) return '#2563eb'; // blue-600
+    if (temp <= 66) return '#ca8a04'; // yellow-600
+    return '#dc2626'; // red-600
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -151,35 +177,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       transition={{ duration: 0.3 }}
       className="flex h-screen bg-white"
     >
-      {/* Temperature Control - Top Right */}
-      <div className="fixed top-4 right-32 z-50 flex items-center bg-white shadow-lg rounded-full px-4 py-2 gap-2 border border-gray-200">
-        <button
-          onClick={decrementTemp}
-          className="p-1 rounded-full hover:bg-gray-100 transition"
-          aria-label="Decrease temperature"
-        >
-          <Minus className="w-4 h-4 text-gray-700" />
-        </button>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={temperature}
-          onChange={handleSlider}
-          className="mx-2 accent-blue-500"
-          style={{ width: 80 }}
-        />
-        <span className="font-medium text-gray-700 min-w-[36px] text-center">{temperature}%</span>
-        <button
-          onClick={incrementTemp}
-          className="p-1 rounded-full hover:bg-gray-100 transition"
-          aria-label="Increase temperature"
-        >
-          <Plus className="w-4 h-4 text-gray-700" />
-        </button>
-      </div>
-      {/* Notification Bell - Top Right */}
-      <div className="fixed top-4 right-8 z-50">
+      <div className="fixed top-6 right-8 z-50">
         <button
           className="relative p-2 rounded-full hover:bg-gray-100 transition"
           onClick={() => setShowNotifications(v => !v)}
@@ -305,6 +303,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
         isCreatingChat={isCreatingChat}
+        // Pass temperature bar as a prop
+        temperatureBar={
+          <div className={`ml-auto flex items-center shadow-lg rounded-full px-6 py-3 gap-3 border transition-colors ${getTemperatureBg(temperature)}`}
+            style={{ minWidth: 180 }}
+          >
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={temperature}
+              onChange={handleSlider}
+              className="mx-2"
+              style={{ width: 140, accentColor: getTemperatureAccent(temperature) }}
+            />
+            <span className={`font-medium min-w-[48px] text-center ${getTemperatureColor(temperature)}`}
+              style={{ fontSize: 18 }}
+            >
+              {getTemperatureLabel(temperature)}
+            </span>
+          </div>
+        }
       />
       {isSearchOpen && (
         <SearchModal

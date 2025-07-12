@@ -4,6 +4,15 @@ import { User, Chat, Message, AppState } from '../types';
 import { storage } from '../utils/storage';
 import { geminiService } from '../services/gemini';
 
+// Helper to normalize createdAt for safe subtraction
+function getTimestamp(dateVal: Date | string | number | undefined): number {
+  if (!dateVal) return 0;
+  if (typeof dateVal === 'number') return dateVal;
+  if (typeof dateVal === 'string') return new Date(dateVal).getTime();
+  if (dateVal instanceof Date) return dateVal.getTime();
+  return 0;
+}
+
 export const useChat = () => {
   const navigate = useNavigate();
   const [state, setState] = useState<AppState>({
@@ -166,6 +175,37 @@ export const useChat = () => {
           storage.setChats(updatedChats);
           return { ...prev, chats: updatedChats };
         });
+
+        // --- Automatic chat status classification for new chat ---
+        setState(prev => {
+          const updatedChats = prev.chats.map(chat => {
+            if (chat.id === newChat.id) {
+              // Get recent queries (last 24h)
+              const now = Date.now();
+              const msWindow = 24 * 60 * 60 * 1000;
+              const recentQueries = chat.messages
+                .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
+                .map(msg => msg.query);
+              if (recentQueries.length === 0) return chat;
+              const prompt = `Given these queries from the last 24 hours, classify the chat as 'green' (going well), 'yellow' (some issues), or 'red' (unlikely to succeed). Only respond with one of these words.\n\nQueries:\n${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}`;
+              geminiService.classifyStatus(prompt).then(status => {
+                const cleanStatus = status.trim().toLowerCase();
+                // Only allow valid status values
+                const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
+                const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
+                setState(prev2 => {
+                  const finalChats = prev2.chats.map(c =>
+                    c.id === chat.id ? { ...c, status: finalStatus } : c
+                  );
+                  storage.setChats(finalChats);
+                  return { ...prev2, chats: finalChats };
+                });
+              });
+            }
+            return chat;
+          });
+          return { ...prev, chats: updatedChats };
+        });
         setIsTyping(false);
         return;
       }
@@ -223,12 +263,43 @@ export const useChat = () => {
         storage.setChats(updatedChats);
         return { ...prev, chats: updatedChats };
       });
+
+      // --- Automatic chat status classification for existing chat ---
+      setState(prev => {
+        const updatedChats = prev.chats.map(chat => {
+          if (chat.id === state.currentChatId) {
+            // Get recent queries (last 24h)
+            const now = Date.now();
+            const msWindow = 24 * 60 * 60 * 1000;
+            const recentQueries = chat.messages
+              .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
+              .map(msg => msg.query);
+            if (recentQueries.length === 0) return chat;
+            const prompt = `Given these queries from the last 24 hours, classify the chat as 'green' (going well), 'yellow' (some issues), or 'red' (unlikely to succeed). Only respond with one of these words.\n\nQueries:\n${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}`;
+            geminiService.classifyStatus(prompt).then(status => {
+              const cleanStatus = status.trim().toLowerCase();
+              // Only allow valid status values
+              const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
+              const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
+              setState(prev2 => {
+                const finalChats = prev2.chats.map(c =>
+                  c.id === chat.id ? { ...c, status: finalStatus } : c
+                );
+                storage.setChats(finalChats);
+                return { ...prev2, chats: finalChats };
+              });
+            });
+          }
+          return chat;
+        });
+        return { ...prev, chats: updatedChats };
+      });
     } catch (error) {
       console.error('Error sending message:', error);
       setIsTyping(false);
     }
     setIsTyping(false);
-  }, [state.currentChatId, state.chats, state.user]);
+  }, [state.currentChatId, state.user]);
 
   const deleteChat = useCallback((chatId: string) => {
     setState(prev => {

@@ -57,6 +57,18 @@ class GeminiService {
       return await this.generateResponse(newMessage);
     }
   }
+
+  async classifyStatus(prompt: string): Promise<string> {
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      return text;
+    } catch (error: any) {
+      console.error('Error classifying chat status:', error);
+      throw new Error('Failed to classify chat status.');
+    }
+  }
 }
 
 export const geminiService = new GeminiService(); 
