@@ -48,7 +48,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-20 h-20 rounded-xl shadow-lg" />
           </div>
           <h2 className="text-3xl font-bold text-black mb-3">
-            Welcome to Smart Spidy
+            Welcome to Smart Spid
           </h2>
           <p className="text-gray-600 mb-8 text-lg">
             Your Professional AI Assistant
