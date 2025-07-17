@@ -6,7 +6,6 @@ import { ChatArea } from './ChatArea';
 import { SearchModal } from './SearchModal';
 import { Bell, Star, X, Clock, MessageCircle } from 'lucide-react';
 import { CreateChatModal } from './CreateChatModal';
-import { Plus, Minus } from 'lucide-react';
 
 interface ChatInterfaceProps {
   user: User;
@@ -129,46 +128,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleSidebar]);
 
-  // Temperature state (0-100%)
-  const [temperature, setTemperature] = useState<number>(() => {
-    const saved = localStorage.getItem('temperature');
-    return saved !== null ? Number(saved) : 50;
-  });
 
-  // Persist temperature in localStorage
-  useEffect(() => {
-    localStorage.setItem('temperature', String(temperature));
-  }, [temperature]);
-
-  const incrementTemp = () => setTemperature(t => Math.min(100, t + 1));
-  const decrementTemp = () => setTemperature(t => Math.max(0, t - 1));
-  const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value));
-
-  // Temperature ranges and colors
-  const getTemperatureLabel = (temp: number): string => {
-    if (temp <= 33) return 'Cold';
-    if (temp <= 66) return 'Warm';
-    return 'Hot';
-  };
-
-  const getTemperatureColor = (temp: number): string => {
-    if (temp <= 33) return 'text-blue-600';
-    if (temp <= 66) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getTemperatureBg = (temp: number): string => {
-    if (temp <= 33) return 'bg-blue-50 border-blue-200';
-    if (temp <= 66) return 'bg-yellow-50 border-yellow-200';
-    return 'bg-red-50 border-red-200';
-  };
-
-  // New: Get accent color for slider
-  const getTemperatureAccent = (temp: number): string => {
-    if (temp <= 33) return '#2563eb'; // blue-600
-    if (temp <= 66) return '#ca8a04'; // yellow-600
-    return '#dc2626'; // red-600
-  };
 
   return (
     <motion.div
@@ -303,27 +263,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
         isCreatingChat={isCreatingChat}
-        // Pass temperature bar as a prop
-        temperatureBar={
-          <div className={`ml-auto flex items-center shadow-lg rounded-full px-6 py-3 gap-3 border transition-colors ${getTemperatureBg(temperature)}`}
-            style={{ minWidth: 180 }}
-          >
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={temperature}
-              onChange={handleSlider}
-              className="mx-2"
-              style={{ width: 140, accentColor: getTemperatureAccent(temperature) }}
-            />
-            <span className={`font-medium min-w-[48px] text-center ${getTemperatureColor(temperature)}`}
-              style={{ fontSize: 18 }}
-            >
-              {getTemperatureLabel(temperature)}
-            </span>
-          </div>
-        }
       />
       {isSearchOpen && (
         <SearchModal

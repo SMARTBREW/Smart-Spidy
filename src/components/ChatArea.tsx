@@ -12,10 +12,9 @@ interface ChatAreaProps {
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   isCreatingChat?: boolean;
-  temperatureBar?: React.ReactNode;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false, temperatureBar }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -96,9 +95,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             </div>
           )}
         </div>
-        {temperatureBar && (
-          <div className="mr-20 flex-shrink-0 flex items-center">{temperatureBar}</div>
-        )}
+
       </div>
 
       {/* Messages */}

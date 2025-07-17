@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Chat, Message, AppState } from '../types';
 import { storage } from '../utils/storage';
 import { openaiService } from '../services/openai';
+import { fetchInstagramAccountDetails } from '../services/instagram';
 
 export const useChat = () => {
   const navigate = useNavigate();
@@ -139,8 +140,28 @@ export const useChat = () => {
           };
         });
 
-        // Get AI response
-        const aiResponse = await openaiService.generateResponse(query);
+        // Intercept Instagram ID queries
+        let igMatch = query.match(/^(instagram|ig)\s*:\s*([a-zA-Z0-9_.]+)/i);
+        let aiResponse = '';
+        if (igMatch) {
+          const igUsername = igMatch[2];
+          try {
+            // Use the new IG User ID as the base for the business_discovery endpoint
+            const details = await fetchInstagramAccountDetails('17841475777137453', igUsername);
+            aiResponse =
+              `Instagram details for @${details.username}:\n` +
+              (details.name ? `Name: ${details.name}\n` : '') +
+              (details.account_type ? `Account type: ${details.account_type}\n` : '') +
+              (details.biography ? `Bio: ${details.biography}\n` : '') +
+              (typeof details.followers_count === 'number' ? `Followers: ${details.followers_count}\n` : '') +
+              (typeof details.media_count === 'number' ? `Posts: ${details.media_count}\n` : '') +
+              (details.website ? `Website: ${details.website}\n` : '');
+          } catch (err: any) {
+            aiResponse = `Could not fetch Instagram details: ${err.message}`;
+          }
+        } else {
+          aiResponse = await openaiService.generateResponse(query);
+        }
 
         // Add assistant message
         const assistantMessage: Message = {
@@ -155,37 +176,38 @@ export const useChat = () => {
         setState(prev => {
           const updatedChats = prev.chats.map(chat => {
             if (chat.id === newChat.id) {
+              // AUTOMATIC STATUS CLASSIFICATION - COMMENTED OUT FOR MANUAL CONTROL
               // Get recent queries (last 24h, up to 10 most recent)
-              const now = Date.now();
-              const msWindow = 24 * 60 * 60 * 1000;
-              const recentQueries = chat.messages
-                .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
-                .slice(-10)
-                .map(msg => msg.query);
-              if (recentQueries.length === 0) return chat;
-              const prompt = `Given these queries from the last 24 hours, classify the chat as:
-- 'green' if the conversation is now going well, positive, and there are no recent unresolved issues.
-- 'yellow' if there are some issues or uncertainty, but not critical.
-- 'red' if the chat is unlikely to succeed or is very negative.
+              // const now = Date.now();
+              // const msWindow = 24 * 60 * 60 * 1000;
+              // const recentQueries = chat.messages
+              //   .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
+              //   .slice(-10)
+              //   .map(msg => msg.query);
+              // if (recentQueries.length === 0) return chat;
+              // const prompt = `Given these queries from the last 24 hours, classify the chat as:
+              // - 'green' if the conversation is now going well, positive, and there are no recent unresolved issues.
+              // - 'yellow' if there are some issues or uncertainty, but not critical.
+              // - 'red' if the chat is unlikely to succeed or is very negative.
 
-Only respond with one of these words.
+              // Only respond with one of these words.
 
-Queries:
-${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
-`;
-              openaiService.classifyStatus(prompt).then(status => {
-                const cleanStatus = status.trim().toLowerCase();
-                // Only allow valid status values
-                const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
-                const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
-                setState(prev2 => {
-                  const finalChats = prev2.chats.map(c =>
-                    c.id === chat.id ? { ...c, status: finalStatus } : c
-                  );
-                  storage.setChats(finalChats);
-                  return { ...prev2, chats: finalChats };
-                });
-              });
+              // Queries:
+              // ${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
+              // `;
+              // openaiService.classifyStatus(prompt).then(status => {
+              //   const cleanStatus = status.trim().toLowerCase();
+              //   // Only allow valid status values
+              //   const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
+              //   const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
+              //   setState(prev2 => {
+              //     const finalChats = prev2.chats.map(c =>
+              //       c.id === chat.id ? { ...c, status: finalStatus } : c
+              //     );
+              //     storage.setChats(finalChats);
+              //     return { ...prev2, chats: finalChats };
+              //   });
+              // });
             }
             return chat;
           });
@@ -221,8 +243,28 @@ ${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
         return { ...prev, chats: updatedChats };
       });
 
-      // Get AI response
-      const aiResponse = await openaiService.generateResponse(query);
+      // Intercept Instagram ID queries
+      let igMatch = query.match(/^(instagram|ig)\s*:\s*([a-zA-Z0-9_.]+)/i);
+      let aiResponse = '';
+      if (igMatch) {
+        const igUsername = igMatch[2];
+        try {
+          // Use the new IG User ID as the base for the business_discovery endpoint
+          const details = await fetchInstagramAccountDetails('17841475777137453', igUsername);
+          aiResponse =
+            `Instagram details for @${details.username}:\n` +
+            (details.name ? `Name: ${details.name}\n` : '') +
+            (details.account_type ? `Account type: ${details.account_type}\n` : '') +
+            (details.biography ? `Bio: ${details.biography}\n` : '') +
+            (typeof details.followers_count === 'number' ? `Followers: ${details.followers_count}\n` : '') +
+            (typeof details.media_count === 'number' ? `Posts: ${details.media_count}\n` : '') +
+            (details.website ? `Website: ${details.website}\n` : '');
+        } catch (err: any) {
+          aiResponse = `Could not fetch Instagram details: ${err.message}`;
+        }
+      } else {
+        aiResponse = await openaiService.generateResponse(query);
+      }
 
       // Add assistant message
       const assistantMessage: Message = {
@@ -249,46 +291,46 @@ ${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
         return { ...prev, chats: updatedChats };
       });
 
-      // --- Automatic chat status classification for existing chat ---
-      setState(prev => {
-        const updatedChats = prev.chats.map(chat => {
-          if (chat.id === state.currentChatId) {
-            // Get recent queries (last 24h, up to 10 most recent)
-            const now = Date.now();
-            const msWindow = 24 * 60 * 60 * 1000;
-            const recentQueries = chat.messages
-              .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
-              .slice(-10)
-              .map(msg => msg.query);
-            if (recentQueries.length === 0) return chat;
-            const prompt = `Given these queries from the last 24 hours, classify the chat as:
-- 'green' if the conversation is now going well, positive, and there are no recent unresolved issues.
-- 'yellow' if there are some issues or uncertainty, but not critical.
-- 'red' if the chat is unlikely to succeed or is very negative.
+      // --- AUTOMATIC CHAT STATUS CLASSIFICATION FOR EXISTING CHAT - COMMENTED OUT FOR MANUAL CONTROL ---
+      // setState(prev => {
+      //   const updatedChats = prev.chats.map(chat => {
+      //     if (chat.id === state.currentChatId) {
+      //       // Get recent queries (last 24h, up to 10 most recent)
+      //       const now = Date.now();
+      //       const msWindow = 24 * 60 * 60 * 1000;
+      //       const recentQueries = chat.messages
+      //         .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
+      //         .slice(-10)
+      //         .map(msg => msg.query);
+      //       if (recentQueries.length === 0) return chat;
+      //       const prompt = `Given these queries from the last 24 hours, classify the chat as:
+      // - 'green' if the conversation is now going well, positive, and there are no recent unresolved issues.
+      // - 'yellow' if there are some issues or uncertainty, but not critical.
+      // - 'red' if the chat is unlikely to succeed or is very negative.
 
-Only respond with one of these words.
+      // Only respond with one of these words.
 
-Queries:
-${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
-`;
-            openaiService.classifyStatus(prompt).then(status => {
-              const cleanStatus = status.trim().toLowerCase();
-              // Only allow valid status values
-              const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
-              const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
-              setState(prev2 => {
-                const finalChats = prev2.chats.map(c =>
-                  c.id === chat.id ? { ...c, status: finalStatus } : c
-                );
-                storage.setChats(finalChats);
-                return { ...prev2, chats: finalChats };
-              });
-            });
-          }
-          return chat;
-        });
-        return { ...prev, chats: updatedChats };
-      });
+      // Queries:
+      // ${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
+      // `;
+      //       openaiService.classifyStatus(prompt).then(status => {
+      //         const cleanStatus = status.trim().toLowerCase();
+      //         // Only allow valid status values
+      //         const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
+      //         const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
+      //         setState(prev2 => {
+      //           const finalChats = prev2.chats.map(c =>
+      //             c.id === chat.id ? { ...c, status: finalStatus } : c
+      //           );
+      //           storage.setChats(finalChats);
+      //           return { ...prev2, chats: finalChats };
+      //         });
+      //       });
+      //     }
+      //     return chat;
+      //   });
+      //   return { ...prev, chats: updatedChats };
+      // });
     } catch (error) {
       console.error('Error sending message:', error);
       setIsTyping(false);
