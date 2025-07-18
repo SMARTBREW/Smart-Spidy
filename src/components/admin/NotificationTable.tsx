@@ -14,6 +14,7 @@ const notifications = [
     lastMessage: 'Thanks for the update on the project timeline.',
     timestamp: '2024-01-15 14:30',
     messageCount: 12,
+    is_read: false,
   },
   {
     id: 2,
@@ -24,6 +25,7 @@ const notifications = [
     lastMessage: 'When can we schedule the next meeting?',
     timestamp: '2024-01-15 11:45',
     messageCount: 8,
+    is_read: false,
   },
   {
     id: 3,
@@ -34,6 +36,7 @@ const notifications = [
     lastMessage: 'I need help with the login issue.',
     timestamp: '2024-01-14 16:20',
     messageCount: 5,
+    is_read: false,
   },
   {
     id: 4,
@@ -44,6 +47,7 @@ const notifications = [
     lastMessage: 'The campaign results look promising!',
     timestamp: '2024-01-15 09:15',
     messageCount: 15,
+    is_read: false,
   },
   {
     id: 5,
@@ -54,6 +58,7 @@ const notifications = [
     lastMessage: 'Everything is ready for the launch.',
     timestamp: '2024-01-15 13:22',
     messageCount: 20,
+    is_read: false,
   },
   {
     id: 6,
@@ -64,6 +69,7 @@ const notifications = [
     lastMessage: 'Found a critical bug in the checkout process.',
     timestamp: '2024-01-15 10:30',
     messageCount: 3,
+    is_read: false,
   },
   {
     id: 7,
@@ -74,6 +80,7 @@ const notifications = [
     lastMessage: 'Looking forward to our collaboration.',
     timestamp: '2024-01-15 15:45',
     messageCount: 7,
+    is_read: false,
   },
   {
     id: 8,
@@ -84,6 +91,7 @@ const notifications = [
     lastMessage: 'Thank you for the priority support.',
     timestamp: '2024-01-15 12:10',
     messageCount: 18,
+    is_read: false,
   },
   {
     id: 9,
@@ -94,6 +102,7 @@ const notifications = [
     lastMessage: 'Can we add dark mode to the application?',
     timestamp: '2024-01-15 08:55',
     messageCount: 4,
+    is_read: false,
   },
   {
     id: 10,
@@ -104,6 +113,7 @@ const notifications = [
     lastMessage: 'Interested in the enterprise package.',
     timestamp: '2024-01-15 16:30',
     messageCount: 6,
+    is_read: false,
   },
   {
     id: 11,
@@ -114,6 +124,7 @@ const notifications = [
     lastMessage: 'Server optimization is working great!',
     timestamp: '2024-01-15 14:15',
     messageCount: 11,
+    is_read: false,
   },
   {
     id: 12,
@@ -124,14 +135,21 @@ const notifications = [
     lastMessage: 'When is the next training scheduled?',
     timestamp: '2024-01-15 11:20',
     messageCount: 9,
+    is_read: false,
   },
 ];
 
 export const NotificationTable: React.FC = () => {
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
-  
+  const [notificationList, setNotificationList] = useState(notifications.map(n => ({ ...n, is_read: n.is_read || false })));
+
   // Only show notifications for exactly 2 days ago
-  const filtered = notifications.filter(n => n.days === 2);
+  const filtered = notificationList.filter(n => n.days === 2);
+
+  const markAsRead = (id: number) => {
+    setNotificationList(list => list.map(n => n.id === id ? { ...n, is_read: true } : n));
+    // TODO: Call backend API to mark as read
+  };
 
   return (
     <div className="space-y-6 h-full">
@@ -150,25 +168,26 @@ export const NotificationTable: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Message</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center text-gray-400 py-8">No notifications for 2 days ago.</td>
+                  <td colSpan={6} className="text-center text-gray-400 py-8">No notifications for 2 days ago.</td>
                 </tr>
               ) : (
                 filtered.map((n) => (
                   <tr 
                     key={n.id} 
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${n.is_read ? 'opacity-60' : ''}`}
                     onClick={() => setSelectedNotification(n)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{n.chatName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-700">
                       {n.user.name} <span className="text-xs text-gray-400">({n.user.email})</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       {n.status === 'gold' ? (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
                           <Star className="w-3 h-3 mr-1.5 text-amber-400" fill="currentColor" /> Gold
@@ -189,6 +208,13 @@ export const NotificationTable: React.FC = () => {
                         <Clock className="w-4 h-4 mr-1" />
                         {n.timestamp}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {n.is_read ? (
+                        <span className="text-xs text-green-600 font-semibold">Read</span>
+                      ) : (
+                        <span className="text-xs text-yellow-600 font-semibold">Pending</span>
+                      )}
                     </td>
                   </tr>
                 ))

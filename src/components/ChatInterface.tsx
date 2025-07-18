@@ -4,7 +4,7 @@ import { Chat, User } from '../types';
 import { Sidebar } from './Sidebar';
 import { ChatArea } from './ChatArea';
 import { SearchModal } from './SearchModal';
-import { Bell, Star, X, Clock, MessageCircle } from 'lucide-react';
+import { Bell, Star, X, Clock, MessageCircle, CheckCircle } from 'lucide-react';
 import { CreateChatModal } from './CreateChatModal';
 
 interface ChatInterfaceProps {
@@ -67,6 +67,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       lastMessage: 'Thanks for the update on the project timeline.',
       timestamp: '2024-01-15 14:30',
       messageCount: 12,
+      is_read: false,
     },
     { 
       chatId: '2', 
@@ -76,6 +77,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       lastMessage: 'I need help with the login issue.',
       timestamp: '2024-01-15 10:30',
       messageCount: 5,
+      is_read: false,
     },
     { 
       chatId: '3', 
@@ -85,6 +87,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       lastMessage: 'When can we schedule the next meeting?',
       timestamp: '2024-01-15 11:45',
       messageCount: 8,
+      is_read: false,
     },
     { 
       chatId: '4', 
@@ -94,9 +97,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       lastMessage: 'Looking forward to our collaboration.',
       timestamp: '2024-01-15 15:45',
       messageCount: 7,
+      is_read: false,
     },
   ];
-  const notifications = allNotifications.filter(n => n.days === 2);
+  const [notificationList, setNotificationList] = useState(
+    allNotifications.map(n => ({ ...n, is_read: typeof n.is_read === 'boolean' ? n.is_read : false }))
+  );
+  // Only show notifications for 2 days
+  const notifications = notificationList.filter(n => n.days === 2);
+
+  // Mark as read handler
+  const markAsRead = (chatId: string) => {
+    setNotificationList(list => list.map(n => n.chatId === chatId ? { ...n, is_read: true } : n));
+    // TODO: Call backend API to mark as read
+  };
 
   useEffect(() => {
     // Calculate notifications for chats with status green, yellow, or gold and not updated for 2+ days
@@ -199,36 +213,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ) : (
                   <div className="space-y-4">
                     {notifications.map(n => (
-                      <div key={n.chatId} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            {n.status === 'gold' ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                                <Star className="w-3 h-3 mr-1" fill="currentColor" /> Gold
-                              </span>
-                            ) : n.status === 'green' ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                <span className="w-2 h-2 rounded-full mr-1 bg-green-500" /> Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                <span className="w-2 h-2 rounded-full mr-1 bg-yellow-400" /> Pending
-                              </span>
-                            )}
-                            <span className="text-xs text-gray-500">Waiting {n.days} days</span>
+                      <div key={n.chatId} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer flex flex-col justify-between" style={{ minHeight: '120px' }}>
+                        <div>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              {n.status === 'gold' ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                                  <Star className="w-3 h-3 mr-1" fill="currentColor" /> Gold
+                                </span>
+                              ) : n.status === 'green' ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border-green-200">
+                                  <span className="w-2 h-2 rounded-full mr-1 bg-green-500" /> Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border-yellow-200">
+                                  <span className="w-2 h-2 rounded-full mr-1 bg-yellow-400" /> Pending
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              <span>{n.timestamp}</span>
+                            </div>
+                            <div className="flex items-center">
+                              <MessageCircle className="w-3 h-3 mr-1" />
+                              <span>{n.messageCount} messages</span>
+                            </div>
+                            <div className="flex items-center">
+                              <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${n.is_read ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{n.is_read ? 'Read' : 'Pending'}</span>
+                            </div>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            <span>{n.timestamp}</span>
+                        {/* Green tick at the bottom for unread notifications */}
+                        {!n.is_read && (
+                          <div className="flex justify-end mt-4">
+                            <button
+                              className="flex items-center text-green-600 hover:text-green-800 focus:outline-none"
+                              title="Mark as Read"
+                              onClick={e => { e.stopPropagation(); markAsRead(n.chatId); }}
+                            >
+                              <CheckCircle className="w-6 h-6" />
+                            </button>
                           </div>
-                          <div className="flex items-center">
-                            <MessageCircle className="w-3 h-3 mr-1" />
-                            <span>{n.messageCount} messages</span>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>

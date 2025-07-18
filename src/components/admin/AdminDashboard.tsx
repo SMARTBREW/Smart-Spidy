@@ -7,24 +7,21 @@ import {
   MessageCircle, 
   ThumbsUp, 
   Database, 
-  Activity,
-  Brain
+  Activity
 } from 'lucide-react';
 import { AdminStats } from '../../types';
 import { UsersTable } from './UsersTable';
 import { ChatsTable } from './ChatsTable';
 import { MessagesTable } from './MessagesTable';
-import { TrainingDataTable } from './TrainingDataTable';
 import { UserSessionsTable } from './UserSessionsTable';
 import { FundraisersTable } from './FundraisersTable';
 import { NotificationTable } from './NotificationTable';
-import { KnowledgeManager } from './KnowledgeManager';
 
 interface AdminDashboardProps {
   userRole: 'admin';
 }
 
-type AdminView = 'users' | 'fundraisers' | 'chats' | 'messages' | 'training' | 'sessions' | 'notifications' | 'knowledge';
+type AdminView = 'users' | 'fundraisers' | 'chats' | 'messages' | 'sessions' | 'notifications';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
   const [currentView, setCurrentView] = useState<AdminView>('users');
@@ -59,10 +56,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
     { id: 'fundraisers', label: 'Fundraisers', icon: Database, color: 'text-blue-600' },
     { id: 'chats', label: 'Chats', icon: MessageSquare, color: 'text-orange-600' },
     { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'text-red-600' },
-    { id: 'training', label: 'Training Data', icon: Database, color: 'text-indigo-600' },
     { id: 'sessions', label: 'User Sessions', icon: Activity, color: 'text-teal-600' },
     { id: 'notifications', label: 'Notifications', icon: ThumbsUp, color: 'text-yellow-600' },
-    { id: 'knowledge', label: 'Knowledge Manager', icon: Brain, color: 'text-purple-600' },
   ];
 
   const renderContent = () => {
@@ -75,14 +70,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
         return <ChatsTable stats={stats} isLoading={isLoading} />;
       case 'messages':
         return <MessagesTable stats={stats}  />;
-      case 'training':
-        return <TrainingDataTable stats={stats} isLoading={isLoading} />;
       case 'sessions':
         return <UserSessionsTable stats={stats} isLoading={isLoading} />;
       case 'notifications':
         return <NotificationTable />;
-      case 'knowledge':
-        return <KnowledgeManager />;
       default:
         return null;
     }
@@ -94,7 +85,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
       <div className="w-64 bg-white shadow-lg border-r border-gray-200">
         <div className="p-6 border-b border-gray-200 ">
           <h2 className="text-lg font-semibold text-black">Admin Panel</h2>
-          <p className="text-gary-500 text-sm capitalize mt-1">{userRole.replace('_', ' ')}</p>
+          <p className="text-gray-500 text-sm capitalize mt-1">{userRole.replace('_', ' ')}</p>
         </div>
         
         <nav className="p-4">

@@ -17,19 +17,24 @@ const motion = {
 };
 
 interface LoginFormProps {
-  onLogin: (email: string, password: string, role: 'user' | 'admin') => void;
+  onLogin: (email: string, password: string) => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [role, setRole] = useState<'user' | 'admin'>('user');
   const [showPassword, setShowPassword] = useState<boolean>(false);
+
+  // Static credentials for testing
+  const staticCredentials = {
+    user: { email: 'user@example.com', password: 'user123' },
+    admin: { email: 'admin@example.com', password: 'admin123' }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim() && password.trim()) {
-      onLogin(email.trim(), password.trim(), role);
+      onLogin(email.trim(), password.trim());
     }
   };
 
@@ -68,31 +73,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Role Selection Dropdown */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="space-y-2"
-                  >
-                    <label htmlFor="role" className="block text-black text-sm font-medium">
-                      Login as
-                    </label>
-                    <div className="relative">
-                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
-                      <motion.select
-                        id="role"
-                        name="role"
-                        value={role}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as 'user' | 'admin')}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
-                        required
-                      >
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                      </motion.select>
-                    </div>
-                  </motion.div>
 
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -165,6 +145,37 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     </label>
                   </div>
 
+                  {/* Quick Login Buttons */}
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600 text-center">Quick Login (for testing)</p>
+                    <div className="flex gap-2">
+                      <motion.button
+                        type="button"
+                        onClick={() => {
+                          setEmail(staticCredentials.user.email);
+                          setPassword(staticCredentials.user.password);
+                        }}
+                        className="flex-1 py-2 px-4 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        User Login
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        onClick={() => {
+                          setEmail(staticCredentials.admin.email);
+                          setPassword(staticCredentials.admin.password);
+                        }}
+                        className="flex-1 py-2 px-4 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        Admin Login
+                      </motion.button>
+                    </div>
+                  </div>
+
                   <motion.button
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -172,13 +183,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className={`w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl ${
-                      role === 'admin'
-                        ? 'bg-black text-white hover:bg-gray-800'
-                        : 'bg-black text-white hover:bg-gray-800'
-                    }`}
+                    className="w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl bg-black text-white hover:bg-gray-800"
                   >
-                    Sign In as {role === 'admin' ? 'Admin' : 'User'}
+                    Sign In
                     <ArrowRight className="w-5 h-5" />
                   </motion.button>
                 </form>

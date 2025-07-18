@@ -35,13 +35,18 @@ export interface UserSession {
 
 export interface Message {
   id: string;
-  query: string; // User's question
-  answer: string | null; // Assistant's answer (can be null until answered)
+  content: string;
+  sender: 'user' | 'assistant';
   chatId?: string;
   userId?: string;
   messageOrder?: number;
   createdAt?: Date;
-  sender: 'user' | 'assistant'; // Added for admin/MessagesTable.tsx compatibility
+}
+
+// For admin UI Q&A pairing
+export interface QAPair {
+  query: Message;
+  answer?: Message;
 }
 
 export interface Chat {

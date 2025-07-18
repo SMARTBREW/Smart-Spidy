@@ -29,14 +29,17 @@ export const useChat = () => {
     });
   }, []);
 
-  const login = useCallback((email: string, password: string, role: 'user' | 'admin') => {
+  const login = useCallback((email: string, password: string) => {
     // For demo purposes, we'll create users with predefined roles
     // In a real app, this would validate credentials with a backend
+    // Determine role based on email
+    const role: 'user' | 'admin' = email === 'admin@example.com' ? 'admin' : 'user';
+    
     const user: User = {
       id: crypto.randomUUID(),
       email,
       name: email.split('@')[0], // Use part before @ as name
-      role: role, // Only 'admin' or 'user'
+      role: role,
     };
     
     storage.setUser(user);
@@ -120,12 +123,11 @@ export const useChat = () => {
         // Create a message with query and null answer
         const message: Message = {
           id: crypto.randomUUID(),
-          query,
-          answer: null,
-          userId: state.user?.id,
+          content: query, // The user's text
+          sender: 'user',
           chatId: newChat.id,
+          userId: state.user?.id,
           createdAt: new Date(),
-          sender: 'user', // <-- Add this line
         };
         newChat.messages = [message];
 
@@ -166,12 +168,11 @@ export const useChat = () => {
         // Add assistant message
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
-          query: '',
-          answer: aiResponse,
-          userId: state.user?.id,
-          chatId: newChat.id,
-          createdAt: new Date(),
+          content: aiResponse, // The assistant's reply
           sender: 'assistant',
+          chatId: newChat.id,
+          userId: state.user?.id,
+          createdAt: new Date(),
         };
         setState(prev => {
           const updatedChats = prev.chats.map(chat => {
@@ -220,12 +221,11 @@ export const useChat = () => {
       // Add message to existing chat
       const message: Message = {
         id: crypto.randomUUID(),
-        query,
-        answer: null,
-        userId: state.user?.id,
+        content: query, // The user's text
+        sender: 'user',
         chatId: state.currentChatId,
+        userId: state.user?.id,
         createdAt: new Date(),
-        sender: 'user', // <-- Add this line
       };
 
       setState(prev => {
@@ -269,12 +269,11 @@ export const useChat = () => {
       // Add assistant message
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
-        query: '',
-        answer: aiResponse,
-        userId: state.user?.id,
-        chatId: state.currentChatId,
-        createdAt: new Date(),
+        content: aiResponse, // The assistant's reply
         sender: 'assistant',
+        chatId: state.currentChatId,
+        userId: state.user?.id,
+        createdAt: new Date(),
       };
       setState(prev => {
         const updatedChats = prev.chats.map(chat => {

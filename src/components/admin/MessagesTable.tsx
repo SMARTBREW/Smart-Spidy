@@ -14,7 +14,7 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import { Message, AdminStats, Chat, TrainingData } from '../../types';
+import { Message, AdminStats, Chat, TrainingData, QAPair } from '../../types';
 
 interface MessagesTableProps {
   stats: AdminStats | null;
@@ -64,23 +64,44 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     m => m.query.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Build rows: each user message (query) and its answer (assistant message right after in same chat)
-  // Query, Spidy Answer, Users, Chats, Feedbacks, Timestamp
-  // Update variable names for clarity
+  // Group messages into QAPairs
+  const qaPairs: QAPair[] = [];
+  let i = 0;
+  const sortedMessages = messages.slice().sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return aTime - bTime;
+  });
+  while (i < sortedMessages.length) {
+    if (sortedMessages[i].sender === 'user') {
+      const query = sortedMessages[i];
+      let answer: typeof query | undefined = undefined;
+      if (
+        i + 1 < sortedMessages.length &&
+        sortedMessages[i + 1].sender === 'assistant' &&
+        sortedMessages[i + 1].chatId === query.chatId
+      ) {
+        answer = sortedMessages[i + 1];
+        i += 1;
+      }
+      qaPairs.push({ query, answer });
+    }
+    i += 1;
+  }
 
-  // In the rows array, rename chatName to chatLabel, feedback to feedbackLabel, etc.
+  // Build rows: each QAPair
   const rows: Array<{
-    query: Message;
+    query: QAPair;
     users: string;
     chats: string;
     feedbacks: string;
     timestamp: string;
   }> = [];
-  userMessages.forEach(userMsg => {
-    const chats = chatIdToName[userMsg.chatId || ''] || 'Unknown';
-    const feedbacks = messageIdToFeedback[userMsg.id] || '-';
-    const users = userMsg.userId || 'User';
-    rows.push({ query: userMsg, users, chats, feedbacks, timestamp: userMsg.createdAt ? new Date(userMsg.createdAt).toLocaleString() : '' });
+  qaPairs.forEach(pair => {
+    const chats = chatIdToName[pair.query.chatId || ''] || 'Unknown';
+    const feedbacks = messageIdToFeedback[pair.query.id] || '-';
+    const users = pair.query.userId || 'User';
+    rows.push({ query: pair, users, chats, feedbacks, timestamp: pair.query.createdAt ? new Date(pair.query.createdAt).toLocaleString() : '' });
   });
 
   const handleViewMessage = (message: Message) => {
@@ -268,15 +289,15 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                 </tr>
               ) : (
                 rows.map((row, idx) => (
-                  <tr key={row.query.id}>
+                  <tr key={row.query.query.id}>
                     <td className="py-5 px-6 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.query}</p>
+                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.query.content}</p>
                       </div>
                     </td>
                     <td className="py-5 px-6 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.answer ? row.query.answer : <span className='text-gray-400'>No answer</span>}</p>
+                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.answer ? row.query.answer.content : <span className='text-gray-400'>No answer</span>}</p>
                       </div>
                     </td>
                     <td className="py-5 px-6 align-top">
@@ -332,20 +353,21 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message Query</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Message Content</label>
                   <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.query}</p>
+                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.content}</p>
                   </div>
                 </div>
                 
-                {selectedMessage.answer && (
-                  <>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">Assistant Answer</label>
-                    <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                      <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.answer}</p>
-                    </div>
-                  </>
-                )}
+                {/* The following block was removed as per the edit hint to remove usage of query/answer fields */}
+                {/*
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Assistant Answer</label>
+                  <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.answer}</p>
+                  </div>
+                </div>
+                */}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>

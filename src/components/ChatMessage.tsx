@@ -6,22 +6,21 @@ import { Message } from '../types';
 interface ChatMessageProps {
   message: Message;
   isLast: boolean;
-  type: 'user' | 'assistant';
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast }) => {
   const [copied, setCopied] = React.useState(false);
   const [feedback, setFeedback] = React.useState<null | 'up' | 'down'>(null);
-  const textToShow = type === 'user' ? message.query : (message.answer || '');
+  const textToShow = message.content || '';
   const handleCopy = () => {
     navigator.clipboard.writeText(textToShow);
     setCopied(true);
     setTimeout(() => setCopied(false), 1000);
   };
-  const formattedContent = type === 'assistant' ? textToShow.replace(/\*\*(.*?)\*\*/g, '"$1"') : textToShow;
+  const formattedContent = message.sender === 'assistant' ? textToShow.replace(/\*\*(.*?)\*\*/g, '"$1"') : textToShow;
   const timestamp = message.createdAt ? new Date(message.createdAt).toLocaleTimeString() : '';
 
-  if (type === 'user') {
+  if (message.sender === 'user') {
     // User message - boxed and positioned on the right half
     return (
       <motion.div
