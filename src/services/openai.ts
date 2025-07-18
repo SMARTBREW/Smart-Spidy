@@ -23,46 +23,53 @@ class OpenAIService {
       const relevantContext = await supabaseService.getRelevantContext(prompt);
       
       // Create enhanced prompt with context
-      const enhancedPrompt = relevantContext 
-        ? `You are SmartSpidy AI Assistant.
+      let systemPrompt = "You are SmartSpidy AI Assistant, a helpful and knowledgeable AI that provides accurate and relevant information.";
+      
+      let messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        {
+          role: 'system',
+          content: systemPrompt
+        }
+      ];
 
-Use the following context to answer the user's query. Be precise and helpful.
+      if (relevantContext) {
+        // Add context as a system message
+        messages.push({
+          role: 'system',
+          content: `Here's some relevant context from the knowledge base to help answer the user's query:
 
-Context:
 ${relevantContext}
 
-User Query:
-${prompt}`
-        : prompt;
+Use this context to provide a comprehensive and accurate response. If the context doesn't contain relevant information for the user's query, use your general knowledge while mentioning that you don't have specific information about that topic in the knowledge base.`
+        });
+      }
+
+      // Add user query
+      messages.push({
+        role: 'user',
+        content: prompt
+      });
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: enhancedPrompt
-          }
-        ],
+        model: 'gpt-4o', // Using GPT-4o as preferred by the user
+        messages: messages,
         max_tokens: 1000,
         temperature: 0.7
       });
 
       const response = completion.choices[0]?.message?.content || 'No response generated';
 
-      // Store training data for future learning (optional)
-      // Temporarily disabled to debug storage issues
-      /*
-      if (relevantContext) {
+      // Store successful interactions for future learning (optional)
+      if (relevantContext && response) {
         try {
-          await supabaseService.storeTrainingData({
-            userQuestion: prompt,
-            assistantAnswer: response
+          await supabaseService.storeKnowledgeData({
+            combinedText: `Q: ${prompt}\nA: ${response}`,
+            smartspidyChunk: prompt
           });
         } catch (error) {
-          console.warn('Failed to store training data:', error);
+          console.warn('Failed to store knowledge data:', error);
         }
       }
-      */
 
       return response;
     } catch (error: any) {
