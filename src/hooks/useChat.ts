@@ -68,7 +68,7 @@ export const useChat = () => {
     console.log('Logout completed, navigated to /'); // Debug log
   }, [navigate]);
 
-  const createChat = useCallback((name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string) => {
+  const createChat = useCallback((name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string) => {
     const newChat: Chat = {
       id: crypto.randomUUID(),
       name,
@@ -82,6 +82,7 @@ export const useChat = () => {
       occupation,
       product,
       gender,
+      profession: profession as import('../types').ProfessionType | undefined,
     };
 
     setState(prev => {

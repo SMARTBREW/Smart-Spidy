@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { PROFESSION_LIST } from '../types';
 
 interface CreateChatModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface CreateChatModalProps {
     occupation: string;
     product: string;
     gender: string;
+    profession: string;
   }) => void;
 }
 
@@ -21,11 +23,12 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
     occupation: '',
     product: '',
     gender: '',
+    profession: '',
   });
 
   useEffect(() => {
     if (!isOpen) {
-      setFields({ name: '', instagramUsername: '', occupation: '', product: '', gender: '' });
+      setFields({ name: '', instagramUsername: '', occupation: '', product: '', gender: '', profession: '' });
     }
   }, [isOpen]);
 
@@ -71,7 +74,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               type="text"
               value={fields.name}
               onChange={e => setFields(f => ({ ...f, name: e.target.value }))}
-              placeholder="Enter chat name..."
+              placeholder="Enter prospect name..."
               className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
               autoFocus
               maxLength={50}
@@ -85,6 +88,17 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
               maxLength={50}
             />
+             <select
+              value={fields.profession}
+              onChange={e => setFields(f => ({ ...f, profession: e.target.value }))}
+              className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
+              required
+            >
+              <option value="" disabled>Select profession</option>
+              {PROFESSION_LIST.map(prof => (
+                <option key={prof} value={prof}>{prof}</option>
+              ))}
+            </select>
             <select
               value={fields.product}
               onChange={e => setFields(f => ({ ...f, product: e.target.value }))}
@@ -107,6 +121,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
+           
             <div className="flex gap-2 justify-end">
               <button
                 type="button"

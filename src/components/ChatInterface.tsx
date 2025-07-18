@@ -13,7 +13,7 @@ interface ChatInterfaceProps {
   currentChat: Chat | null;
   currentChatId: string | null;
   isTyping: boolean;
-  createChat: (name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string) => string;
+  createChat: (name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string) => string;
   selectChat: (chatId: string) => void;
   sendMessage: (query: string) => Promise<void>;
   deleteChat: (chatId: string) => void;
@@ -304,8 +304,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <CreateChatModal
         isOpen={isCreatingChat}
         onClose={() => setIsCreatingChat(false)}
-        onCreateChat={({ name, instagramUsername, occupation, product, gender }) => {
-          createChat(name, instagramUsername, occupation, product, gender);
+        onCreateChat={({ name, instagramUsername, occupation, product, gender, profession }) => {
+          createChat(name, instagramUsername, occupation, product, gender, profession);
           setIsCreatingChat(false);
         }}
       />

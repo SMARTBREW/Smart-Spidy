@@ -65,6 +65,7 @@ export interface Chat {
   occupation?: string;
   product?: string;
   gender?: string;
+  profession?: ProfessionType; // <-- Added profession field
 }
 
 export interface TrainingData {
@@ -115,3 +116,73 @@ export interface Fundraiser {
   createdBy: User;
   createdAt: Date;
 }
+// Predefined profession list for consistent template matching
+export const PROFESSION_LIST = [
+  'Entrepreneur',
+  'Startup Founder',
+  'Chef',
+  'Home Chef',
+  'Interior Designer',
+  'Artist',
+  'Painter',
+  'Model',
+  'Actor',
+  'Dancer',
+  'Singer',
+  'Photographer',
+  'Fashion Designer',
+  'Makeup Artist',
+  'MUA',
+  'Tattoo Artist',
+  'Content Creator',
+  'Digital Creator',
+  'Influencer',
+  'YouTuber',
+  'Blogger',
+  'Vlogger',
+  'Podcaster',
+  'Cinematographer',
+  'Filmmaker',
+  'Graphic Designer',
+  'Architect',
+  'Event Planner',
+  'Social Media Manager',
+  'Writer',
+  'Poet',
+  'Standup Comedian',
+  'Coach',
+  'Life Coach',
+  'Therapist',
+  'Counselor',
+  'Doctor',
+  'Dentist',
+  'Lawyer',
+  'Engineer',
+  'Software Developer',
+  'Teacher',
+  'Educator',
+  'Consultant',
+  'Chartered Accountant',
+  'Fitness Trainer',
+  'Yoga Instructor',
+  'Zumba Coach',
+  'Nutritionist',
+  'Dietitian',
+  'Astrologer',
+  'Tarot Reader',
+  'Saree Draper',
+  'Boutique Owner',
+  'Mehndi Artist',
+  'Resin Artist',
+  'Doodle Artist',
+  'Nail Artist',
+  'Decor Stylist',
+  'Craft Store Owner',
+  'Sustainable Fashion Advocate',
+  'NGO Worker',
+  'Social Worker',
+  'Pet Influencer',
+  'Pet Parent'
+] as const;
+
+export type ProfessionType = typeof PROFESSION_LIST[number];
