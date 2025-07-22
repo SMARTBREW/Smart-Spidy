@@ -58,6 +58,7 @@ export interface Chat {
   pinned: boolean;
   pinnedAt: Date | null;
   status: 'green' | 'yellow' | 'red' | 'gold' | null;
+  is_gold?: boolean; // <-- Added for gold status
   userId?: string;
   messageCount?: number;
   user?: User;

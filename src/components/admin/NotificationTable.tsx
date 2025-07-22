@@ -190,14 +190,18 @@ export const NotificationTable: React.FC = () => {
                     <td className="px-6 py-4">
                       {n.status === 'gold' ? (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                          <Star className="w-3 h-3 mr-1.5 text-amber-400" fill="currentColor" /> Gold
+                          <Star className="w-3 h-3 mr-1.5 text-amber-400" fill="currentColor" />
+                          {n.status && n.status !== 'gold' && (
+                            <span className={`w-2 h-2 rounded-full mr-1.5 ${n.status === 'green' ? 'bg-green-500' : n.status === 'yellow' ? 'bg-yellow-400' : n.status === 'red' ? 'bg-red-500' : ''}`}></span>
+                          )}
+                          Gold
                         </span>
                       ) : n.status === 'green' ? (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                           <span className="w-2 h-2 rounded-full mr-1.5 bg-green-500" /> Green
                         </span>
                       ) : n.status === 'yellow' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border-yellow-200">
                           <span className="w-2 h-2 rounded-full mr-1.5 bg-yellow-400" /> Yellow
                         </span>
                       ) : null}

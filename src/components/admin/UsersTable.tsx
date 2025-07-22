@@ -22,6 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { User, AdminStats } from '../../types';
+import { adminApi, CreateUserData, UpdateUserData } from '../../services/admin';
 
 interface UsersTableProps {
   stats: AdminStats | null;
@@ -46,13 +47,17 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch users from API
     const fetchUsers = async () => {
       try {
-        // Placeholder data for now
-        setUsers([]);
+        setIsLoading(true);
+        const response = await adminApi.getUsers({
+          page: 1,
+          limit: 100, // Get all users for now
+        });
+        setUsers(response.users);
       } catch (error) {
         console.error('Error fetching users:', error);
+        // You might want to show a toast notification here
       } finally {
         setIsLoading(false);
       }
@@ -136,23 +141,37 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
 
     setIsSubmitting(true);
     try {
-      // TODO: Implement create/update user API call
-      const payload: any = {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        isActive: formData.isActive
-      };
-      if (!selectedUser) {
-        payload.password = formData.password;
+      if (selectedUser) {
+        // Update existing user
+        const updateData: UpdateUserData = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          isActive: formData.isActive
+        };
+        await adminApi.updateUser(selectedUser.id, updateData);
+      } else {
+        // Create new user
+        const createData: CreateUserData = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          isActive: formData.isActive
+        };
+        await adminApi.createUser(createData);
       }
-      console.log(selectedUser ? 'Update user:' : 'Create user:', payload);
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       handleCloseModal();
-      // TODO: Refresh users list
+      // Refresh users list
+      const response = await adminApi.getUsers({
+        page: 1,
+        limit: 100,
+      });
+      setUsers(response.users);
     } catch (error) {
       console.error('Error saving user:', error);
+      // You might want to show a toast notification here
     } finally {
       setIsSubmitting(false);
     }
@@ -160,14 +179,34 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
 
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      // TODO: Implement delete user API call
-      console.log('Delete user:', userId);
+      try {
+        await adminApi.deleteUser(userId);
+        // Refresh users list
+        const response = await adminApi.getUsers({
+          page: 1,
+          limit: 100,
+        });
+        setUsers(response.users);
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        // You might want to show a toast notification here
+      }
     }
   };
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
-    // TODO: Implement toggle user status API call
-    console.log('Toggle status for user:', userId, 'to:', !currentStatus);
+    try {
+      await adminApi.updateUserStatus(userId, !currentStatus);
+      // Refresh users list
+      const response = await adminApi.getUsers({
+        page: 1,
+        limit: 100,
+      });
+      setUsers(response.users);
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      // You might want to show a toast notification here
+    }
   };
 
   // StatCard component for analytics

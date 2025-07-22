@@ -1,0 +1,101 @@
+import { Chat } from '../types';
+import authService from './auth';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+const handleResponse = async (response: Response) => {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      // Don't automatically redirect, let the calling component handle it
+      throw new Error('Authentication expired. Please login again.');
+    }
+    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
+
+export const chatApi = {
+  async getChats(params?: {
+    page?: number;
+    limit?: number;
+    name?: string;
+    status?: string;
+    pinned?: boolean;
+    user_id?: string;
+    profession?: string;
+    product?: string;
+    gender?: string;
+    is_gold?: boolean;
+  }): Promise<{ chats: Chat[]; pagination: any }> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.name) searchParams.append('name', params.name);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.pinned !== undefined) searchParams.append('pinned', params.pinned.toString());
+    if (params?.user_id) searchParams.append('user_id', params.user_id);
+    if (params?.profession) searchParams.append('profession', params.profession);
+    if (params?.product) searchParams.append('product', params.product);
+    if (params?.gender) searchParams.append('gender', params.gender);
+    if (params?.is_gold !== undefined) searchParams.append('is_gold', params.is_gold.toString());
+    const url = `${API_BASE_URL}/chats?${searchParams}`;
+    const response = await authService.authenticatedRequest(url, { method: 'GET' });
+    return handleResponse(response);
+  },
+
+  async getChatById(id: string): Promise<Chat> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}`, { method: 'GET' });
+    return handleResponse(response);
+  },
+
+  async createChat(chatData: Partial<Chat>): Promise<Chat> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats`, {
+      method: 'POST',
+      body: JSON.stringify(chatData),
+    });
+    return handleResponse(response);
+  },
+
+  async updateChat(id: string, chatData: Partial<Chat>): Promise<Chat> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(chatData),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteChat(id: string): Promise<void> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+  },
+
+  async updateChatStatus(id: string, status: 'green' | 'yellow' | 'red' | null, makeGold?: boolean): Promise<any> {
+    const body: any = {};
+    if (status !== undefined) body.status = status;
+    if (makeGold !== undefined) body.makeGold = makeGold;
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    return handleResponse(response);
+  },
+
+  async pinChat(id: string, pinned: boolean): Promise<Chat> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}/pin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ pinned }),
+    });
+    return handleResponse(response);
+  },
+
+  async getChatStats(): Promise<any> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/stats`, { method: 'GET' });
+    return handleResponse(response);
+  },
+}; 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from './hooks/useChat';
@@ -6,28 +6,66 @@ import { LoginForm } from './components/LoginForm';
 import { ChatInterface } from './components/ChatInterface';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import authService from './services/auth';
 
-// Inner App component that uses hooks inside Router context
-function AppContent() {
-  const { 
-    user, 
-    login, 
-    isLoading,
+const App: React.FC = () => {
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  const {
+    user,
     chats,
     currentChat,
     currentChatId,
     isTyping,
+    isLoading,
+    login,
+    logout,
     createChat,
     selectChat,
     sendMessage,
     deleteChat,
-    logout,
     pinChat,
     setChatStatus,
   } = useChat();
-  
+
+  // Check authentication status on app load
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const isAuthenticated = await authService.isAuthenticated();
+        if (isAuthenticated) {
+          const currentUser = authService.getCurrentUser();
+          if (currentUser) {
+            login(currentUser);
+          }
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        // Don't logout here, let the user stay on login page
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [login]);
+
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Debug logging
   console.log('App component render - user:', user, 'isLoading:', isLoading);
+  console.log('User role:', user?.role);
+  console.log('User ID:', user?.id);
 
   if (isLoading) {
     return (
@@ -45,94 +83,56 @@ function AppContent() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes>
-          {/* Login Route */}
-          <Route 
-            path="/" 
-            element={
-              user ? (
-                <Navigate to="/user" replace />
-              ) : (
-                <motion.div
-                  key="login-form"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <LoginForm onLogin={login} />
-                </motion.div>
-              )
-            } 
-          />
-          
-          {/* Main Chat Interface Route */}
-          <Route 
-            path="/user" 
-            element={
-              <ProtectedRoute user={user}>
-                <motion.div
-                  key="chat-interface"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ChatInterface 
-                    user={user!}
-                    chats={chats}
-                    currentChat={currentChat || null}
-                    currentChatId={currentChatId}
-                    isTyping={isTyping}
-                    createChat={createChat}
-                    selectChat={selectChat}
-                    sendMessage={sendMessage}
-                    deleteChat={deleteChat}
-                    logout={logout}
-                    pinChat={pinChat}
-                    setChatStatus={setChatStatus}
-                  />
-                </motion.div>
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Admin Panel Route - Protected for admin users only */}
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute 
-                user={user} 
-                requiredRole="admin"
-                redirectTo="/"
-              >
-                <motion.div
-                  key="admin-dashboard"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <AdminDashboard userRole={user?.role as 'admin'} />
-                </motion.div>
-              </ProtectedRoute>
-            } 
-          />
-      
-          <Route path="*" element={<Navigate to="/" replace />} />
+    <motion.div 
+      className="min-h-screen bg-gray-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <AnimatePresence mode="wait">
+        <Routes>
+          <Route path="/" element={
+            user ? <Navigate to="/chat" replace /> : <LoginForm onLogin={login} />
+          } />
+          <Route path="/chat" element={
+            <ProtectedRoute user={user}>
+              <ChatInterface
+                user={user!}
+                chats={chats}
+                currentChat={currentChat}
+                currentChatId={currentChatId}
+                isTyping={isTyping}
+                createChat={(name, instagramUsername, occupation, product, gender, profession) => {
+                  createChat(name, instagramUsername, occupation, product, gender, profession);
+                  return '';
+                }}
+                selectChat={selectChat}
+                sendMessage={sendMessage}
+                deleteChat={deleteChat}
+                logout={logout}
+                pinChat={pinChat}
+                setChatStatus={setChatStatus}
+              />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin" element={
+            <ProtectedRoute user={user} requiredRole="admin">
+              <AdminDashboard userRole={user?.role as 'admin'} />
+            </ProtectedRoute>
+          } />
         </Routes>
       </AnimatePresence>
+    </motion.div>
   );
-}
+};
 
-// Main App component that provides Router context
-function App() {
+// Wrap App with Router
+const AppWithRouter: React.FC = () => {
   return (
     <Router>
-      <AppContent />
+      <App />
     </Router>
   );
-}
+};
 
-export default App;
+export default AppWithRouter;

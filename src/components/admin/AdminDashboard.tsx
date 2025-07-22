@@ -10,6 +10,7 @@ import {
   Activity
 } from 'lucide-react';
 import { AdminStats } from '../../types';
+import { adminApi } from '../../services/admin';
 import { UsersTable } from './UsersTable';
 import { ChatsTable } from './ChatsTable';
 import { MessagesTable } from './MessagesTable';
@@ -29,20 +30,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch admin stats from API
     const fetchStats = async () => {
       try {
-        // Placeholder data for now
-        setStats({
-          totalUsers: 0,
-          activeUsers: 0,
-          totalChats: 0,
-          totalMessages: 0,
-          trainingDataCount: 0,
-          activeSessions: 0
-        });
+        setIsLoading(true);
+        const stats = await adminApi.getAdminStats();
+        setStats(stats);
       } catch (error) {
         console.error('Error fetching admin stats:', error);
+        // You might want to show a toast notification here
       } finally {
         setIsLoading(false);
       }

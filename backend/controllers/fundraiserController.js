@@ -1,0 +1,219 @@
+const httpStatus = require('http-status');
+const { supabaseAdmin } = require('../config/supabase');
+const ApiError = require('../utils/ApiError');
+const catchAsync = require('../utils/catchAsync');
+
+const pick = (obj, keys) => keys.reduce((acc, key) => {
+  if (obj[key] !== undefined) acc[key] = obj[key];
+  return acc;
+}, {});
+
+const sanitizeFundraiser = (fundraiser) => {
+  if (!fundraiser) return fundraiser;
+  return {
+    id: fundraiser.id,
+    name: fundraiser.name,
+    createdBy: fundraiser.created_by,
+    chatId: fundraiser.chat_id,
+    createdAt: fundraiser.created_at || null,
+    updatedAt: fundraiser.updated_at || null,
+    user: fundraiser.users ? {
+      id: fundraiser.users.id,
+      name: fundraiser.users.name,
+      email: fundraiser.users.email,
+    } : undefined,
+    chat: fundraiser.chats ? {
+      id: fundraiser.chats.id,
+      name: fundraiser.chats.name,
+      isGold: fundraiser.chats.is_gold,
+      status: fundraiser.chats.status,
+    } : undefined,
+  };
+};
+
+const createFundraiser = catchAsync(async (req, res) => {
+  const fundraiserData = pick(req.body, ['name', 'created_by', 'chat_id']);
+  
+  // Validate chat exists and set it to gold if not already
+  if (fundraiserData.chat_id) {
+    const { data: chat, error: chatError } = await supabaseAdmin
+      .from('chats')
+      .select('id, is_gold, user_id, name')
+      .eq('id', fundraiserData.chat_id)
+      .single();
+    if (chatError || !chat) throw new ApiError(httpStatus.BAD_REQUEST, 'Chat not found');
+    
+    // Set chat to gold if not already
+    if (!chat.is_gold) {
+      await supabaseAdmin
+        .from('chats')
+        .update({ is_gold: true, updated_at: new Date().toISOString() })
+        .eq('id', fundraiserData.chat_id);
+    }
+  }
+  
+  // Validate user exists
+  if (fundraiserData.created_by) {
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', fundraiserData.created_by)
+      .single();
+    if (userError || !user) throw new ApiError(httpStatus.BAD_REQUEST, 'User not found');
+  }
+  
+  const { data: fundraiser, error } = await supabaseAdmin
+    .from('fundraisers')
+    .insert([fundraiserData])
+    .select('*, users(id, name, email), chats(id, name, is_gold, status)')
+    .single();
+  if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  res.status(httpStatus.CREATED).send(sanitizeFundraiser(fundraiser));
+});
+
+const getFundraisers = catchAsync(async (req, res) => {
+  const filter = pick(req.query, ['name', 'created_by', 'chat_id']);
+  const { page = 1, limit = 10 } = req.query;
+  const offset = (page - 1) * limit;
+  let query = supabaseAdmin
+    .from('fundraisers')
+    .select('*, users(id, name, email), chats(id, name, is_gold, status)', { count: 'exact' });
+  if (filter.name) query = query.ilike('name', `%${filter.name}%`);
+  if (filter.created_by) query = query.eq('created_by', filter.created_by);
+  if (filter.chat_id) query = query.eq('chat_id', filter.chat_id);
+  query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  const { data: fundraisers, count, error } = await query;
+  if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  res.send({
+    fundraisers: fundraisers.map(sanitizeFundraiser),
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total: count,
+      pages: Math.ceil(count / limit),
+    },
+  });
+});
+
+const getFundraiser = catchAsync(async (req, res) => {
+  const { data: fundraiser, error } = await supabaseAdmin
+    .from('fundraisers')
+    .select('*, users(id, name, email), chats(id, name, is_gold, status)')
+    .eq('id', req.params.id)
+    .single();
+  if (error || !fundraiser) throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
+  res.send(sanitizeFundraiser(fundraiser));
+});
+
+const updateFundraiser = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { data: fundraiser, error: fetchError } = await supabaseAdmin
+    .from('fundraisers')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (fetchError || !fundraiser) throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
+  
+  // Validate chat exists and ensure it's gold
+  if (req.body.chat_id) {
+    const { data: chat, error: chatError } = await supabaseAdmin
+      .from('chats')
+      .select('id, is_gold')
+      .eq('id', req.body.chat_id)
+      .single();
+    if (chatError || !chat) throw new ApiError(httpStatus.BAD_REQUEST, 'Chat not found');
+    
+    // Ensure the new chat is gold
+    if (!chat.is_gold) {
+      await supabaseAdmin
+        .from('chats')
+        .update({ is_gold: true, updated_at: new Date().toISOString() })
+        .eq('id', req.body.chat_id);
+    }
+  }
+  
+  // Validate user exists
+  if (req.body.created_by) {
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', req.body.created_by)
+      .single();
+    if (userError || !user) throw new ApiError(httpStatus.BAD_REQUEST, 'User not found');
+  }
+  
+  const updateData = { ...req.body, updated_at: new Date().toISOString() };
+  const { data: updatedFundraiser, error } = await supabaseAdmin
+    .from('fundraisers')
+    .update(updateData)
+    .eq('id', id)
+    .select('*, users(id, name, email), chats(id, name, is_gold, status)')
+    .single();
+  if (error || !updatedFundraiser) throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found or update failed');
+  res.send(sanitizeFundraiser(updatedFundraiser));
+});
+
+const deleteFundraiser = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  
+  // Get the fundraiser to find associated chat
+  const { data: fundraiser, error: fetchError } = await supabaseAdmin
+    .from('fundraisers')
+    .select('chat_id')
+    .eq('id', id)
+    .single();
+  
+  if (fetchError || !fundraiser) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
+  }
+  
+  // Note: We don't remove gold status from chat when deleting fundraiser
+  // because gold status should be permanent once set
+  // If you want to allow removing gold status when deleting fundraiser,
+  // uncomment the following lines:
+  /*
+  if (fundraiser.chat_id) {
+    await supabaseAdmin
+      .from('chats')
+      .update({ is_gold: false, updated_at: new Date().toISOString() })
+      .eq('id', fundraiser.chat_id);
+  }
+  */
+  
+  const { data, error } = await supabaseAdmin
+    .from('fundraisers')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .single();
+  if (error || !data) throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found or delete failed');
+  res.status(httpStatus.NO_CONTENT).send();
+});
+
+const getFundraiserStats = catchAsync(async (_req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const statResults = await Promise.all([
+    supabaseAdmin.from('fundraisers').select('*', { count: 'exact', head: true }),
+    supabaseAdmin.from('fundraisers').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
+    supabaseAdmin.from('fundraisers').select('*', { count: 'exact', head: true }).gte('created_at', today),
+  ]);
+  const [total, recent, todayCount] = statResults.map((r) => r.count || 0);
+  res.send({
+    overall: {
+      total,
+      recent,
+      today: todayCount,
+    },
+  });
+});
+
+module.exports = {
+  createFundraiser,
+  getFundraisers,
+  getFundraiser,
+  updateFundraiser,
+  deleteFundraiser,
+  getFundraiserStats,
+};

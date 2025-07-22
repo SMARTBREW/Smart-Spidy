@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Shield, User } from 'lucide-react';
+import authService from '../services/auth';
 
 const motion = {
   div: ({ children, initial, animate, transition, whileHover, whileTap, className, ...props }: any) => (
@@ -17,13 +18,15 @@ const motion = {
 };
 
 interface LoginFormProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (user: any) => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
   // Static credentials for testing
   const staticCredentials = {
@@ -31,10 +34,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
     admin: { email: 'admin@example.com', password: 'admin123' }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim() && password.trim()) {
-      onLogin(email.trim(), password.trim());
+      setIsLoading(true);
+      setError('');
+      
+      try {
+        const response = await authService.login(email.trim(), password.trim());
+        onLogin(response.user);
+      } catch (error: any) {
+        setError(error.message || 'Login failed');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -86,7 +99,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
                       <motion.input
-                        whileFocus={{ scale: 1.01 }}
+                        whileHover={{ scale: 1.01 }}
                         type="email"
                         id="email"
                         name="email"
@@ -111,7 +124,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
                       <motion.input
-                        whileFocus={{ scale: 1.01 }}
+                        whileHover={{ scale: 1.01 }}
                         type={showPassword ? 'text' : 'password'}
                         id="password"
                         name="password"
@@ -134,6 +147,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                       </button>
                     </div>
                   </motion.div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                      {error}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between">
                     <label className="flex items-center">
@@ -183,10 +202,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl bg-black text-white hover:bg-gray-800"
+                    disabled={isLoading}
+                    className="w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Sign In
-                    <ArrowRight className="w-5 h-5" />
+                    {isLoading ? 'Signing In...' : 'Sign In'}
+                    {!isLoading && <ArrowRight className="w-5 h-5" />}
                   </motion.button>
                 </form>
               </motion.div>

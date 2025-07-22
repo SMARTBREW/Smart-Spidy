@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star, Shield, Settings } from 'lucide-react';
@@ -56,7 +56,7 @@ interface TransitionConfig {
   mass: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+const SidebarComponent: React.FC<SidebarProps> = ({
   user,
   chats,
   currentChatId,
@@ -74,40 +74,57 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // State with explicit TypeScript types
   const [search, setSearch] = useState<string>('');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Use useRef for context menu state that doesn't need to trigger re-renders
+  const contextMenuRef = useRef<{ x: number; y: number; chatId: string } | null>(null);
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
 
-  // Check if user is admin
-  const isAdmin = user.role === 'admin';
+  // Memoized computed values to avoid recalculation on every render
+  const isAdmin = useMemo(() => user.role === 'admin', [user.role]);
+  
+  const filteredChats = useMemo(() => {
+    return chats.filter(chat => 
+      chat.name.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [chats, search]);
 
-  // Event handlers with proper TypeScript typing
-  const handleDeleteChat = (e: React.MouseEvent<HTMLButtonElement>, chatId: string): void => {
+  const pinnedChats = useMemo(() => {
+    return filteredChats.filter(chat => chat.pinned);
+  }, [filteredChats]);
+
+  const unpinnedChats = useMemo(() => {
+    return filteredChats.filter(chat => !chat.pinned);
+  }, [filteredChats]);
+
+  // Event handlers with proper TypeScript typing and useCallback optimization
+  const handleDeleteChat = useCallback((e: React.MouseEvent<HTMLButtonElement>, chatId: string): void => {
     e.stopPropagation();
     onDeleteChat(chatId);
-  };
+  }, [onDeleteChat]);
 
-  const toggleSidebar = (): void => {
+  const toggleSidebar = useCallback((): void => {
     setIsCollapsed(!isCollapsed);
-  };
+  }, [isCollapsed]);
 
-  const expandSidebar = (): void => {
+  const expandSidebar = useCallback((): void => {
     if (isCollapsed) {
       setIsCollapsed(false);
     }
-  };
+  }, [isCollapsed]);
 
-  const handleAdminPanelClick = (): void => {
+  const handleAdminPanelClick = useCallback((): void => {
     navigate('/admin');
-  };
+  }, [navigate]);
 
-  const handleLogoutClick = (): void => {
+  const handleLogoutClick = useCallback((): void => {
     setShowLogoutModal(true);
-  };
+  }, []);
 
-  const handleCloseLogoutModal = (): void => {
+  const handleCloseLogoutModal = useCallback((): void => {
     setShowLogoutModal(false);
-  };
+  }, []);
 
   // Smooth transition configuration with proper typing
   const sidebarTransition: TransitionConfig = {
@@ -124,23 +141,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     mass: 0.6
   };
 
-  // Split chats into pinned and others
-  const pinnedChats = chats
-    .filter(chat => chat.pinned)
-    .sort((a, b) => {
-      if (!a.pinnedAt && !b.pinnedAt) return 0;
-      if (!a.pinnedAt) return 1;
-      if (!b.pinnedAt) return -1;
-      return new Date(b.pinnedAt).getTime() - new Date(a.pinnedAt).getTime();
-    });
-  const otherChats = chats.filter(chat => !chat.pinned);
-
-  // Context menu handler
-  const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
+  // Context menu handlers with useCallback
+  const handleContextMenu = useCallback((e: React.MouseEvent, chatId: string) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, chatId });
-  };
-  const closeContextMenu = () => setContextMenu(null);
+    contextMenuRef.current = { x: e.clientX, y: e.clientY, chatId };
+    setContextMenuVisible(true);
+  }, []);
+
+  const closeContextMenu = useCallback(() => setContextMenuVisible(false), []);
 
   return (
     <motion.div
@@ -330,10 +338,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       PINNED
                     </div>
                     {pinnedChats
-                      .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
                       .map((chat, index) => (
                         <motion.div
-                          key={chat.id}
+                          key={`pinned-${chat.id || chat.name || `chat-${index}`}`}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -349,12 +356,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                           <div className="flex items-center gap-3">
                             {/* Color dot or golden star */}
-                            {chat.status === 'gold' ? (
-                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                            {(chat.is_gold || chat.status === 'gold') ? (
+                              <>
+                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                {chat.status && chat.status !== 'gold' && (
+                                  <span
+                                    className={`w-3 h-3 rounded-full border border-gray-300 ml-1 ${
+                                      chat.status === 'green'
+                                        ? 'bg-green-500'
+                                        : chat.status === 'yellow'
+                                        ? 'bg-yellow-400'
+                                        : chat.status === 'red'
+                                        ? 'bg-red-500'
+                                        : ''
+                                    }`}
+                                  />
+                                )}
+                              </>
                             ) : chat.status ? (
                               <span
                                 className={`w-3 h-3 rounded-full border border-gray-300 ${
-                                  chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
+                                  chat.status === 'green'
+                                    ? 'bg-green-500'
+                                    : chat.status === 'yellow'
+                                    ? 'bg-yellow-400'
+                                    : chat.status === 'red'
+                                    ? 'bg-red-500'
+                                    : ''
                                 }`}
                               />
                             ) : null}
@@ -386,18 +414,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
 
                 {/* Other Chats */}
-                {otherChats.length > 0 && (
+                {unpinnedChats.length > 0 && (
                   <div>
                     {pinnedChats.length > 0 && (
                       <div className="text-xs text-gray-500 font-medium mb-2 px-2">
                         RECENT
                       </div>
                     )}
-                    {otherChats
-                      .filter(chat => chat.name.toLowerCase().includes(search.toLowerCase()))
+                    {unpinnedChats
                       .map((chat, index) => (
                         <motion.div
-                          key={chat.id}
+                          key={`unpinned-${chat.id || chat.name || `chat-${index}`}`}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -413,12 +440,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                           <div className="flex items-center gap-3">
                             {/* Color dot or golden star */}
-                            {chat.status === 'gold' ? (
-                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                            {(chat.is_gold || chat.status === 'gold') ? (
+                              <>
+                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                {chat.status && chat.status !== 'gold' && (
+                                  <span
+                                    className={`w-3 h-3 rounded-full border border-gray-300 ml-1 ${
+                                      chat.status === 'green'
+                                        ? 'bg-green-500'
+                                        : chat.status === 'yellow'
+                                        ? 'bg-yellow-400'
+                                        : chat.status === 'red'
+                                        ? 'bg-red-500'
+                                        : ''
+                                    }`}
+                                  />
+                                )}
+                              </>
                             ) : chat.status ? (
                               <span
                                 className={`w-3 h-3 rounded-full border border-gray-300 ${
-                                  chat.status === 'green' ? 'bg-green-500' : chat.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-500'
+                                  chat.status === 'green'
+                                    ? 'bg-green-500'
+                                    : chat.status === 'yellow'
+                                    ? 'bg-yellow-400'
+                                    : chat.status === 'red'
+                                    ? 'bg-red-500'
+                                    : ''
                                 }`}
                               />
                             ) : null}
@@ -462,41 +510,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </AnimatePresence>
             </div>
             {/* Context Menu */}
-            {contextMenu && (
+            {contextMenuVisible && contextMenuRef.current && (
               <div
                 className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 px-3"
-                style={{ top: contextMenu.y, left: contextMenu.x }}
+                style={{ top: contextMenuRef.current.y, left: contextMenuRef.current.x }}
                 onMouseLeave={closeContextMenu}
               >
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
-                  onClick={() => { onPinChat(contextMenu.chatId, true); closeContextMenu(); }}
+                  onClick={() => { if (contextMenuRef.current?.chatId) onPinChat(contextMenuRef.current.chatId, true); closeContextMenu(); }}
                 >Pin Chat</button>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
-                  onClick={() => { onPinChat(contextMenu.chatId, false); closeContextMenu(); }}
+                  onClick={() => { if (contextMenuRef.current?.chatId) onPinChat(contextMenuRef.current.chatId, false); closeContextMenu(); }}
                 >Unpin Chat</button>
                 <div className="border-t my-1" />
                 <div className="text-xs text-gray-500 px-2 py-1">Set Status</div>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-green-100 rounded"
-                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'green'); closeContextMenu(); }}
+                  onClick={() => { if (contextMenuRef.current?.chatId) onSetChatStatus(contextMenuRef.current.chatId, 'green'); closeContextMenu(); }}
                 >Green (Healthy)</button>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-yellow-100 rounded"
-                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'yellow'); closeContextMenu(); }}
+                  onClick={() => { if (contextMenuRef.current?.chatId) onSetChatStatus(contextMenuRef.current.chatId, 'yellow'); closeContextMenu(); }}
                 >Yellow (50-50)</button>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-red-100 rounded"
-                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'red'); closeContextMenu(); }}
+                  onClick={() => { if (contextMenuRef.current?.chatId) onSetChatStatus(contextMenuRef.current.chatId, 'red'); closeContextMenu(); }}
                 >Red (Low chance)</button>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-yellow-100 rounded flex items-center gap-2"
-                  onClick={() => { onSetChatStatus(contextMenu.chatId, 'gold'); closeContextMenu(); }}
-                ><Star className="w-4 h-4 text-yellow-400 fill-yellow-400" /> Fundraiser Done</button>
+                  onClick={() => { if (contextMenuRef.current?.chatId) onSetChatStatus(contextMenuRef.current.chatId, 'gold'); closeContextMenu(); }}
+                ><Star className="w-4 h-4 text-yellow-400 fill-yellow-400" /> Set as Gold (Fundraiser Done)</button>
                 <button
                   className="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
-                  onClick={() => { onSetChatStatus(contextMenu.chatId, null); closeContextMenu(); }}
+                  onClick={() => { if (contextMenuRef.current?.chatId) onSetChatStatus(contextMenuRef.current.chatId, null); closeContextMenu(); }}
                 >Clear Status</button>
               </div>
             )}
@@ -598,3 +646,5 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </motion.div>
   );
 };
+
+export const Sidebar = React.memo(SidebarComponent);

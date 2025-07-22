@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Chat, Message, AppState } from '../types';
-import { storage } from '../utils/storage';
+import { User, Chat, Message, AppState, ProfessionType } from '../types';
 import { openaiService } from '../services/openai';
 import { fetchInstagramAccountDetails } from '../services/instagram';
+import authService from '../services/auth';
+import { chatApi } from '../services/chat';
 
 export const useChat = () => {
   const navigate = useNavigate();
@@ -13,101 +14,166 @@ export const useChat = () => {
     currentChatId: null,
     isLoading: true,
   });
+  
+  // Use useRef for values that don't need to trigger re-renders
+  const isTypingRef = useRef(false);
+  const setIsTyping = useCallback((value: boolean) => {
+    isTypingRef.current = value;
+  }, []);
 
-  const [isTyping, setIsTyping] = useState(false);
+  // Memoized current chat to avoid unnecessary computations
+  const currentChat = useMemo(() => {
+    return state.chats.find(chat => chat.id === state.currentChatId) || null;
+  }, [state.chats, state.currentChatId]);
+
+  // Fetch chats from API
+  const fetchChats = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoading: true }));
+    try {
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        // No user found, redirect to login
+        navigate('/');
+        return;
+      }
+      const { chats } = await chatApi.getChats();
+      // Normalize gold field for all chats
+      const normalizedChats = chats.map(chat => ({
+        ...chat,
+        is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
+      }));
+      setState(prev => ({
+        ...prev,
+        user: currentUser,
+        chats: normalizedChats,
+        currentChatId: normalizedChats.length > 0 ? normalizedChats[0].id : null,
+        isLoading: false,
+      }));
+    } catch (error: any) {
+      setState(prev => ({ ...prev, isLoading: false }));
+      console.error('Error fetching chats:', error);
+      // If it's an authentication error, redirect to login
+      if (error.message?.includes('Authentication expired') || error.message?.includes('401')) {
+        authService.logout();
+        navigate('/');
+      }
+    }
+  }, [navigate]);
 
   useEffect(() => {
-    const user = storage.getUser();
-    const chats = storage.getChats();
-    const currentChatId = storage.getCurrentChatId();
-
-    setState({
-      user,
-      chats,
-      currentChatId,
-      isLoading: false,
-    });
-  }, []);
-
-  const login = useCallback((email: string, password: string) => {
-    // For demo purposes, we'll create users with predefined roles
-    // In a real app, this would validate credentials with a backend
-    // Determine role based on email
-    const role: 'user' | 'admin' = email === 'admin@example.com' ? 'admin' : 'user';
-    
-    const user: User = {
-      id: crypto.randomUUID(),
-      email,
-      name: email.split('@')[0], // Use part before @ as name
-      role: role,
+    const initializeChats = async () => {
+      await fetchChats();
     };
-    
-    storage.setUser(user);
-    setState(prev => ({ ...prev, user }));
+    initializeChats();
+  }, []); // Remove fetchChats from dependency array
+
+  // Fetch chats when user becomes available after login
+  useEffect(() => {
+    if (state.user && state.chats.length === 0) {
+      fetchChats();
+    }
+  }, [state.user, state.chats.length, fetchChats]);
+
+  const login = useCallback((user: User) => {
+    setState(prev => ({ 
+      ...prev, 
+      user,
+      isLoading: false 
+    }));
   }, []);
 
-  const logout = useCallback(() => {
-    console.log('Logout function called'); // Debug log
-    
-    // Clear all storage first
-    storage.clear();
-    
-    // Reset typing state
+  const logout = useCallback(async () => {
+    await authService.logout();
     setIsTyping(false);
-    
-    // Reset all state to initial values (don't use prev state)
     setState({
       user: null,
       chats: [],
       currentChatId: null,
       isLoading: false,
     });
-    
-    // Navigate to login page immediately
     navigate('/', { replace: true });
-    console.log('Logout completed, navigated to /'); // Debug log
   }, [navigate]);
 
-  const createChat = useCallback((name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string) => {
-    const newChat: Chat = {
-      id: crypto.randomUUID(),
-      name,
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      pinned: false,
-      status: null,
-      pinnedAt: null,
-      instagramUsername,
-      occupation,
-      product,
-      gender,
-      profession: profession as import('../types').ProfessionType | undefined,
-    };
-
-    setState(prev => {
-      const updatedChats = [...prev.chats, newChat];
-      storage.setChats(updatedChats);
-      storage.setCurrentChatId(newChat.id);
-      return {
-        ...prev,
-        chats: updatedChats,
-        currentChatId: newChat.id,
+  const createChat = useCallback(async (name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string): Promise<string | null> => {
+    try {
+      const currentUser = authService.getCurrentUser();
+      const chatData: any = {
+        name,
+        user_id: currentUser?.id,
+        instagram_username: instagramUsername,
+        profession: profession as ProfessionType,
+        product,
+        gender,
       };
-    });
-
-    return newChat.id;
-  }, []);
+      const newChat = await chatApi.createChat(chatData);
+      await fetchChats();
+      if (typeof newChat?.id === 'string') {
+        setState(prev => ({ ...prev, currentChatId: newChat.id }));
+        return newChat.id;
+      } else {
+        setState(prev => ({ ...prev, currentChatId: null }));
+        return null;
+      }
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      throw error;
+    }
+  }, [fetchChats]);
 
   const selectChat = useCallback((chatId: string) => {
+    if (!chatId) return;
     setState(prev => ({ ...prev, currentChatId: chatId }));
-    storage.setCurrentChatId(chatId);
   }, []);
 
+  const deleteChat = useCallback(async (chatId: string) => {
+    try {
+      await chatApi.deleteChat(chatId);
+      await fetchChats();
+      // If the deleted chat was current, select the first available chat
+      if (state.currentChatId === chatId) {
+        const remainingChats = state.chats.filter(chat => chat.id !== chatId);
+        setState(prev => ({ 
+          ...prev, 
+          currentChatId: remainingChats.length > 0 ? remainingChats[0].id : null 
+        }));
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  }, [state.chats, state.currentChatId]);
+
+  const pinChat = useCallback(async (chatId: string, pinned: boolean) => {
+    try {
+      await chatApi.pinChat(chatId, pinned);
+      await fetchChats();
+    } catch (error) {
+      console.error('Error pinning chat:', error);
+    }
+  }, []);
+
+  const setChatStatus = useCallback(async (chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => {
+    try {
+      const currentChat = state.chats.find(chat => chat.id === chatId);
+      let makeGold: boolean | undefined = undefined;
+      let colorStatus: 'green' | 'yellow' | 'red' | null = null;
+      if (status === 'gold') {
+        makeGold = true;
+        colorStatus = null;
+      } else {
+        colorStatus = status;
+        if (currentChat?.is_gold) makeGold = true;
+      }
+      const apiResponse = await chatApi.updateChatStatus(chatId, colorStatus, makeGold);
+      await fetchChats();
+    } catch (error) {
+      console.error('Error updating chat status:', error);
+    }
+  }, [fetchChats, state.chats]);
+
+  // For now, keep sendMessage as a local operation (AI logic)
   const sendMessage = useCallback(async (query: string) => {
     setIsTyping(true);
     try {
-      // If no chat is selected, create a new one
       if (!state.currentChatId) {
         const newChatName = query.length > 50 ? query.substring(0, 50) + '...' : query;
         const newChat: Chat = {
@@ -117,275 +183,84 @@ export const useChat = () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           pinned: false,
-          status: null,
           pinnedAt: null,
+          status: null,
+          userId: state.user?.id || '',
+          instagramUsername: '',
+          profession: '' as ProfessionType,
+          product: '',
+          gender: '',
+          messageCount: 0,
         };
 
-        // Create a message with query and null answer
-        const message: Message = {
-          id: crypto.randomUUID(),
-          content: query, // The user's text
-          sender: 'user',
-          chatId: newChat.id,
-          userId: state.user?.id,
-          createdAt: new Date(),
-        };
-        newChat.messages = [message];
-
-        setState(prev => {
-          const updatedChats = [...prev.chats, newChat];
-          storage.setChats(updatedChats);
-          storage.setCurrentChatId(newChat.id);
-          return {
-            ...prev,
-            chats: updatedChats,
-            currentChatId: newChat.id,
-          };
-        });
-
-        // Intercept Instagram ID queries
-        let igMatch = query.match(/^(instagram|ig)\s*:\s*([a-zA-Z0-9_.]+)/i);
-        let aiResponse = '';
-        if (igMatch) {
-          const igUsername = igMatch[2];
-          try {
-            // Use the new IG User ID as the base for the business_discovery endpoint
-            const details = await fetchInstagramAccountDetails('17841475777137453', igUsername);
-            aiResponse =
-              `Instagram details for @${details.username}:\n` +
-              (details.name ? `Name: ${details.name}\n` : '') +
-              (details.account_type ? `Account type: ${details.account_type}\n` : '') +
-              (details.biography ? `Bio: ${details.biography}\n` : '') +
-              (typeof details.followers_count === 'number' ? `Followers: ${details.followers_count}\n` : '') +
-              (typeof details.media_count === 'number' ? `Posts: ${details.media_count}\n` : '') +
-              (details.website ? `Website: ${details.website}\n` : '');
-          } catch (err: any) {
-            aiResponse = `Could not fetch Instagram details: ${err.message}`;
-          }
-        } else {
-          aiResponse = await openaiService.generateResponse(query);
-        }
-
-        // Add assistant message
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          content: aiResponse, // The assistant's reply
-          sender: 'assistant',
-          chatId: newChat.id,
-          userId: state.user?.id,
-          createdAt: new Date(),
-        };
-        setState(prev => {
-          const updatedChats = prev.chats.map(chat => {
-            if (chat.id === newChat.id) {
-              // AUTOMATIC STATUS CLASSIFICATION - COMMENTED OUT FOR MANUAL CONTROL
-              // Get recent queries (last 24h, up to 10 most recent)
-              // const now = Date.now();
-              // const msWindow = 24 * 60 * 60 * 1000;
-              // const recentQueries = chat.messages
-              //   .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
-              //   .slice(-10)
-              //   .map(msg => msg.query);
-              // if (recentQueries.length === 0) return chat;
-              // const prompt = `Given these queries from the last 24 hours, classify the chat as:
-              // - 'green' if the conversation is now going well, positive, and there are no recent unresolved issues.
-              // - 'yellow' if there are some issues or uncertainty, but not critical.
-              // - 'red' if the chat is unlikely to succeed or is very negative.
-
-              // Only respond with one of these words.
-
-              // Queries:
-              // ${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
-              // `;
-              // openaiService.classifyStatus(prompt).then(status => {
-              //   const cleanStatus = status.trim().toLowerCase();
-              //   // Only allow valid status values
-              //   const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
-              //   const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
-              //   setState(prev2 => {
-              //     const finalChats = prev2.chats.map(c =>
-              //       c.id === chat.id ? { ...c, status: finalStatus } : c
-              //     );
-              //     storage.setChats(finalChats);
-              //     return { ...prev2, chats: finalChats };
-              //   });
-              // });
-            }
-            return chat;
-          });
-          return { ...prev, chats: updatedChats };
-        });
-        setIsTyping(false);
-        return;
+        setState(prev => ({
+          ...prev,
+          chats: [newChat, ...prev.chats],
+          currentChatId: newChat.id,
+        }));
       }
 
-      // Add message to existing chat
-      const message: Message = {
+      const userMessage: Message = {
         id: crypto.randomUUID(),
-        content: query, // The user's text
-        sender: 'user',
-        chatId: state.currentChatId,
-        userId: state.user?.id,
+        content: query,
         createdAt: new Date(),
+        sender: 'user',
+        messageOrder: 0,
+        chatId: state.currentChatId || '',
+        userId: state.user?.id || '',
       };
 
-      setState(prev => {
-        const updatedChats = prev.chats.map(chat => {
-          if (chat.id === state.currentChatId) {
-            return {
-              ...chat,
-              messages: [...chat.messages, message],
-              updatedAt: new Date(),
-            };
-          }
-          return chat;
-        });
-        storage.setChats(updatedChats);
-        return { ...prev, chats: updatedChats };
-      });
+      setState(prev => ({
+        ...prev,
+        chats: prev.chats.map(chat =>
+          chat.id === state.currentChatId
+            ? {
+                ...chat,
+                messages: [...(chat.messages || []), userMessage],
+                messageCount: (chat.messageCount || 0) + 1,
+                updatedAt: new Date(),
+              }
+            : chat
+        ),
+      }));
 
-      // Intercept Instagram ID queries
-      let igMatch = query.match(/^(instagram|ig)\s*:\s*([a-zA-Z0-9_.]+)/i);
-      let aiResponse = '';
-      if (igMatch) {
-        const igUsername = igMatch[2];
-        try {
-          // Use the new IG User ID as the base for the business_discovery endpoint
-          const details = await fetchInstagramAccountDetails('17841475777137453', igUsername);
-          aiResponse =
-            `Instagram details for @${details.username}:\n` +
-            (details.name ? `Name: ${details.name}\n` : '') +
-            (details.account_type ? `Account type: ${details.account_type}\n` : '') +
-            (details.biography ? `Bio: ${details.biography}\n` : '') +
-            (typeof details.followers_count === 'number' ? `Followers: ${details.followers_count}\n` : '') +
-            (typeof details.media_count === 'number' ? `Posts: ${details.media_count}\n` : '') +
-            (details.website ? `Website: ${details.website}\n` : '');
-        } catch (err: any) {
-          aiResponse = `Could not fetch Instagram details: ${err.message}`;
-        }
-      } else {
-        aiResponse = await openaiService.generateResponse(query);
-      }
-
-      // Add assistant message
+      // Get AI response
+      const response = await openaiService.generateResponse(query);
+      
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
-        content: aiResponse, // The assistant's reply
-        sender: 'assistant',
-        chatId: state.currentChatId,
-        userId: state.user?.id,
+        content: response,
         createdAt: new Date(),
+        sender: 'assistant',
+        messageOrder: 1,
+        chatId: state.currentChatId || '',
+        userId: state.user?.id || '',
       };
-      setState(prev => {
-        const updatedChats = prev.chats.map(chat => {
-          if (chat.id === state.currentChatId) {
-            return {
-              ...chat,
-              messages: [...chat.messages, assistantMessage],
-              updatedAt: new Date(),
-            };
-          }
-          return chat;
-        });
-        storage.setChats(updatedChats);
-        return { ...prev, chats: updatedChats };
-      });
 
-      // --- AUTOMATIC CHAT STATUS CLASSIFICATION FOR EXISTING CHAT - COMMENTED OUT FOR MANUAL CONTROL ---
-      // setState(prev => {
-      //   const updatedChats = prev.chats.map(chat => {
-      //     if (chat.id === state.currentChatId) {
-      //       // Get recent queries (last 24h, up to 10 most recent)
-      //       const now = Date.now();
-      //       const msWindow = 24 * 60 * 60 * 1000;
-      //       const recentQueries = chat.messages
-      //         .filter(msg => msg.sender === 'user' && now - getTimestamp(msg.createdAt) < msWindow)
-      //         .slice(-10)
-      //         .map(msg => msg.query);
-      //       if (recentQueries.length === 0) return chat;
-      //       const prompt = `Given these queries from the last 24 hours, classify the chat as:
-      // - 'green' if the conversation is now going well, positive, and there are no recent unresolved issues.
-      // - 'yellow' if there are some issues or uncertainty, but not critical.
-      // - 'red' if the chat is unlikely to succeed or is very negative.
-
-      // Only respond with one of these words.
-
-      // Queries:
-      // ${recentQueries.map((q, i) => `${i + 1}. \"${q}\"`).join('\n')}
-      // `;
-      //       openaiService.classifyStatus(prompt).then(status => {
-      //         const cleanStatus = status.trim().toLowerCase();
-      //         // Only allow valid status values
-      //         const allowed: Array<'green' | 'yellow' | 'red'> = ['green', 'yellow', 'red'];
-      //         const finalStatus = allowed.includes(cleanStatus as any) ? (cleanStatus as 'green' | 'yellow' | 'red') : null;
-      //         setState(prev2 => {
-      //           const finalChats = prev2.chats.map(c =>
-      //             c.id === chat.id ? { ...c, status: finalStatus } : c
-      //           );
-      //           storage.setChats(finalChats);
-      //           return { ...prev2, chats: finalChats };
-      //         });
-      //       });
-      //     }
-      //     return chat;
-      //   });
-      //   return { ...prev, chats: updatedChats };
-      // });
+      setState(prev => ({
+        ...prev,
+        chats: prev.chats.map(chat =>
+          chat.id === state.currentChatId
+            ? {
+                ...chat,
+                messages: [...(chat.messages || []), assistantMessage],
+                messageCount: (chat.messageCount || 0) + 1,
+                updatedAt: new Date(),
+              }
+            : chat
+        ),
+      }));
     } catch (error) {
       console.error('Error sending message:', error);
+    } finally {
       setIsTyping(false);
     }
-    setIsTyping(false);
-  }, [state.currentChatId, state.chats, state.user]);
-
-  const deleteChat = useCallback((chatId: string) => {
-    setState(prev => {
-      const updatedChats = prev.chats.filter(chat => chat.id !== chatId);
-      const newCurrentChatId = prev.currentChatId === chatId 
-        ? (updatedChats.length > 0 ? updatedChats[0].id : null)
-        : prev.currentChatId;
-
-      storage.setChats(updatedChats);
-      storage.setCurrentChatId(newCurrentChatId);
-
-      return {
-        ...prev,
-        chats: updatedChats,
-        currentChatId: newCurrentChatId,
-      };
-    });
-  }, []);
-
-  // Pin or unpin a chat
-  const pinChat = useCallback((chatId: string, pinned: boolean) => {
-    setState(prev => {
-      const updatedChats = prev.chats.map(chat =>
-        chat.id === chatId
-          ? { ...chat, pinned, pinnedAt: pinned ? new Date() : null }
-          : chat
-      );
-      storage.setChats(updatedChats);
-      return { ...prev, chats: updatedChats };
-    });
-  }, []);
-
-  // Set chat status (color dot)
-  const setChatStatus = useCallback((chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => {
-    setState(prev => {
-      const updatedChats = prev.chats.map(chat =>
-        chat.id === chatId ? { ...chat, status } : chat
-      );
-      storage.setChats(updatedChats);
-      return { ...prev, chats: updatedChats };
-    });
-  }, []);
-
-  const currentChat = state.chats.find(chat => chat.id === state.currentChatId);
+  }, [state.currentChatId, state.user?.id, setIsTyping]);
 
   return {
     ...state,
     currentChat,
-    isTyping,
+    isTyping: isTypingRef.current,
     login,
     logout,
     createChat,

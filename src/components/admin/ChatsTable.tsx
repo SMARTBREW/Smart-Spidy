@@ -48,7 +48,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
     const matchesSearch = chat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          chat.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          chat.user?.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || chat.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'gold' ? chat.is_gold : chat.status === statusFilter);
     const matchesPinned = pinnedFilter === 'all' || 
                          (pinnedFilter === 'pinned' && chat.pinned) ||
                          (pinnedFilter === 'unpinned' && !chat.pinned);
@@ -103,8 +103,8 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
     </motion.div>
   );
 
-  const StatusBadge: React.FC<{ status: string | null }> = ({ status }) => {
-    if (!status) return <span className="text-gray-400 text-sm">None</span>;
+  const StatusBadge: React.FC<{ status: string | null, isGold?: boolean }> = ({ status, isGold }) => {
+    if (!status && !isGold) return <span className="text-gray-400 text-sm">None</span>;
     
     const statusConfig = {
       green: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', label: 'Good' },
@@ -113,9 +113,20 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
       gold: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', label: 'Premium' }
     };
 
+    if (isGold) {
+      const config = statusConfig['gold'];
+      return (
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text} border ${config.border}`}>
+          <svg className="w-3 h-3 mr-1.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.955L10 0l2.951 5.955 6.561.955-4.756 4.635 1.122 6.545z"/></svg>
+          {status && status !== 'gold' && (
+            <span className={`w-2 h-2 rounded-full mr-1.5 ${status === 'green' ? 'bg-green-500' : status === 'yellow' ? 'bg-yellow-500' : status === 'red' ? 'bg-red-500' : ''}`}></span>
+          )}
+          {config.label}
+        </span>
+      );
+    }
     const config = statusConfig[status as keyof typeof statusConfig];
     if (!config) return <span className="text-gray-400 text-sm">Unknown</span>;
-
     return (
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text} border ${config.border}`}>
         <div className={`w-2 h-2 rounded-full mr-1.5 ${status === 'green' ? 'bg-green-500' : status === 'yellow' ? 'bg-yellow-500' : status === 'red' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
@@ -235,6 +246,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
                 <option value="green">Green</option>
                 <option value="yellow">Yellow</option>
                 <option value="red">Red</option>
+                <option value="gold">Gold</option>
               </select>
             </div>
             <select
@@ -316,7 +328,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
                       )}
                     </td>
                     <td className="py-5 px-6">
-                      <StatusBadge status={chat.status} />
+                      <StatusBadge status={chat.status} isGold={chat.is_gold} />
                     </td>
                     <td className="py-5 px-6">
                       <PinnedBadge isPinned={chat.pinned} />

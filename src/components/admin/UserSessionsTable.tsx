@@ -13,9 +13,11 @@ import {
   Wifi,
   WifiOff,
   Globe,
-  TrendingUp
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react';
 import { UserSession, AdminStats } from '../../types';
+import { adminApi, UserSession as ApiUserSession } from '../../services/admin';
 
 interface UserSessionsTableProps {
   stats: AdminStats | null;
@@ -23,27 +25,42 @@ interface UserSessionsTableProps {
 }
 
 export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) => {
-  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const [sessions, setSessions] = useState<ApiUserSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
-  const [selectedSession, setSelectedSession] = useState<UserSession | null>(null);
+  const [selectedSession, setSelectedSession] = useState<ApiUserSession | null>(null);
+
+  const fetchSessions = async () => {
+    try {
+      setIsLoading(true);
+              const response = await adminApi.getSessions({
+          page: 1,
+          limit: 100, // Get all sessions for now
+        });
+        setSessions(response.sessions);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      // You might want to show a toast notification here
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // TODO: Fetch user sessions from API
-    const fetchSessions = async () => {
-      try {
-        // Placeholder data for now
-        setSessions([]);
-      } catch (error) {
-        console.error('Error fetching sessions:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchSessions();
   }, []);
+
+  // Auto-refresh active sessions every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (sessions.some(s => s.isActive)) {
+        fetchSessions();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [sessions]);
 
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = session.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,7 +135,7 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
   );
 
   const formatDuration = (seconds: number | null) => {
-    if (!seconds) return 'N/A';
+    if (!seconds || seconds <= 0) return 'N/A';
     
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -180,9 +197,11 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
   // Analytics Header
   const totalSessions = sessions.length;
   const activeSessions = sessions.filter(s => s.isActive).length;
-  const avgDuration = sessions.length > 0 ? 
-    Math.round(sessions.filter(s => s.sessionDuration).reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / sessions.filter(s => s.sessionDuration).length) : 0;
-  // Removed uniqueUsers calculation
+  
+  // Calculate average duration only for completed sessions (not active ones)
+  const completedSessions = sessions.filter(s => !s.isActive && s.sessionDuration);
+  const avgDuration = completedSessions.length > 0 ? 
+    Math.round(completedSessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / completedSessions.length) : 0;
 
   return (
     <div className="space-y-6">
@@ -203,8 +222,8 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
           bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
         />
         <StatCard
-          title="Average Duration (s)"
-          value={avgDuration}
+          title="Avg Duration"
+          value={formatDuration(avgDuration)}
           icon={Clock}
           color="text-yellow-600"
           bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
@@ -217,9 +236,18 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
           <h1 className="text-3xl font-bold text-gray-900">User Sessions</h1>
           <p className="text-gray-600 mt-2">Monitor user login sessions and activity patterns</p>
         </div>
-        <div className="flex items-center space-x-2 text-sm text-gray-500">
-          <Clock className="w-4 h-4" />
-          <span>Last updated: {new Date().toLocaleString()}</span>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={fetchSessions}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-150"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="text-sm font-medium">Refresh</span>
+          </button>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <Clock className="w-4 h-4" />
+            <span>Last updated: {new Date().toLocaleString()}</span>
+          </div>
         </div>
       </div>
 
@@ -299,7 +327,15 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                           </div>
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-sm">Unknown user</span>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full flex items-center justify-center shadow-md">
+                            <User className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-500">Unknown User</p>
+                            <p className="text-sm text-gray-400">ID: {session.userId}</p>
+                          </div>
+                        </div>
                       )}
                     </td>
                     <td className="py-5 px-6">
@@ -311,13 +347,18 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                         <span className="text-gray-600 font-medium">
                           {formatDuration(session.sessionDuration)}
                         </span>
+                        {session.isActive && (
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                            Live
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="py-5 px-6">
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-500 text-sm">
-                          {new Date(session.loginTime).toLocaleString()}
+                          {session.loginTime ? new Date(session.loginTime).toLocaleString() : 'N/A'}
                         </span>
                       </div>
                     </td>

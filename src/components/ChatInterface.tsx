@@ -116,11 +116,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Calculate notifications for chats with status green, yellow, or gold and not updated for 2+ days
     const now = new Date();
     const notifs = chats
-      .filter(chat => (chat.status === 'green' || chat.status === 'yellow' || chat.status === 'gold') && chat.updatedAt)
+      .filter(chat => ((chat.status === 'green' || chat.status === 'yellow' || chat.status === 'gold' || chat.is_gold) && chat.updatedAt))
       .map(chat => {
         const updated = new Date(chat.updatedAt);
         const days = Math.floor((now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24));
-        return { chatId: chat.id, name: chat.name, status: chat.status as 'green' | 'yellow' | 'gold', days };
+        return { chatId: chat.id, name: chat.name, status: chat.is_gold ? 'gold' : (chat.status as 'green' | 'yellow' | 'gold'), days };
       })
       .filter(n => n.days >= 2);
     // setNotifications(notifs); // This line is removed as per the edit hint
@@ -287,11 +287,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </AnimatePresence>
       <ChatArea
         chat={currentChat || null}
-        onSendMessage={sendMessage}
-        isTyping={isTyping}
-        isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={toggleSidebar}
-        isCreatingChat={isCreatingChat}
       />
       {isSearchOpen && (
         <SearchModal
