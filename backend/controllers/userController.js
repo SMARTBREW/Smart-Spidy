@@ -198,7 +198,9 @@ const getUserSessionStats = catchAsync(async (_req, res) => {
 });
 
 const getUserSessions = catchAsync(async (req, res) => {
-  const { user_id, is_active, page = 1, limit = 10 } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const { user_id, is_active } = req.query;
   const offset = (page - 1) * limit;
   let query = supabaseAdmin
     .from('user_sessions')

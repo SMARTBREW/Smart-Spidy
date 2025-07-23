@@ -114,8 +114,9 @@ export interface AdminStats {
 export interface Fundraiser {
   id: string;
   name: string;
-  createdBy: User;
+  createdBy: User | string;
   createdAt: Date;
+  user?: User;
 }
 // Predefined profession list for consistent template matching
 export const PROFESSION_LIST = [

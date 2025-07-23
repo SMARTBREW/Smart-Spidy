@@ -28,7 +28,6 @@ const App: React.FC = () => {
     setChatStatus,
   } = useChat();
 
-  // Check authentication status on app load
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -41,7 +40,6 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        // Don't logout here, let the user stay on login page
       } finally {
         setIsCheckingAuth(false);
       }
@@ -50,7 +48,6 @@ const App: React.FC = () => {
     checkAuth();
   }, [login]);
 
-  // Show loading while checking authentication
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -62,7 +59,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Debug logging
   console.log('App component render - user:', user, 'isLoading:', isLoading);
   console.log('User role:', user?.role);
   console.log('User ID:', user?.id);
@@ -81,6 +77,7 @@ const App: React.FC = () => {
       </div>
     );
   }
+
 
   return (
     <motion.div 
@@ -126,7 +123,6 @@ const App: React.FC = () => {
   );
 };
 
-// Wrap App with Router
 const AppWithRouter: React.FC = () => {
   return (
     <Router>

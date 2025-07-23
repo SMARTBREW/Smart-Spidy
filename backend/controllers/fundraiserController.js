@@ -33,8 +33,6 @@ const sanitizeFundraiser = (fundraiser) => {
 
 const createFundraiser = catchAsync(async (req, res) => {
   const fundraiserData = pick(req.body, ['name', 'created_by', 'chat_id']);
-  
-  // Validate chat exists and set it to gold if not already
   if (fundraiserData.chat_id) {
     const { data: chat, error: chatError } = await supabaseAdmin
       .from('chats')
@@ -43,7 +41,6 @@ const createFundraiser = catchAsync(async (req, res) => {
       .single();
     if (chatError || !chat) throw new ApiError(httpStatus.BAD_REQUEST, 'Chat not found');
     
-    // Set chat to gold if not already
     if (!chat.is_gold) {
       await supabaseAdmin
         .from('chats')
@@ -52,7 +49,6 @@ const createFundraiser = catchAsync(async (req, res) => {
     }
   }
   
-  // Validate user exists
   if (fundraiserData.created_by) {
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
@@ -114,7 +110,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
     .single();
   if (fetchError || !fundraiser) throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
   
-  // Validate chat exists and ensure it's gold
   if (req.body.chat_id) {
     const { data: chat, error: chatError } = await supabaseAdmin
       .from('chats')
@@ -123,7 +118,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
       .single();
     if (chatError || !chat) throw new ApiError(httpStatus.BAD_REQUEST, 'Chat not found');
     
-    // Ensure the new chat is gold
     if (!chat.is_gold) {
       await supabaseAdmin
         .from('chats')
@@ -132,7 +126,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
     }
   }
   
-  // Validate user exists
   if (req.body.created_by) {
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
@@ -155,8 +148,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
 
 const deleteFundraiser = catchAsync(async (req, res) => {
   const { id } = req.params;
-  
-  // Get the fundraiser to find associated chat
   const { data: fundraiser, error: fetchError } = await supabaseAdmin
     .from('fundraisers')
     .select('chat_id')
@@ -166,20 +157,6 @@ const deleteFundraiser = catchAsync(async (req, res) => {
   if (fetchError || !fundraiser) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
   }
-  
-  // Note: We don't remove gold status from chat when deleting fundraiser
-  // because gold status should be permanent once set
-  // If you want to allow removing gold status when deleting fundraiser,
-  // uncomment the following lines:
-  /*
-  if (fundraiser.chat_id) {
-    await supabaseAdmin
-      .from('chats')
-      .update({ is_gold: false, updated_at: new Date().toISOString() })
-      .eq('id', fundraiser.chat_id);
-  }
-  */
-  
   const { data, error } = await supabaseAdmin
     .from('fundraisers')
     .delete()

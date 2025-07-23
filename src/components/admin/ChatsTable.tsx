@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Search, 
   Filter, 
-  Eye, 
+  Edit, 
   Trash2, 
   MessageSquare,
   Pin,
@@ -15,6 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Chat, AdminStats } from '../../types';
+import { chatApi } from '../../services/chat';
 
 interface ChatsTableProps {
   stats: AdminStats | null;
@@ -27,22 +28,42 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'green' | 'yellow' | 'red' | 'gold'>('all');
   const [pinnedFilter, setPinnedFilter] = useState<'all' | 'pinned' | 'unpinned'>('all');
+  const [editChat, setEditChat] = useState<Chat | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; status: Chat['status'] }>({ name: '', status: null });
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch chats from API
     const fetchChats = async () => {
       try {
-        // Placeholder data for now
-        setChats([]);
+        setIsLoading(true);
+        const response = await chatApi.getChats({ page: 1, limit: 100 });
+        setChats(response.chats);
       } catch (error) {
         console.error('Error fetching chats:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchChats();
   }, []);
+
+  useEffect(() => {
+    if (editChat) {
+      setEditForm({ name: editChat.name, status: editChat.status });
+    }
+  }, [editChat]);
+
+  const refreshChats = async () => {
+    setIsLoading(true);
+    try {
+      const response = await chatApi.getChats({ page: 1, limit: 100 });
+      setChats(response.chats);
+    } catch (error) {
+      console.error('Error refreshing chats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredChats = chats.filter(chat => {
     const matchesSearch = chat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,19 +78,49 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
 
   const handleDeleteChat = async (chatId: string) => {
     if (window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
-      // TODO: Implement delete chat API call
-      console.log('Delete chat:', chatId);
+      try {
+        await chatApi.deleteChat(chatId);
+        await refreshChats();
+      } catch (error) {
+        console.error('Error deleting chat:', error);
+      }
     }
   };
 
-  const handleViewChat = (chatId: string) => {
-    // TODO: Implement view chat details
-    console.log('View chat:', chatId);
+  const handleEditChat = (chat: Chat) => {
+    setEditChat(chat);
+  };
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditForm({
+      ...editForm,
+      [name]: name === 'status' ? (value === '' ? null : value as Chat['status']) : value,
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editChat) return;
+    setIsEditSubmitting(true);
+    try {
+      await chatApi.updateChat(editChat.id, { name: editForm.name, status: editForm.status });
+      setEditChat(null);
+      await refreshChats();
+    } catch (error) {
+      console.error('Error updating chat:', error);
+    } finally {
+      setIsEditSubmitting(false);
+    }
   };
 
   const handleTogglePin = async (chatId: string, isPinned: boolean) => {
-    // TODO: Implement toggle pin API call
-    console.log('Toggle pin for chat:', chatId, 'to:', !isPinned);
+    try {
+      await chatApi.pinChat(chatId, !isPinned);
+      await refreshChats();
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+    }
   };
 
   const StatCard: React.FC<{ 
@@ -218,6 +269,12 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <Clock className="w-4 h-4" />
           <span>Last updated: {new Date().toLocaleString()}</span>
+          <button
+            onClick={refreshChats}
+            className="ml-4 px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-gray-700"
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -344,11 +401,11 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
                     <td className="py-5 px-6">
                       <div className="flex items-center justify-end space-x-2">
                         <button
-                          onClick={() => handleViewChat(chat.id)}
+                          onClick={() => handleEditChat(chat)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150"
-                          title="View chat details"
+                          title="Edit chat"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleTogglePin(chat.id, chat.pinned)}
@@ -377,6 +434,58 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
           </table>
         </div>
       </div>
+
+      {/* Edit Chat Modal */}
+      {editChat && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4">Edit Chat</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Chat Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={editForm.name}
+                  onChange={handleEditFormChange}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  name="status"
+                  value={editForm.status || ''}
+                  onChange={handleEditFormChange}
+                  className="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option value="">None</option>
+                  <option value="green">Green</option>
+                  <option value="yellow">Yellow</option>
+                  <option value="red">Red</option>
+                </select>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setEditChat(null)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditSubmitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  {isEditSubmitting ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }; 

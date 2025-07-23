@@ -7,7 +7,6 @@ const handleResponse = async (response: Response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     if (response.status === 401) {
-      // Don't automatically redirect, let the calling component handle it
       throw new Error('Authentication expired. Please login again.');
     }
     throw new Error(errorData.message || `HTTP error! status: ${response.status}`);

@@ -17,8 +17,8 @@ const sanitizeChat = (chat) => {
     userId: chat.user_id,
     pinned: chat.pinned ?? false,
     pinnedAt: chat.pinned_at,
-    status: chat.status, // Color status (green, yellow, red, or null)
-    isGold: chat.is_gold ?? false, // Gold status (boolean)
+    status: chat.status, 
+    isGold: chat.is_gold ?? false, 
     messageCount: chat.message_count ?? 0,
     createdAt: chat.created_at || null,
     updatedAt: chat.updated_at || null,
@@ -70,7 +70,6 @@ const getChats = catchAsync(async (req, res) => {
     .from('chats')
     .select('*, users(id, name, email)', { count: 'exact' });
 
-  // Only admins can see all chats; users see only their own
   if (req.user.role !== 'admin') {
     query = query.eq('user_id', req.user.id);
   } else if (filter.user_id) {
@@ -108,7 +107,6 @@ const getChat = catchAsync(async (req, res) => {
     .single();
 
   if (error || !chat) throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
-
   res.send(sanitizeChat(chat));
 });
 
@@ -169,10 +167,9 @@ const getChatStats = catchAsync(async (_req, res) => {
 });
 
 const updateChatStatus = catchAsync(async (req, res) => {
-  const { status, makeGold } = req.body; // status = color status, makeGold = boolean to set gold
+  const { status, makeGold } = req.body; 
   const { id } = req.params;
 
-  // Get current chat data
   const { data: currentChat, error: fetchError } = await supabaseAdmin
     .from('chats')
     .select('status, is_gold, user_id, name')
@@ -182,13 +179,8 @@ const updateChatStatus = catchAsync(async (req, res) => {
   if (fetchError || !currentChat) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   }
-
-  // Prepare update data
   const updateData = { updated_at: new Date().toISOString() };
-  
-  // Handle color status update (can always be changed)
   if (status !== undefined) {
-    // Validate status values
     const validStatuses = ['green', 'yellow', 'red', null];
     if (!validStatuses.includes(status)) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid status. Must be green, yellow, red, or null');
@@ -196,12 +188,11 @@ const updateChatStatus = catchAsync(async (req, res) => {
     updateData.status = status;
   }
 
-  // Handle gold status (can only be set to true, never removed)
   if (makeGold !== undefined) {
     if (makeGold === false && currentChat.is_gold === true) {
       throw new ApiError(
         httpStatus.BAD_REQUEST, 
-        'Cannot remove gold status. Once a chat is set to gold and has a fundraiser, the gold status cannot be removed.'
+        'Cannot remove gold status. Once a chat is set to gold and has become fundraiser, the gold status cannot be removed Samjha.'
       );
     }
     if (makeGold === true) {
@@ -209,7 +200,6 @@ const updateChatStatus = catchAsync(async (req, res) => {
     }
   }
 
-  // Update the chat
   const { data: updatedChat, error } = await supabaseAdmin
     .from('chats')
     .update(updateData)
@@ -218,8 +208,6 @@ const updateChatStatus = catchAsync(async (req, res) => {
     .single();
 
   if (error || !updatedChat) throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
-
-  // Handle fundraiser creation when gold status is set
   if (updateData.is_gold === true) {
     const { data: existingFundraiser } = await supabaseAdmin
       .from('fundraisers')

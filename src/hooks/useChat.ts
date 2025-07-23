@@ -32,7 +32,7 @@ export const useChat = () => {
     try {
       const currentUser = authService.getCurrentUser();
       if (!currentUser) {
-        // No user found, redirect to login
+        setState(prev => ({ ...prev, isLoading: false, user: null }));
         navigate('/');
         return;
       }

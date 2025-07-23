@@ -32,14 +32,12 @@ interface AuthTokens {
 class AuthService {
   private baseURL = 'http://localhost:3000/api';
 
-  // Store tokens in localStorage
   private setTokens(tokens: AuthTokens) {
     localStorage.setItem('accessToken', tokens.access.token);
     localStorage.setItem('refreshToken', tokens.refresh.token);
     localStorage.setItem('tokenExpires', tokens.access.expires);
   }
 
-    // Get stored tokens
   private async getTokens(): Promise<AuthTokens | null> {
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');
@@ -49,20 +47,17 @@ class AuthService {
       return null;
     }
 
-    // Check if token is expired (with 5 minute buffer)
     if (tokenExpires) {
       const expirationTime = new Date(tokenExpires);
       const currentTime = new Date();
       const bufferTime = new Date(Date.now() + 5 * 60 * 1000);
       
       if (expirationTime < bufferTime) {
-        // Token expires within 5 minutes, try to refresh
         const refreshed = await this.refreshToken();
         if (!refreshed) {
           this.logout();
           return null;
         }
-        // Get the new tokens after refresh
         const newAccessToken = localStorage.getItem('accessToken');
         const newRefreshToken = localStorage.getItem('refreshToken');
         const newTokenExpires = localStorage.getItem('tokenExpires');
@@ -82,7 +77,6 @@ class AuthService {
     };
   }
 
-  // Clear tokens
   private clearTokens() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -90,7 +84,6 @@ class AuthService {
     localStorage.removeItem('user');
   }
 
-  // Login user
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
       const response = await fetch(`${this.baseURL}/users/login`, {
@@ -100,18 +93,14 @@ class AuthService {
         },
         body: JSON.stringify({ email, password }),
       });
-
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Login failed');
       }
-
       const data: LoginResponse = await response.json();
       
-      // Store tokens and user data
       this.setTokens(data.tokens);
       localStorage.setItem('user', JSON.stringify(data.user));
-
       return data;
     } catch (error) {
       console.error('Login error:', error);
@@ -119,7 +108,6 @@ class AuthService {
     }
   }
 
-  // Logout user
   async logout(): Promise<void> {
     try {
       const tokens = await this.getTokens();
@@ -142,25 +130,21 @@ class AuthService {
     }
   }
 
-  // Get current user
   getCurrentUser() {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   }
 
-  // Check if user is authenticated
   async isAuthenticated(): Promise<boolean> {
     const tokens = await this.getTokens();
     return tokens !== null;
   }
 
-  // Get access token for API calls
   async getAccessToken(): Promise<string | null> {
     const tokens = await this.getTokens();
     return tokens?.access.token || null;
   }
 
-  // Refresh token
   async refreshToken(): Promise<boolean> {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
@@ -191,12 +175,10 @@ class AuthService {
     }
   }
 
-  // Make authenticated API calls
+
   async authenticatedRequest(url: string, options: RequestInit = {}) {
     let accessToken = await this.getAccessToken();
-    
     if (!accessToken) {
-      // Try to refresh token
       const refreshed = await this.refreshToken();
       if (!refreshed) {
         throw new Error('Authentication expired. Please login again.');
@@ -213,13 +195,11 @@ class AuthService {
       },
     });
 
-    // If we get a 401, try to refresh token once more
     if (response.status === 401) {
       const refreshed = await this.refreshToken();
       if (refreshed) {
         const newAccessToken = await this.getAccessToken();
         if (newAccessToken) {
-          // Retry the request with new token
           return fetch(url, {
             ...options,
             headers: {
@@ -230,7 +210,6 @@ class AuthService {
           });
         }
       }
-      // If refresh failed, clear tokens and throw error
       this.logout();
       throw new Error('Authentication expired. Please login again.');
     }

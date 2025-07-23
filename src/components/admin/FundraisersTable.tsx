@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Calendar, User as UserIcon, Search, Filter } from 'lucide-react';
 import { Fundraiser } from '../../types';
+import { fundraiserApi } from '../../services/fundraiser';
 
 export const FundraisersTable: React.FC = () => {
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
@@ -19,7 +20,9 @@ export const FundraisersTable: React.FC = () => {
   useEffect(() => {
     const fetchFundraisers = async () => {
       try {
-        setFundraisers([]);
+        setIsLoading(true);
+        const response = await fundraiserApi.getFundraisers({ page: 1, limit: 100 });
+        setFundraisers(response.fundraisers);
       } catch (error) {
         console.error('Error fetching fundraisers:', error);
       } finally {
@@ -29,9 +32,26 @@ export const FundraisersTable: React.FC = () => {
     fetchFundraisers();
   }, []);
 
+  const refreshFundraisers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fundraiserApi.getFundraisers({ page: 1, limit: 100 });
+      setFundraisers(response.fundraisers);
+    } catch (error) {
+      console.error('Error refreshing fundraisers:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDeleteFundraiser = async (fundraiserId: string) => {
     if (window.confirm('Are you sure you want to delete this fundraiser?')) {
-      console.log('Delete fundraiser:', fundraiserId);
+      try {
+        await fundraiserApi.deleteFundraiser(fundraiserId);
+        await refreshFundraisers();
+      } catch (error) {
+        console.error('Error deleting fundraiser:', error);
+      }
     }
   };
 
@@ -100,6 +120,12 @@ export const FundraisersTable: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Fundraisers</h1>
           <p className="text-gray-500 mt-1">Manage all fundraisers</p>
         </div>
+        <button
+          onClick={refreshFundraisers}
+          className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-gray-700"
+        >
+          Refresh
+        </button>
       </div>
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
@@ -159,7 +185,7 @@ export const FundraisersTable: React.FC = () => {
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <UserIcon className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-700 text-sm">{fundraiser.createdBy.name}</span>
+                        <span className="text-gray-700 text-sm">{fundraiser.user?.name || 'Unknown'}</span>
                       </div>
                     </td>
                     <td className="py-4 px-4">

@@ -5,20 +5,15 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 
 
-// Helper function to handle API responses
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    
-    // Handle authentication errors
     if (response.status === 401) {
-      // Clear tokens and redirect to login
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('tokenExpires');
       localStorage.removeItem('user');
       
-      // Redirect to login page
       window.location.href = '/login';
       throw new Error('Authentication expired. Please login again.');
     }
@@ -97,9 +92,8 @@ export interface SessionStatsResponse {
   today: number;
 }
 
-// Admin API functions
+
 export const adminApi = {
-  // Get all users with pagination and filters
   async getUsers(params?: {
     page?: number;
     limit?: number;
@@ -117,20 +111,16 @@ export const adminApi = {
     const response = await authService.authenticatedRequest(url, {
       method: 'GET',
     });
-
     return handleResponse(response);
   },
 
-  // Get user by ID
   async getUserById(id: string): Promise<User> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/${id}`, {
       method: 'GET',
     });
-
     return handleResponse(response);
   },
 
-  // Create new user
   async createUser(userData: CreateUserData): Promise<User> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users`, {
       method: 'POST',
@@ -146,7 +136,6 @@ export const adminApi = {
     return handleResponse(response);
   },
 
-  // Update user
   async updateUser(id: string, userData: UpdateUserData): Promise<User> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/${id}`, {
       method: 'PATCH',
@@ -161,7 +150,6 @@ export const adminApi = {
     return handleResponse(response);
   },
 
-  // Delete user
   async deleteUser(id: string): Promise<void> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/${id}`, {
       method: 'DELETE',
@@ -173,7 +161,6 @@ export const adminApi = {
     }
   },
 
-  // Update user status (activate/deactivate)
   async updateUserStatus(id: string, isActive: boolean): Promise<User> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/${id}/status`, {
       method: 'PATCH',
@@ -183,7 +170,6 @@ export const adminApi = {
     return handleResponse(response);
   },
 
-  // Get user statistics
   async getUserStats(): Promise<UserStatsResponse> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/stats`, {
       method: 'GET',
@@ -192,7 +178,6 @@ export const adminApi = {
     return handleResponse(response);
   },
 
-  // Get admin dashboard stats
   async getAdminStats(): Promise<AdminStats> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/stats`, {
       method: 'GET',
@@ -200,7 +185,6 @@ export const adminApi = {
 
     const stats = await handleResponse(response);
     
-    // Transform the response to match AdminStats interface
     return {
       totalUsers: stats.overall.total,
       activeUsers: stats.overall.active,
@@ -211,7 +195,6 @@ export const adminApi = {
     };
   },
 
-  // Get user sessions with pagination and filters
   async getSessions(params?: {
     page?: number;
     limit?: number;
@@ -231,7 +214,6 @@ export const adminApi = {
     return handleResponse(response);
   },
 
-  // Get session statistics
   async getSessionStats(): Promise<SessionStatsResponse> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/sessions/stats`, {
       method: 'GET',

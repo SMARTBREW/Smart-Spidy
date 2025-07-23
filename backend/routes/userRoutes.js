@@ -17,7 +17,15 @@ router.post('/refresh-token', validate(userValidation.refreshToken), authControl
 // User profile
 router.get('/profile', auth(), authController.getProfile);
 
+// User sessions (admin only)
+router.get('/sessions', auth(), authorize('admin'), userController.getUserSessions);
+router.get('/sessions/stats', auth(), authorize('admin'), userController.getUserSessionStats);
+
+// User stats
+router.get('/stats', auth(), authorize('admin'), userController.getUserStats);
+
 // User management
+router.post('/', auth(), authorize('admin'), validate(userValidation.createUser), userController.createUser);
 router.get('/', auth(), authorize('admin'), validate(userValidation.getUsers), userController.getUsers);
 router.get('/:id', auth(), authorize('admin'), validate(userValidation.getUser), userController.getUser);
 router.patch('/:id', auth(), authorize('admin'), validate(userValidation.updateUser), userController.updateUser);
@@ -26,11 +34,6 @@ router.delete('/:id', auth(), authorize('admin'), validate(userValidation.delete
 // User status
 router.patch('/:id/status', auth(), authorize('admin'), validate(userValidation.updateUserStatus), userController.updateUserStatus);
 
-// User stats
-router.get('/stats', auth(), authorize('admin'), userController.getUserStats);
 
-// User sessions (admin only)
-router.get('/sessions', auth(), authorize('admin'), userController.getUserSessions);
-router.get('/sessions/stats', auth(), authorize('admin'), userController.getUserSessionStats);
 
 module.exports = router; 
