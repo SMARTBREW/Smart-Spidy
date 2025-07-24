@@ -16,6 +16,9 @@ const getFundraisers = {
     name: Joi.string(),
     created_by: Joi.string().custom(uuid),
     chat_id: Joi.string().custom(uuid),
+    last_week: Joi.string().valid('true', 'false').optional(),
+    start_date: Joi.string().isoDate().optional(),
+    end_date: Joi.string().isoDate().optional(),
   }),
 };
 

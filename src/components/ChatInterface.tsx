@@ -6,6 +6,7 @@ import { ChatArea } from './ChatArea';
 import { SearchModal } from './SearchModal';
 import { Bell, Star, X, Clock, MessageCircle, CheckCircle } from 'lucide-react';
 import { CreateChatModal } from './CreateChatModal';
+import { ChatInput } from './ChatInput';
 
 interface ChatInterfaceProps {
   user: User;
@@ -285,9 +286,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           />
         )}
       </AnimatePresence>
-      <ChatArea
-        chat={currentChat || null}
-      />
+      <div className="flex flex-col flex-1 h-full min-h-0">
+        <div className="flex-1 flex flex-col min-h-0">
+          <ChatArea chat={currentChat || null} onSendMessage={sendMessage} />
+        </div>
+      </div>
       {isSearchOpen && (
         <SearchModal
           chats={chats}

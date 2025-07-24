@@ -1,3 +1,5 @@
+const Joi = require('joi');
+
 const uuid = (value, helpers) => {
   // UUID v4 regex pattern
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -6,6 +8,8 @@ const uuid = (value, helpers) => {
   }
   return value;
 };
+
+const objectId = Joi.string().custom(uuid, 'custom UUID validation');
 
 const password = (value, helpers) => {
   if (value.length < 8) {
@@ -29,6 +33,7 @@ return value;
 
 module.exports = {
   uuid,
+  objectId,
   password,
   mobile,
 };

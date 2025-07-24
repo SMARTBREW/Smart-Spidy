@@ -26,6 +26,9 @@ export const fundraiserApi = {
     name?: string;
     created_by?: string;
     chat_id?: string;
+    last_week?: boolean;
+    start_date?: string;
+    end_date?: string;
   }): Promise<{ fundraisers: Fundraiser[]; pagination: any }> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
@@ -33,6 +36,9 @@ export const fundraiserApi = {
     if (params?.name) searchParams.append('name', params.name);
     if (params?.created_by) searchParams.append('created_by', params.created_by);
     if (params?.chat_id) searchParams.append('chat_id', params.chat_id);
+    if (params?.last_week) searchParams.append('last_week', 'true');
+    if (params?.start_date) searchParams.append('start_date', params.start_date);
+    if (params?.end_date) searchParams.append('end_date', params.end_date);
     const url = `${API_BASE_URL}/fundraisers?${searchParams}`;
     const response = await authService.authenticatedRequest(url, { method: 'GET' });
     return handleResponse(response);

@@ -1,85 +1,140 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, User, Bot } from 'lucide-react';
+import { MessageSquare, Menu } from 'lucide-react';
+import { Chat } from '../types';
 import { ChatMessage } from './ChatMessage';
-import { Chat, Message } from '../types';
+import { ChatInput } from './ChatInput';
 
 interface ChatAreaProps {
   chat: Chat | null;
+  onSendMessage: (message: string) => void;
+  isTyping?: boolean;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  isCreatingChat?: boolean;
 }
 
-const ChatAreaComponent: React.FC<ChatAreaProps> = ({ chat }) => {
-  // Memoized messages to avoid recalculation
-  const sortedMessages = useMemo(() => {
-    if (!chat?.messages) return [];
-    return [...chat.messages].sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return timeA - timeB;
-    });
+export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chat?.messages]);
 
-  // Memoized empty state
-  const emptyState = useMemo(() => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex items-center justify-center"
-    >
-      <div className="text-center">
-        <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-600 mb-2">No chat selected</h3>
-        <p className="text-gray-500">Choose a chat from the sidebar to start messaging</p>
-      </div>
-    </motion.div>
-  ), []);
-
   if (!chat) {
-    return emptyState;
+    return (
+      <div className="flex-1 flex flex-col bg-white min-h-0">
+        {/* Header with toggle button */}
+        <div className="bg-white border-b border-gray-300 p-4">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 group relative"
+            aria-label="Toggle sidebar"
+            title="Toggle sidebar (Cmd/Ctrl + B)"
+          >
+            <Menu className="w-5 h-5 text-gray-700" />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+              Open sidebar (⌘B)
+            </span>
+          </button>
+        </div>
+        {/* Welcome content */}
+        <div className="flex-1 flex items-center justify-center min-h-0">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center max-w-2xl w-full px-4"
+          >
+            <div className="w-20 h-20 flex items-center justify-center mx-auto mb-6">
+              <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-20 h-20 rounded-xl shadow-lg" />
+            </div>
+            <h2 className="text-3xl font-bold text-black mb-3">
+              Welcome to Smart Spidy
+            </h2>
+            <p className="text-gray-600 mb-8 text-lg">
+              Your Professional AI Assistant
+            </p>
+            <p className="text-gray-500 mb-8 text-sm">
+              Create a new chat or select an existing one to start your conversation
+            </p>
+            <div className="w-full max-w-3xl mx-auto">
+              {/* ChatInput removed from welcome screen */}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col bg-white min-h-0">
       {/* Chat Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="border-b border-gray-200 p-4 bg-white"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-            <User className="w-5 h-5 text-gray-600" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900">{chat.name}</h2>
-            <p className="text-sm text-gray-500">
-              {sortedMessages.length} message{sortedMessages.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+      <div className="bg-white border-b border-gray-300 p-4 flex items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {sortedMessages.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center justify-center h-full"
-          >
-            <div className="text-center">
-              <Bot className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">Start a conversation by sending a message</p>
+      {/* Messages */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {chat.messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center max-w-2xl w-full px-4"
+              >
+                <div className="w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                  <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-12 h-12 rounded-lg" />
+                </div>
+                <h3 className="text-lg font-medium text-black mb-2">
+                  Start the conversation
+                </h3>
+                <p className="text-gray-600 mb-8">
+                  Send a message to begin chatting
+                </p>
+                {/* ChatInput removed from welcome screen */}
+              </motion.div>
             </div>
-          </motion.div>
-        ) : (
-          sortedMessages.map((message, index) => (
-            <ChatMessage key={message.id || index} message={message} />
-          ))
-        )}
+          ) : (
+            <div className="max-w-4xl mx-auto">
+              {chat.messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isLast={index === chat.messages.length - 1}
+                  type={message.sender as 'user' | 'assistant'}
+                />
+              ))}
+              {isTyping && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-start w-full mb-2 mt-5"
+                >
+                  <div className="flex flex-row gap-4 max-w-xl">
+                    <div className="flex flex-col items-start self-start bg-gray-50 border border-gray-300 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center gap-2 mb-1 w-full">
+                        <span className="font-medium text-black text-left">Smart Spidy</span>
+                        <span className="text-xs text-gray-600">typing...</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+        {/* Only show input at the bottom when there are messages or always if you want persistent input */}
+        {!isCreatingChat && <ChatInput onSendMessage={onSendMessage} />}
       </div>
     </div>
   );
 };
-
-export const ChatArea = React.memo(ChatAreaComponent);

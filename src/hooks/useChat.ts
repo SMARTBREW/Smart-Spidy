@@ -5,6 +5,7 @@ import { openaiService } from '../services/openai';
 import { fetchInstagramAccountDetails } from '../services/instagram';
 import authService from '../services/auth';
 import { chatApi } from '../services/chat';
+import { messageApi } from '../services/message';
 
 export const useChat = () => {
   const navigate = useNavigate();
@@ -36,17 +37,35 @@ export const useChat = () => {
         navigate('/');
         return;
       }
-      const { chats } = await chatApi.getChats();
-      // Normalize gold field for all chats
-      const normalizedChats = chats.map(chat => ({
-        ...chat,
-        is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
-      }));
+      // Only fetch chats created by the current user, even for admins
+      const { chats } = await chatApi.getChats({ user_id: currentUser.id });
+      
+      // Fetch messages for each chat
+      const chatsWithMessages = await Promise.all(
+        chats.map(async (chat) => {
+          try {
+            const { messages } = await messageApi.getMessages(chat.id, { limit: 100 });
+            return {
+              ...chat,
+              messages: messages || [],
+              is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
+            };
+          } catch (error) {
+            console.error(`Error fetching messages for chat ${chat.id}:`, error);
+            return {
+              ...chat,
+              messages: [],
+              is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
+            };
+          }
+        })
+      );
+
       setState(prev => ({
         ...prev,
         user: currentUser,
-        chats: normalizedChats,
-        currentChatId: normalizedChats.length > 0 ? normalizedChats[0].id : null,
+        chats: chatsWithMessages,
+        currentChatId: chatsWithMessages.length > 0 ? chatsWithMessages[0].id : null,
         isLoading: false,
       }));
     } catch (error: any) {
@@ -68,11 +87,11 @@ export const useChat = () => {
   }, []); // Remove fetchChats from dependency array
 
   // Fetch chats when user becomes available after login
-  useEffect(() => {
-    if (state.user && state.chats.length === 0) {
-      fetchChats();
-    }
-  }, [state.user, state.chats.length, fetchChats]);
+  // useEffect(() => {
+  //   if (state.user && state.chats.length === 0) {
+  //     fetchChats();
+  //   }
+  // }, [state.user, state.chats.length, fetchChats]);
 
   const login = useCallback((user: User) => {
     setState(prev => ({ 
@@ -120,10 +139,29 @@ export const useChat = () => {
     }
   }, [fetchChats]);
 
-  const selectChat = useCallback((chatId: string) => {
+  const selectChat = useCallback(async (chatId: string) => {
     if (!chatId) return;
+    
     setState(prev => ({ ...prev, currentChatId: chatId }));
-  }, []);
+    
+    // Load messages for the selected chat if not already loaded
+    const currentChat = state.chats.find(chat => chat.id === chatId);
+    if (currentChat && (!currentChat.messages || currentChat.messages.length === 0)) {
+      try {
+        const { messages } = await messageApi.getMessages(chatId, { limit: 100 });
+        setState(prev => ({
+          ...prev,
+          chats: prev.chats.map(chat =>
+            chat.id === chatId
+              ? { ...chat, messages: messages || [] }
+              : chat
+          ),
+        }));
+      } catch (error) {
+        console.error(`Error loading messages for chat ${chatId}:`, error);
+      }
+    }
+  }, [state.chats]);
 
   const deleteChat = useCallback(async (chatId: string) => {
     try {
@@ -170,92 +208,50 @@ export const useChat = () => {
     }
   }, [fetchChats, state.chats]);
 
-  // For now, keep sendMessage as a local operation (AI logic)
+  // Send message with backend integration
   const sendMessage = useCallback(async (query: string) => {
     setIsTyping(true);
     try {
-      if (!state.currentChatId) {
+      let chatId = state.currentChatId;
+      // Create new chat if none exists
+      if (!chatId) {
         const newChatName = query.length > 50 ? query.substring(0, 50) + '...' : query;
-        const newChat: Chat = {
-          id: crypto.randomUUID(),
-          name: newChatName,
-          messages: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          pinned: false,
-          pinnedAt: null,
-          status: null,
-          userId: state.user?.id || '',
-          instagramUsername: '',
-          profession: '' as ProfessionType,
-          product: '',
-          gender: '',
-          messageCount: 0,
-        };
-
-        setState(prev => ({
-          ...prev,
-          chats: [newChat, ...prev.chats],
-          currentChatId: newChat.id,
-        }));
+        chatId = await createChat(newChatName);
+        if (!chatId) {
+          throw new Error('Failed to create new chat');
+        }
       }
-
-      const userMessage: Message = {
-        id: crypto.randomUUID(),
+      // Get current message order
+      const currentChat = state.chats.find(chat => chat.id === chatId);
+      const messageOrder = (currentChat?.messages?.length || 0);
+      // Save user message to backend and get both user and assistant messages
+      const response = await messageApi.createMessage({
         content: query,
-        createdAt: new Date(),
         sender: 'user',
-        messageOrder: 0,
-        chatId: state.currentChatId || '',
-        userId: state.user?.id || '',
-      };
-
+        chat_id: chatId,
+        message_order: messageOrder,
+      });
+      // Add both messages to the chat
       setState(prev => ({
         ...prev,
         chats: prev.chats.map(chat =>
-          chat.id === state.currentChatId
+          chat.id === chatId
             ? {
                 ...chat,
-                messages: [...(chat.messages || []), userMessage],
-                messageCount: (chat.messageCount || 0) + 1,
+                messages: [...(chat.messages || []), ...(response.messages || [])],
+                messageCount: (chat.messageCount || 0) + (response.messages?.length || 0),
                 updatedAt: new Date(),
               }
             : chat
         ),
       }));
-
-      // Get AI response
-      const response = await openaiService.generateResponse(query);
-      
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        content: response,
-        createdAt: new Date(),
-        sender: 'assistant',
-        messageOrder: 1,
-        chatId: state.currentChatId || '',
-        userId: state.user?.id || '',
-      };
-
-      setState(prev => ({
-        ...prev,
-        chats: prev.chats.map(chat =>
-          chat.id === state.currentChatId
-            ? {
-                ...chat,
-                messages: [...(chat.messages || []), assistantMessage],
-                messageCount: (chat.messageCount || 0) + 1,
-                updatedAt: new Date(),
-              }
-            : chat
-        ),
-      }));
+      // Optionally handle Instagram account info (response.instagramAccount)
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsTyping(false);
     }
-  }, [state.currentChatId, state.user?.id, setIsTyping]);
+  }, [state.currentChatId, state.chats, createChat]);
 
   return {
     ...state,

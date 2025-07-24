@@ -8,7 +8,9 @@ export const FundraisersTable: React.FC = () => {
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'month'>('all');
+  const [filter, setFilter] = useState<'all' | 'month' | 'last_week' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
 
   const totalFundraisers = fundraisers.length;
   const now = new Date();
@@ -17,30 +19,48 @@ export const FundraisersTable: React.FC = () => {
     return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
   }).length;
 
-  useEffect(() => {
-    const fetchFundraisers = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fundraiserApi.getFundraisers({ page: 1, limit: 100 });
-        setFundraisers(response.fundraisers);
-      } catch (error) {
-        console.error('Error fetching fundraisers:', error);
-      } finally {
-        setIsLoading(false);
+  const fetchFundraisers = async (filterValue = filter, startDate = customStartDate, endDate = customEndDate) => {
+    try {
+      setIsLoading(true);
+      let params: any = { page: 1, limit: 100 };
+      if (filterValue === 'month') {
+        // No backend filter, filter on frontend
+      } else if (filterValue === 'last_week') {
+        params.last_week = true;
+      } else if (filterValue === 'custom') {
+        if (startDate) params.start_date = startDate;
+        if (endDate) params.end_date = endDate;
       }
-    };
+      const response = await fundraiserApi.getFundraisers(params);
+      setFundraisers(response.fundraisers);
+    } catch (error) {
+      console.error('Error fetching fundraisers:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchFundraisers();
+    // eslint-disable-next-line
   }, []);
 
   const refreshFundraisers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fundraiserApi.getFundraisers({ page: 1, limit: 100 });
-      setFundraisers(response.fundraisers);
-    } catch (error) {
-      console.error('Error refreshing fundraisers:', error);
-    } finally {
-      setIsLoading(false);
+    await fetchFundraisers();
+  };
+
+  const handleFilterChange = (value: 'all' | 'month' | 'last_week' | 'custom') => {
+    setFilter(value);
+    if (value !== 'custom') {
+      setCustomStartDate('');
+      setCustomEndDate('');
+      fetchFundraisers(value);
+    }
+  };
+
+  const handleCustomDateSearch = () => {
+    if (customStartDate || customEndDate) {
+      fetchFundraisers('custom', customStartDate, customEndDate);
     }
   };
 
@@ -76,9 +96,10 @@ export const FundraisersTable: React.FC = () => {
   const filteredFundraisers = fundraisers.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase());
     const created = new Date(f.createdAt);
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'month' && created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth());
+    let matchesFilter = true;
+    if (filter === 'month') {
+      matchesFilter = created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
+    }
     return matchesSearch && matchesFilter;
   });
 
@@ -143,12 +164,39 @@ export const FundraisersTable: React.FC = () => {
             <Filter className="w-5 h-5 text-gray-400" />
             <select
               value={filter}
-              onChange={e => setFilter(e.target.value as 'all' | 'month')}
+              onChange={e => handleFilterChange(e.target.value as 'all' | 'month' | 'last_week' | 'custom')}
               className="border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
             >
               <option value="all">All</option>
               <option value="month">This Month</option>
+              <option value="last_week">Last Week</option>
+              <option value="custom">Custom Date</option>
             </select>
+            {filter === 'custom' && (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={e => setCustomStartDate(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-2 py-2"
+                  placeholder="Start Date"
+                />
+                <span>-</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={e => setCustomEndDate(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-2 py-2"
+                  placeholder="End Date"
+                />
+                <button
+                  onClick={handleCustomDateSearch}
+                  className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Search
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

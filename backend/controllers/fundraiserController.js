@@ -69,7 +69,7 @@ const createFundraiser = catchAsync(async (req, res) => {
 
 const getFundraisers = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['name', 'created_by', 'chat_id']);
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, last_week, start_date, end_date } = req.query;
   const offset = (page - 1) * limit;
   let query = supabaseAdmin
     .from('fundraisers')
@@ -77,6 +77,25 @@ const getFundraisers = catchAsync(async (req, res) => {
   if (filter.name) query = query.ilike('name', `%${filter.name}%`);
   if (filter.created_by) query = query.eq('created_by', filter.created_by);
   if (filter.chat_id) query = query.eq('chat_id', filter.chat_id);
+
+  // Add last week filter
+  if (last_week === 'true') {
+    const now = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(now.getDate() - 7);
+    query = query.gte('created_at', lastWeek.toISOString());
+  }
+
+  // Add custom date range filter
+  if (start_date && end_date) {
+    query = query.gte('created_at', new Date(start_date).toISOString())
+                 .lte('created_at', new Date(end_date).toISOString());
+  } else if (start_date) {
+    query = query.gte('created_at', new Date(start_date).toISOString());
+  } else if (end_date) {
+    query = query.lte('created_at', new Date(end_date).toISOString());
+  }
+
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: fundraisers, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);

@@ -11,6 +11,7 @@ const { jwtStrategy } = require('./config/passport');
 const userRoutes = require('./routes/userRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const fundraiserRoutes = require('./routes/fundraiserRoutes');
+const messageRoutes = require('./routes/messageRoutes');
 const ApiError = require('./utils/ApiError');
 
 const app = express();
@@ -70,6 +71,7 @@ app.get('/health', (req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/fundraisers', fundraiserRoutes);
+app.use('/api/messages', messageRoutes);
 
 app.use((req, res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
