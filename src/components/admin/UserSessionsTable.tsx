@@ -30,26 +30,35 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
   const [selectedSession, setSelectedSession] = useState<ApiUserSession | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [totalActiveSessions, setTotalActiveSessions] = useState(0);
+  const [totalEndedSessions, setTotalEndedSessions] = useState(0);
+  const SESSIONS_PER_PAGE = 10;
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (pageNum = page) => {
     try {
       setIsLoading(true);
-              const response = await adminApi.getSessions({
-          page: 1,
-          limit: 100, // Get all sessions for now
-        });
-        setSessions(response.sessions);
+      const response = await adminApi.getSessions({
+        page: pageNum,
+        limit: SESSIONS_PER_PAGE,
+      });
+      setSessions(response.sessions);
+      setTotalPages(response.pagination.pages || 1);
+      setTotalSessions(response.pagination.total || 0);
+      setTotalActiveSessions(response.totalActiveSessions || 0);
+      setTotalEndedSessions(response.totalEndedSessions || 0);
     } catch (error) {
       console.error('Error fetching sessions:', error);
-      // You might want to show a toast notification here
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    fetchSessions(page);
+  }, [page]);
 
   // Auto-refresh active sessions every 30 seconds
   useEffect(() => {
@@ -61,6 +70,11 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
 
     return () => clearInterval(interval);
   }, [sessions]);
+
+  // Pagination controls
+  const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
+  const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
+  const handlePageClick = (p: number) => setPage(p);
 
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = session.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -195,38 +209,33 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
   }
 
   // Analytics Header
-  const totalSessions = sessions.length;
-  const activeSessions = sessions.filter(s => s.isActive).length;
-  
-  // Calculate average duration only for completed sessions (not active ones)
-  const completedSessions = sessions.filter(s => !s.isActive && s.sessionDuration);
-  const avgDuration = completedSessions.length > 0 ? 
-    Math.round(completedSessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / completedSessions.length) : 0;
+  const avgDuration = sessions.length > 0 ? 
+    Math.round(sessions.filter(s => s.sessionDuration).reduce((sum, s) => sum + (s.sessionDuration || 0), 0) / sessions.filter(s => s.sessionDuration).length) : 0;
 
   return (
     <div className="space-y-6">
       {/* Analytics Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
-          title="Active Sessions"
-          value={activeSessions}
+          title="Total Sessions"
+          value={totalSessions}
           icon={Activity}
           color="text-teal-600"
           bgColor="bg-gradient-to-br from-teal-50 to-teal-100"
         />
         <StatCard
-          title="Total Sessions"
-          value={totalSessions}
+          title="Active Sessions"
+          value={totalActiveSessions}
           icon={Wifi}
-          color="text-blue-600"
-          bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
+          color="text-green-600"
+          bgColor="bg-gradient-to-br from-green-50 to-green-100"
         />
         <StatCard
-          title="Avg Duration"
-          value={formatDuration(avgDuration)}
-          icon={Clock}
-          color="text-yellow-600"
-          bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
+          title="Ended Sessions"
+          value={totalEndedSessions}
+          icon={WifiOff}
+          color="text-gray-600"
+          bgColor="bg-gradient-to-br from-gray-50 to-gray-100"
         />
       </div>
 
@@ -379,6 +388,20 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
             </tbody>
           </table>
         </div>
+      </div>
+      {/* Pagination UI */}
+      <div className="flex justify-center items-center space-x-2 my-4">
+        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i + 1}
+            onClick={() => handlePageClick(i + 1)}
+            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            {i + 1}
+          </button>
+        ))}
+        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
       </div>
     </div>
   );

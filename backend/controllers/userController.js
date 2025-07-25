@@ -79,6 +79,18 @@ const getUsers = catchAsync(async (req, res) => {
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: users, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  // Count total active and inactive users
+  const { count: activeCount, error: activeError } = await supabaseAdmin
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_active', true);
+  const { count: inactiveCount, error: inactiveError } = await supabaseAdmin
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_active', false);
+  if (activeError || inactiveError) {
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count active/inactive users');
+  }
   res.send({
     users: users.map(sanitizeUser),
     pagination: {
@@ -87,6 +99,8 @@ const getUsers = catchAsync(async (req, res) => {
       total: count,
       pages: Math.ceil(count / limit),
     },
+    totalActiveUsers: activeCount ?? 0,
+    totalInactiveUsers: inactiveCount ?? 0,
   });
 });
 
@@ -210,6 +224,18 @@ const getUserSessions = catchAsync(async (req, res) => {
   query = query.order('login_time', { ascending: false }).range(offset, offset + limit - 1);
   const { data: sessions, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  // Count total active and ended sessions
+  const { count: activeCount, error: activeError } = await supabaseAdmin
+    .from('user_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_active', true);
+  const { count: endedCount, error: endedError } = await supabaseAdmin
+    .from('user_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_active', false);
+  if (activeError || endedError) {
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count active/ended sessions');
+  }
   res.send({
     sessions: sessions.map(sanitizeSession),
     pagination: {
@@ -218,6 +244,8 @@ const getUserSessions = catchAsync(async (req, res) => {
       total: count,
       pages: Math.ceil(count / limit),
     },
+    totalActiveSessions: activeCount ?? 0,
+    totalEndedSessions: endedCount ?? 0,
   });
 });
 

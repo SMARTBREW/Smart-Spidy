@@ -10,6 +10,7 @@ interface ChatInputProps {
 export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled }) => {
   const [message, setMessage] = useState('');
   const [listening, setListening] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Waveform visualization refs
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -139,6 +140,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
     };
   }, []);
 
+  // Auto-grow textarea as user types
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+  }, [message]);
+
   // File upload handler (images only)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -166,6 +176,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
           <div className="flex-1">
             <div className="relative">
               <textarea
+                ref={textareaRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={async (e) => {
@@ -176,7 +187,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
                 }}
                 placeholder={listening ? "Listening..." : "Type your message..."}
                 rows={1}
-                className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 pr-12 text-black placeholder-gray-500 focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 shadow-sm"
+                className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 pr-12 text-black placeholder-gray-500 focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 shadow-sm overflow-hidden"
                 disabled={disabled || listening}
                 style={{
                   minHeight: '48px',

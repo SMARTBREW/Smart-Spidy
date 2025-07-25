@@ -41,6 +41,91 @@ export interface Message {
   userId?: string;
   messageOrder?: number;
   createdAt?: Date;
+  feedback?: string | null;
+  instagramAccount?: InstagramAccount;
+}
+
+export interface InstagramAccount {
+  id: string;
+  igUserId?: string;
+  username: string;
+  name?: string;
+  biography?: string;
+  website?: string;
+  followersCount?: number;
+  followsCount?: number;
+  mediaCount?: number;
+  accountType?: string;
+  isVerified?: boolean;
+  igId?: string;
+  audienceGenderAge?: any;
+  audienceCountry?: any;
+  audienceCity?: any;
+  audienceLocale?: any;
+  insights?: {
+    impressions?: number;
+    reach?: number;
+    profileViews?: number;
+    websiteClicks?: number;
+  };
+  mentions?: InstagramMention[];
+  media?: InstagramMedia[];
+  fetchedAt?: string;
+  hasDetailedAccess?: boolean;
+  totalLikesCount?: number;
+  totalCommentsCount?: number;
+  lastPostDate?: string;
+  aiAnalysisScore?: number;
+  aiAnalysisDetails?: {
+    category?: string;
+    strengths?: string[];
+    weaknesses?: string[];
+    recommendations?: string[];
+    analysis?: string;
+    metrics?: any;
+    engagementRate?: number;
+    analyzedAt?: string;
+    error?: string;
+  };
+  rawJson?: any;
+}
+
+export interface InstagramMedia {
+  id: string;
+  mediaType: string;
+  mediaUrl?: string;
+  thumbnailUrl?: string;
+  permalink?: string;
+  caption?: string;
+  timestamp?: string;
+  likeCount?: number;
+  commentsCount?: number;
+  children?: InstagramMedia[];
+  insights?: {
+    impressions?: number;
+    reach?: number;
+    engagement?: number;
+    saved?: number;
+    videoViews?: number;
+  };
+  comments?: InstagramComment[];
+}
+
+export interface InstagramComment {
+  id: string;
+  text: string;
+  username: string;
+  timestamp: string;
+  replies?: InstagramComment[];
+}
+
+export interface InstagramMention {
+  id: string;
+  mediaType: string;
+  mediaUrl?: string;
+  permalink?: string;
+  caption?: string;
+  timestamp: string;
 }
 
 // For admin UI Q&A pairing

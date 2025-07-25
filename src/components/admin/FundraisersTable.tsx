@@ -11,18 +11,23 @@ export const FundraisersTable: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'month' | 'last_week' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const FUNDRAISERS_PER_PAGE = 10;
+  const [totalFundraisers, setTotalFundraisers] = useState(0);
+  const [totalFundraisersMonth, setTotalFundraisersMonth] = useState(0);
+  const [totalFundraisersWeek, setTotalFundraisersWeek] = useState(0);
 
-  const totalFundraisers = fundraisers.length;
   const now = new Date();
   const fundraisersThisMonth = fundraisers.filter(f => {
     const created = new Date(f.createdAt);
     return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
   }).length;
 
-  const fetchFundraisers = async (filterValue = filter, startDate = customStartDate, endDate = customEndDate) => {
+  const fetchFundraisers = async (filterValue = filter, startDate = customStartDate, endDate = customEndDate, pageNum = page) => {
     try {
       setIsLoading(true);
-      let params: any = { page: 1, limit: 100 };
+      let params: any = { page: pageNum, limit: FUNDRAISERS_PER_PAGE };
       if (filterValue === 'month') {
         // No backend filter, filter on frontend
       } else if (filterValue === 'last_week') {
@@ -33,6 +38,10 @@ export const FundraisersTable: React.FC = () => {
       }
       const response = await fundraiserApi.getFundraisers(params);
       setFundraisers(response.fundraisers);
+      setTotalPages(response.pagination.pages || 1);
+      setTotalFundraisers(response.pagination.total || 0);
+      setTotalFundraisersMonth(response.totalFundraisersMonth || 0);
+      setTotalFundraisersWeek(response.totalFundraisersWeek || 0);
     } catch (error) {
       console.error('Error fetching fundraisers:', error);
     } finally {
@@ -41,9 +50,9 @@ export const FundraisersTable: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchFundraisers();
+    fetchFundraisers(filter, customStartDate, customEndDate, page);
     // eslint-disable-next-line
-  }, []);
+  }, [page]);
 
   const refreshFundraisers = async () => {
     await fetchFundraisers();
@@ -74,6 +83,11 @@ export const FundraisersTable: React.FC = () => {
       }
     }
   };
+
+  // Pagination controls
+  const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
+  const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
+  const handlePageClick = (p: number) => setPage(p);
 
   const StatCard: React.FC<{ title: string; value: number; icon: React.ElementType; color: string; bgColor: string }> = ({ title, value, icon: Icon, color, bgColor }) => (
     <motion.div
@@ -120,7 +134,7 @@ export const FundraisersTable: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Fundraisers"
           value={totalFundraisers}
@@ -129,11 +143,18 @@ export const FundraisersTable: React.FC = () => {
           bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
         />
         <StatCard
-          title="Created This Month"
-          value={fundraisersThisMonth}
+          title="This Month"
+          value={totalFundraisersMonth}
           icon={Calendar}
           color="text-green-600"
           bgColor="bg-gradient-to-br from-green-50 to-green-100"
+        />
+        <StatCard
+          title="This Week"
+          value={totalFundraisersWeek}
+          icon={Calendar}
+          color="text-yellow-600"
+          bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
         />
       </div>
       <div className="flex items-center justify-between">
@@ -261,6 +282,20 @@ export const FundraisersTable: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
+      {/* Pagination UI */}
+      <div className="flex justify-center items-center space-x-2 my-4">
+        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i + 1}
+            onClick={() => handlePageClick(i + 1)}
+            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            {i + 1}
+          </button>
+        ))}
+        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
       </div>
     </div>
   );

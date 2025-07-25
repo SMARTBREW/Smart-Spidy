@@ -6,10 +6,16 @@ import { LoginForm } from './components/LoginForm';
 import { ChatInterface } from './components/ChatInterface';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { LoadingProvider } from './contexts/LoadingContext';
+import LoadingOverlay from './components/LoadingOverlay';
+import { useLoadingSetup } from './hooks/useLoadingSetup';
 import authService from './services/auth';
 
 const App: React.FC = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  // Initialize loading wrappers for all services
+  useLoadingSetup();
   
   const {
     user,
@@ -17,7 +23,6 @@ const App: React.FC = () => {
     currentChat,
     currentChatId,
     isTyping,
-    isLoading,
     login,
     logout,
     createChat,
@@ -59,24 +64,9 @@ const App: React.FC = () => {
     );
   }
 
-  console.log('App component render - user:', user, 'isLoading:', isLoading);
+  console.log('App component render - user:', user);
   console.log('User role:', user?.role);
   console.log('User ID:', user?.id);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <div className="w-8 h-8 border-4 border-gray-300 border-t-black rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </motion.div>
-      </div>
-    );
-  }
 
 
   return (
@@ -126,7 +116,10 @@ const App: React.FC = () => {
 const AppWithRouter: React.FC = () => {
   return (
     <Router>
-      <App />
+      <LoadingProvider>
+        <App />
+        <LoadingOverlay />
+      </LoadingProvider>
     </Router>
   );
 };

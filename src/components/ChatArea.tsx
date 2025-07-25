@@ -69,9 +69,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
   return (
     <div className="flex-1 flex flex-col bg-white min-h-0">
       {/* Chat Header */}
-      <div className="bg-white border-b border-gray-300 p-4 flex items-center gap-4">
+      <div className="bg-white border-b border-gray-300 py-2 px-4 flex items-center gap-4 min-h-[56px]">
         <div className="flex-1">
           <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
+          <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-600">
+            <span>Messages: {chat.messages?.length ?? 0}</span>
+            {chat.instagramUsername && <span>Instagram: {chat.instagramUsername}</span>}
+            {chat.occupation && <span>Occupation: {chat.occupation}</span>}
+            {chat.product && <span>Product: {chat.product}</span>}
+            {chat.gender && <span>Gender: {chat.gender}</span>}
+            {chat.profession && <span>Profession: {typeof chat.profession === 'string' ? chat.profession : JSON.stringify(chat.profession)}</span>}
+          </div>
         </div>
       </div>
 

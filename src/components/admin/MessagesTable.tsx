@@ -15,6 +15,9 @@ import {
   X
 } from 'lucide-react';
 import { Message, AdminStats, Chat, TrainingData, QAPair } from '../../types';
+import { messageApi } from '../../services/message';
+import { adminApi } from '../../services/admin';
+import { chatApi } from '../../services/chat';
 
 interface MessagesTableProps {
   stats: AdminStats | null;
@@ -28,14 +31,32 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [senderFilter, setSenderFilter] = useState<'all' | 'user' | 'assistant'>('all');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const MESSAGES_PER_PAGE = 100;
+  const [totalUserMessages, setTotalUserMessages] = useState(0);
+  const [totalAssistantMessages, setTotalAssistantMessages] = useState(0);
+  const [totalMessages, setTotalMessages] = useState(0);
+  const [allMessages, setAllMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    // TODO: Replace with real API calls
     const fetchAll = async () => {
       try {
-        setMessages([]); // Placeholder
-        setChats([]); // Placeholder
-        setTrainingData([]); // Placeholder
+        setIsLoading(true);
+        // Fetch all messages for frontend filtering
+        const [{ messages: allMsgs, totalUserMessages, totalAssistantMessages, pagination }, usersResponse, chatsResponse] = await Promise.all([
+          messageApi.getAllMessages({ page: 1, limit: 1000 }),
+          adminApi.getUsers({ page: 1, limit: 100 }),
+          chatApi.getChats({ page: 1, limit: 100 }),
+        ]);
+        setAllMessages(allMsgs);
+        setUsers(usersResponse.users);
+        setChats(chatsResponse.chats);
+        setTotalMessages(pagination.total || 0);
+        setTotalUserMessages(totalUserMessages || 0);
+        setTotalAssistantMessages(totalAssistantMessages || 0);
+        // Optionally fetch trainingData if needed
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -45,49 +66,46 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     fetchAll();
   }, []);
 
+  // Apply search and feedback filter to allMessages
+  const filteredMessages = allMessages.filter(msg => {
+    const matchesSearch = !searchTerm || msg.content.toLowerCase().includes(searchTerm.toLowerCase());
+    let matchesFeedback = true;
+    if (senderFilter === 'user') matchesFeedback = msg.feedback === 'up';
+    if (senderFilter === 'assistant') matchesFeedback = msg.feedback === 'down';
+    return matchesSearch && matchesFeedback;
+  });
+
+  // Paginate filteredMessages
+  const paginatedMessages = filteredMessages.slice((page - 1) * MESSAGES_PER_PAGE, page * MESSAGES_PER_PAGE);
+  const totalPagesFiltered = Math.ceil(filteredMessages.length / MESSAGES_PER_PAGE) || 1;
+  useEffect(() => { setPage(1); }, [searchTerm, senderFilter]);
+
+  // Helper: Map userId to user name
+  const userIdToName: Record<string, string> = {};
+  users.forEach(user => {
+    userIdToName[user.id] = user.name;
+  });
+
   // Helper: Map chatId to chat name
   const chatIdToName: Record<string, string> = {};
   chats.forEach(chat => {
     chatIdToName[chat.id] = chat.name;
   });
 
-  // Helper: Map messageId to feedback (qualityScore or improvementNotes)
-  const messageIdToFeedback: Record<string, string> = {};
-  trainingData.forEach(td => {
-    if (td.messageId) {
-      messageIdToFeedback[td.messageId] = td.improvementNotes || `Score: ${td.qualityScore}`;
-    }
-  });
-
-  // Filter only user messages for queries
-  const userMessages = messages.filter(
-    m => m.query.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Group messages into QAPairs
+  // Group messages into QAPairs (newest-first order)
   const qaPairs: QAPair[] = [];
-  let i = 0;
-  const sortedMessages = messages.slice().sort((a, b) => {
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return aTime - bTime;
-  });
-  while (i < sortedMessages.length) {
-    if (sortedMessages[i].sender === 'user') {
-      const query = sortedMessages[i];
-      let answer: typeof query | undefined = undefined;
-      if (
-        i + 1 < sortedMessages.length &&
-        sortedMessages[i + 1].sender === 'assistant' &&
-        sortedMessages[i + 1].chatId === query.chatId
-      ) {
-        answer = sortedMessages[i + 1];
-        i += 1;
-      }
-      qaPairs.push({ query, answer });
+  const assistantMap: Record<string, Message> = {};
+  paginatedMessages.forEach(msg => {
+    if (msg.sender === 'assistant' && msg.chatId && typeof msg.messageOrder === 'number') {
+      assistantMap[`${msg.chatId}_${msg.messageOrder}`] = msg;
     }
-    i += 1;
-  }
+  });
+  paginatedMessages.forEach(msg => {
+    if (msg.sender === 'user' && msg.chatId && typeof msg.messageOrder === 'number') {
+      const answer = assistantMap[`${msg.chatId}_${msg.messageOrder + 1}`];
+      qaPairs.push({ query: msg, answer });
+    }
+  });
 
   // Build rows: each QAPair
   const rows: Array<{
@@ -99,10 +117,27 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   }> = [];
   qaPairs.forEach(pair => {
     const chats = chatIdToName[pair.query.chatId || ''] || 'Unknown';
-    const feedbacks = messageIdToFeedback[pair.query.id] || '-';
-    const users = pair.query.userId || 'User';
+    // Show feedback from query or answer directly
+    const feedbacks = pair.query.feedback || (pair.answer && pair.answer.feedback) || '-';
+    const users = userIdToName[pair.query.userId || ''] || 'User';
     rows.push({ query: pair, users, chats, feedbacks, timestamp: pair.query.createdAt ? new Date(pair.query.createdAt).toLocaleString() : '' });
   });
+
+  // Helper to truncate text to N words
+  const truncateWords = (text: string, numWords: number) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    if (words.length <= numWords) return text;
+    return words.slice(0, numWords).join(' ') + '...';
+  };
+
+  // Remove UI-side reversal of rows
+  const displayRows = rows;
+
+  // Pagination controls
+  const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
+  const handleNextPage = () => setPage((p) => Math.min(totalPagesFiltered, p + 1));
+  const handlePageClick = (p: number) => setPage(p);
 
   const handleViewMessage = (message: Message) => {
     setSelectedMessage(message);
@@ -189,7 +224,6 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   }
 
   // Analytics Header
-  const totalMessages = messages.length;
   const userMessagesCount = messages.filter(m => m.sender === 'user').length;
   const assistantMessages = messages.filter(m => m.sender === 'assistant').length;
 
@@ -206,14 +240,14 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
         />
         <StatCard
           title="User Messages"
-          value={userMessagesCount}
+          value={totalUserMessages}
           icon={User}
           color="text-blue-600"
           bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
         />
         <StatCard
           title="Assistant Messages"
-          value={assistantMessages}
+          value={totalAssistantMessages}
           icon={Bot}
           color="text-green-600"
           bgColor="bg-gradient-to-br from-green-50 to-green-100"
@@ -266,16 +300,16 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Query</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Spidy Answer</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Users</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Chats</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Feedbacks</th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-900">Timestamp</th>
+                <th className="text-left py-4 px-3 font-semibold text-gray-900">Query</th>
+                <th className="text-left py-4 px-3 font-semibold text-gray-900">Spidy Answer</th>
+                <th className="text-left py-4 px-3 font-semibold text-gray-900">Users</th>
+                <th className="text-left py-4 px-3 font-semibold text-gray-900">Chats</th>
+                <th className="text-left py-4 px-3 font-semibold text-gray-900">Feedbacks</th>
+                <th className="text-left py-4 px-3 font-semibold text-gray-900">Timestamp</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {rows.length === 0 ? (
+              {displayRows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-16 text-center text-gray-500">
                     <div className="flex flex-col items-center space-y-3">
@@ -288,30 +322,40 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                   </td>
                 </tr>
               ) : (
-                rows.map((row, idx) => (
+                displayRows.map((row, idx) => (
                   <tr key={row.query.query.id}>
-                    <td className="py-5 px-6 align-top">
+                    <td className="py-5 px-3 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.query.content}</p>
+                        <p
+                          className="text-gray-900 truncate font-medium mt-1"
+                          title={row.query.query.content}
+                        >
+                          {truncateWords(row.query.query.content, 5)}
+                        </p>
                       </div>
                     </td>
-                    <td className="py-5 px-6 align-top">
+                    <td className="py-5 px-3 align-top">
                       <div className="max-w-md">
-                        <p className="text-gray-900 truncate font-medium mt-1">{row.query.answer ? row.query.answer.content : <span className='text-gray-400'>No answer</span>}</p>
+                        <p
+                          className="text-gray-900 truncate font-medium mt-1"
+                          title={row.query.answer ? row.query.answer.content : ''}
+                        >
+                          {row.query.answer ? truncateWords(row.query.answer.content, 12) : <span className='text-gray-400'>No answer</span>}
+                        </p>
                       </div>
                     </td>
-                    <td className="py-5 px-6 align-top">
+                    <td className="py-5 px-3 align-top">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border bg-blue-100 text-blue-800 border-blue-200">
                         {row.users}
                       </span>
                     </td>
-                    <td className="py-5 px-6 align-top">
+                    <td className="py-5 px-3 align-top">
                       <div className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">{row.chats}</div>
                     </td>
-                    <td className="py-5 px-6 align-top">
+                    <td className="py-5 px-3 align-top">
                       <span className="text-gray-600 font-medium">{row.feedbacks}</span>
                     </td>
-                    <td className="py-5 px-6 align-top">
+                    <td className="py-5 px-3 align-top">
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-500 text-sm">{row.timestamp}</span>
@@ -323,6 +367,21 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Pagination UI */}
+      <div className="flex justify-center items-center space-x-2 my-4">
+        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
+        {Array.from({ length: totalPagesFiltered }, (_, i) => (
+          <button
+            key={i + 1}
+            onClick={() => handlePageClick(i + 1)}
+            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            {i + 1}
+          </button>
+        ))}
+        <button onClick={handleNextPage} disabled={page === totalPagesFiltered} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
       </div>
 
       {/* Message Detail Modal */}

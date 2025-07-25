@@ -99,6 +99,21 @@ const getFundraisers = catchAsync(async (req, res) => {
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: fundraisers, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  // Count total fundraisers this month and this week
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+  const { count: monthCount, error: monthError } = await supabaseAdmin
+    .from('fundraisers')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', monthStart);
+  const { count: weekCount, error: weekError } = await supabaseAdmin
+    .from('fundraisers')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', weekStart);
+  if (monthError || weekError) {
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count fundraisers for month/week');
+  }
   res.send({
     fundraisers: fundraisers.map(sanitizeFundraiser),
     pagination: {
@@ -107,6 +122,8 @@ const getFundraisers = catchAsync(async (req, res) => {
       total: count,
       pages: Math.ceil(count / limit),
     },
+    totalFundraisersMonth: monthCount ?? 0,
+    totalFundraisersWeek: weekCount ?? 0,
   });
 });
 

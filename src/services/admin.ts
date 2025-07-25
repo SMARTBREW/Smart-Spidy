@@ -3,6 +3,13 @@ import { authService } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Global loading wrapper for admin API calls
+let withLoading: any = null;
+
+export const setAdminLoadingWrapper = (loadingWrapper: any) => {
+  withLoading = loadingWrapper;
+};
+
 
 
 const handleResponse = async (response: Response) => {
@@ -46,6 +53,8 @@ export interface UsersResponse {
     total: number;
     pages: number;
   };
+  totalActiveUsers?: number;
+  totalInactiveUsers?: number;
 }
 
 export interface UserStatsResponse {
@@ -83,6 +92,8 @@ export interface SessionsResponse {
     total: number;
     pages: number;
   };
+  totalActiveSessions?: number;
+  totalEndedSessions?: number;
 }
 
 export interface SessionStatsResponse {
@@ -100,18 +111,25 @@ export const adminApi = {
     name?: string;
     role?: string;
   }): Promise<UsersResponse> {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.name) searchParams.append('name', params.name);
-    if (params?.role) searchParams.append('role', params.role);
+    const getUsersFn = async () => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.name) searchParams.append('name', params.name);
+      if (params?.role) searchParams.append('role', params.role);
 
-    const url = `${API_BASE_URL}/users?${searchParams}`;
-    
-    const response = await authService.authenticatedRequest(url, {
-      method: 'GET',
-    });
-    return handleResponse(response);
+      const url = `${API_BASE_URL}/users?${searchParams}`;
+      
+      const response = await authService.authenticatedRequest(url, {
+        method: 'GET',
+      });
+      return handleResponse(response);
+    };
+
+    if (withLoading) {
+      return withLoading('admin-get-users', getUsersFn)();
+    }
+    return getUsersFn();
   },
 
   async getUserById(id: string): Promise<User> {
@@ -122,18 +140,25 @@ export const adminApi = {
   },
 
   async createUser(userData: CreateUserData): Promise<User> {
-    const response = await authService.authenticatedRequest(`${API_BASE_URL}/users`, {
-      method: 'POST',
-      body: JSON.stringify({
-        name: userData.name,
-        email: userData.email,
-        password: userData.password,
-        role: userData.role,
-        is_active: userData.isActive,
-      }),
-    });
+    const createUserFn = async () => {
+      const response = await authService.authenticatedRequest(`${API_BASE_URL}/users`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: userData.name,
+          email: userData.email,
+          password: userData.password,
+          role: userData.role,
+          is_active: userData.isActive,
+        }),
+      });
 
-    return handleResponse(response);
+      return handleResponse(response);
+    };
+
+    if (withLoading) {
+      return withLoading('admin-create-user', createUserFn)();
+    }
+    return createUserFn();
   },
 
   async updateUser(id: string, userData: UpdateUserData): Promise<User> {
@@ -151,14 +176,21 @@ export const adminApi = {
   },
 
   async deleteUser(id: string): Promise<void> {
-    const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/${id}`, {
-      method: 'DELETE',
-    });
+    const deleteUserFn = async () => {
+      const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/${id}`, {
+        method: 'DELETE',
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+    };
+
+    if (withLoading) {
+      return withLoading('admin-delete-user', deleteUserFn)();
     }
+    return deleteUserFn();
   },
 
   async updateUserStatus(id: string, isActive: boolean): Promise<User> {

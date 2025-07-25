@@ -1,3 +1,6 @@
+// NOTE: This service now integrates with the global loading context
+// All API calls are automatically wrapped with loading states
+
 interface LoginResponse {
   user: {
     id: string;
@@ -31,6 +34,12 @@ interface AuthTokens {
 
 class AuthService {
   private baseURL = 'http://localhost:3000/api';
+  private withLoading: any = null;
+
+  // Method to set the loading wrapper from the context
+  setLoadingWrapper(withLoading: any) {
+    this.withLoading = withLoading;
+  }
 
   private setTokens(tokens: AuthTokens) {
     localStorage.setItem('accessToken', tokens.access.token);
@@ -85,49 +94,63 @@ class AuthService {
   }
 
   async login(email: string, password: string): Promise<LoginResponse> {
-    try {
-      const response = await fetch(`${this.baseURL}/users/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
-      }
-      const data: LoginResponse = await response.json();
-      
-      this.setTokens(data.tokens);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      return data;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  }
-
-  async logout(): Promise<void> {
-    try {
-      const tokens = await this.getTokens();
-      if (tokens) {
-        await fetch(`${this.baseURL}/users/logout`, {
+    const loginFn = async () => {
+      try {
+        const response = await fetch(`${this.baseURL}/users/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tokens.access.token}`,
           },
-          body: JSON.stringify({
-            session_id: localStorage.getItem('sessionId')
-          }),
+          body: JSON.stringify({ email, password }),
         });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Login failed');
+        }
+        const data: LoginResponse = await response.json();
+        
+        this.setTokens(data.tokens);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        return data;
+      } catch (error) {
+        console.error('Login error:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      this.clearTokens();
+    };
+
+    if (this.withLoading) {
+      return this.withLoading('auth-login', loginFn)();
     }
+    return loginFn();
+  }
+
+  async logout(): Promise<void> {
+    const logoutFn = async () => {
+      try {
+        const tokens = await this.getTokens();
+        if (tokens) {
+          await fetch(`${this.baseURL}/users/logout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${tokens.access.token}`,
+            },
+            body: JSON.stringify({
+              session_id: localStorage.getItem('sessionId')
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
+        this.clearTokens();
+      }
+    };
+
+    if (this.withLoading) {
+      return this.withLoading('auth-logout', logoutFn)();
+    }
+    return logoutFn();
   }
 
   getCurrentUser() {

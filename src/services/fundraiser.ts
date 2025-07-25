@@ -29,7 +29,7 @@ export const fundraiserApi = {
     last_week?: boolean;
     start_date?: string;
     end_date?: string;
-  }): Promise<{ fundraisers: Fundraiser[]; pagination: any }> {
+  }): Promise<{ fundraisers: Fundraiser[]; pagination: any; totalFundraisersMonth?: number; totalFundraisersWeek?: number }> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());

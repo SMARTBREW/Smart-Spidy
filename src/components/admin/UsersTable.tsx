@@ -45,16 +45,26 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const USERS_PER_PAGE = 10;
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalActiveUsers, setTotalActiveUsers] = useState(0);
+  const [totalInactiveUsers, setTotalInactiveUsers] = useState(0);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setIsLoading(true);
         const response = await adminApi.getUsers({
-          page: 1,
-          limit: 100, // Get all users for now
+          page,
+          limit: USERS_PER_PAGE,
         });
         setUsers(response.users);
+        setTotalPages(response.pagination.pages || 1);
+        setTotalUsers(response.pagination.total || 0);
+        setTotalActiveUsers(response.totalActiveUsers || 0);
+        setTotalInactiveUsers(response.totalInactiveUsers || 0);
       } catch (error) {
         console.error('Error fetching users:', error);
         // You might want to show a toast notification here
@@ -64,7 +74,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
     };
 
     fetchUsers();
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -166,7 +176,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
       // Refresh users list
       const response = await adminApi.getUsers({
         page: 1,
-        limit: 100,
+        limit: USERS_PER_PAGE,
       });
       setUsers(response.users);
     } catch (error) {
@@ -184,7 +194,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
         // Refresh users list
         const response = await adminApi.getUsers({
           page: 1,
-          limit: 100,
+          limit: USERS_PER_PAGE,
         });
         setUsers(response.users);
       } catch (error) {
@@ -200,7 +210,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
       // Refresh users list
       const response = await adminApi.getUsers({
         page: 1,
-        limit: 100,
+        limit: USERS_PER_PAGE,
       });
       setUsers(response.users);
     } catch (error) {
@@ -208,6 +218,11 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
       // You might want to show a toast notification here
     }
   };
+
+  // Pagination controls
+  const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
+  const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
+  const handlePageClick = (p: number) => setPage(p);
 
   // StatCard component for analytics
   const StatCard: React.FC<{ 
@@ -289,10 +304,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
     );
   }
 
-  const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.isActive).length;
-  const inactiveUsers = users.filter(u => !u.isActive).length;
-
   return (
     <div className="space-y-6">
       {/* Analytics Header */}
@@ -306,14 +317,14 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
         />
         <StatCard
           title="Active Users"
-          value={activeUsers}
+          value={totalActiveUsers}
           icon={UserCheck}
           color="text-blue-600"
           bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
         />
         <StatCard
           title="Inactive Users"
-          value={inactiveUsers}
+          value={totalInactiveUsers}
           icon={UserX}
           color="text-red-600"
           bgColor="bg-gradient-to-br from-red-50 to-red-100"
@@ -465,6 +476,21 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Pagination UI */}
+      <div className="flex justify-center items-center space-x-2 my-4">
+        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i + 1}
+            onClick={() => handlePageClick(i + 1)}
+            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+          >
+            {i + 1}
+          </button>
+        ))}
+        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
       </div>
 
       {/* User Form Modal */}

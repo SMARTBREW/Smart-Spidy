@@ -88,6 +88,18 @@ const getChats = catchAsync(async (req, res) => {
   const { data: chats, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
 
+  // Count total pinned and gold chats
+  const { count: pinnedCount, error: pinnedError } = await supabaseAdmin
+    .from('chats')
+    .select('id', { count: 'exact', head: true })
+    .eq('pinned', true);
+  const { count: goldCount, error: goldError } = await supabaseAdmin
+    .from('chats')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_gold', true);
+  if (pinnedError || goldError) {
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count pinned/gold chats');
+  }
   res.send({
     chats: chats.map(sanitizeChat),
     pagination: {
@@ -96,6 +108,8 @@ const getChats = catchAsync(async (req, res) => {
       total: count,
       pages: Math.ceil(count / limit),
     },
+    totalPinnedChats: pinnedCount ?? 0,
+    totalGoldChats: goldCount ?? 0,
   });
 });
 
@@ -233,6 +247,27 @@ const updateChatStatus = catchAsync(async (req, res) => {
 const pinChat = catchAsync(async (req, res) => {
   const { pinned } = req.body;
   const { id } = req.params;
+
+  // Fetch the chat to get the user_id
+  const { data: chat, error: fetchError } = await supabaseAdmin
+    .from('chats')
+    .select('user_id')
+    .eq('id', id)
+    .single();
+  if (fetchError || !chat) throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
+
+  if (pinned) {
+    // Count currently pinned chats for this user
+    const { count: pinnedCount, error: countError } = await supabaseAdmin
+      .from('chats')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', chat.user_id)
+      .eq('pinned', true);
+    if (countError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count pinned chats');
+    if (pinnedCount >= 5) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'You can only pin up to 5 chats. Unpin another chat first.');
+    }
+  }
 
   const updateData = {
     pinned,

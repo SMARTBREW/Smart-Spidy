@@ -54,21 +54,36 @@ CREATE INDEX idx_messages_message_order ON messages(chat_id, message_order);
 CREATE INDEX idx_messages_created_at ON messages(created_at);
 
 -- INSTAGRAM ACCOUNTS TABLE
+DROP TABLE IF EXISTS instagram_accounts CASCADE;
+
 CREATE TABLE instagram_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ig_user_id VARCHAR(50) NOT NULL, -- Instagram user ID from API
   username VARCHAR(255) NOT NULL UNIQUE,
-  full_name VARCHAR(255),
-  account_type VARCHAR(100),
+  name VARCHAR(255), -- Display name
   biography TEXT,
-  followers_count INTEGER,
-  media_count INTEGER,
   website VARCHAR(255),
-  profile_picture_url TEXT,
+  followers_count INTEGER,
+  follows_count INTEGER,
+  media_count INTEGER,
+  account_type VARCHAR(100),
+  is_verified BOOLEAN,
+  ig_id VARCHAR(50), -- Instagram's internal ID
+  audience_gender_age JSONB, -- Demographics
+  audience_country JSONB,
+  audience_city JSONB,
+  audience_locale JSONB,
+  insights JSONB, -- Account-level insights (impressions, reach, etc.)
+  mentions JSONB, -- Posts/comments where this account is mentioned
+  media JSONB, -- Array of media objects (posts, reels, stories) - excludes media_url for privacy/performance
+  ai_analysis_score INTEGER CHECK (ai_analysis_score >= 0 AND ai_analysis_score <= 100), -- AI-generated score (0-100)
+  ai_analysis_details JSONB, -- Detailed AI analysis (strengths, weaknesses, recommendations)
   fetched_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   fetched_at TIMESTAMPTZ DEFAULT NOW(),
-  raw_json JSONB,
+  raw_json JSONB, -- Full API response for future-proofing
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
 CREATE UNIQUE INDEX idx_instagram_accounts_username ON instagram_accounts(username);
 CREATE INDEX idx_instagram_accounts_fetched_by_user_id ON instagram_accounts(fetched_by_user_id);
 CREATE INDEX idx_instagram_accounts_fetched_at ON instagram_accounts(fetched_at);

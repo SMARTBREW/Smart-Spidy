@@ -7,13 +7,20 @@ import authService from '../services/auth';
 import { chatApi } from '../services/chat';
 import { messageApi } from '../services/message';
 
+// Helper function to extract Instagram username from message content
+const extractInstagramUsername = (content: string): {username: string, forceLive?: boolean} | null => {
+  const igPattern = /(?:ig|instagram)\s*:\s*([a-zA-Z0-9._]+)/i;
+  const match = content.match(igPattern);
+  return match ? { username: match[1].trim() } : null;
+};
+
 export const useChat = () => {
   const navigate = useNavigate();
   const [state, setState] = useState<AppState>({
     user: null,
     chats: [],
     currentChatId: null,
-    isLoading: true,
+    isLoading: false, // Changed to false since loading is now handled globally
   });
   
   // Use useRef for values that don't need to trigger re-renders
@@ -29,11 +36,11 @@ export const useChat = () => {
 
   // Fetch chats from API
   const fetchChats = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true }));
+    // Removed local loading state - now handled globally
     try {
       const currentUser = authService.getCurrentUser();
       if (!currentUser) {
-        setState(prev => ({ ...prev, isLoading: false, user: null }));
+        setState(prev => ({ ...prev, user: null }));
         navigate('/');
         return;
       }
@@ -44,10 +51,39 @@ export const useChat = () => {
       const chatsWithMessages = await Promise.all(
         chats.map(async (chat) => {
           try {
-            const { messages } = await messageApi.getMessages(chat.id, { limit: 100 });
+            const response = await messageApi.getMessages(chat.id, { limit: 100 });
+            const { messages, instagramTriggers } = response;
+            console.log(`Chat ${chat.id} - Instagram Accounts:`, instagramTriggers?.length || 0, 'found');
+            
+            let messagesWithInstagram = messages || [];
+            if (instagramTriggers && instagramTriggers.length > 0) {
+              let finalMessages: Message[] = [];
+              for (let i = 0; i < messagesWithInstagram.length; i++) {
+                const message = messagesWithInstagram[i];
+                finalMessages.push(message);
+                // For each trigger, if it matches this message, insert the card
+                instagramTriggers.forEach((trigger, idx) => {
+                  if (trigger.messageId === message.id) {
+                    finalMessages.push({
+                      id: `${chat.id}-ig-${trigger.username}-${Date.now()}-${i}-${idx}`,
+                      content: '',
+                      sender: 'assistant' as 'assistant',
+                      createdAt: new Date(message.createdAt || new Date()),
+                      instagramAccount: {
+                        ...trigger.account,
+                        followersCount: Number(trigger.account.followersCount),
+                        mediaCount: Number(trigger.account.mediaCount)
+                      }
+                    } as Message);
+                  }
+                });
+              }
+              messagesWithInstagram = finalMessages;
+            }
+            
             return {
               ...chat,
-              messages: messages || [],
+              messages: messagesWithInstagram,
               is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
             };
           } catch (error) {
@@ -66,10 +102,8 @@ export const useChat = () => {
         user: currentUser,
         chats: chatsWithMessages,
         currentChatId: chatsWithMessages.length > 0 ? chatsWithMessages[0].id : null,
-        isLoading: false,
       }));
     } catch (error: any) {
-      setState(prev => ({ ...prev, isLoading: false }));
       console.error('Error fetching chats:', error);
       // If it's an authentication error, redirect to login
       if (error.message?.includes('Authentication expired') || error.message?.includes('401')) {
@@ -96,10 +130,10 @@ export const useChat = () => {
   const login = useCallback((user: User) => {
     setState(prev => ({ 
       ...prev, 
-      user,
-      isLoading: false 
+      user
     }));
-  }, []);
+    fetchChats(); // Fetch chats after login
+  }, [fetchChats]);
 
   const logout = useCallback(async () => {
     await authService.logout();
@@ -148,12 +182,63 @@ export const useChat = () => {
     const currentChat = state.chats.find(chat => chat.id === chatId);
     if (currentChat && (!currentChat.messages || currentChat.messages.length === 0)) {
       try {
-        const { messages } = await messageApi.getMessages(chatId, { limit: 100 });
+        const response = await messageApi.getMessages(chatId, { limit: 100 });
+        console.log('API Response:', response);
+        const { messages, instagramAccounts } = response;
+        console.log('Messages:', messages);
+        console.log('Instagram Accounts:', instagramAccounts);
+        
+        // Insert Instagram cards right after the messages that triggered them
+        let messagesWithInstagram = messages || [];
+        
+        if (instagramAccounts && instagramAccounts.length > 0) {
+          // Create a map of Instagram usernames to their accounts
+          const accountMap = new Map();
+          instagramAccounts.forEach(account => {
+            accountMap.set(account.username, account);
+          });
+          
+          // Track which Instagram cards we've already added to avoid duplicates
+          const addedAccounts = new Set();
+          
+          // Go through messages and insert Instagram cards after relevant messages
+          const finalMessages: Message[] = [];
+          
+          for (let i = 0; i < messagesWithInstagram.length; i++) {
+            const message = messagesWithInstagram[i];
+            finalMessages.push(message);
+            
+            // Check if this message mentions an Instagram username
+            const extractedUsername = extractInstagramUsername(message.content);
+            if (extractedUsername && accountMap.has(extractedUsername.username) && !addedAccounts.has(extractedUsername.username)) {
+              const instagramAccount = accountMap.get(extractedUsername.username);
+              console.log(`Adding Instagram card for ${extractedUsername.username} after message ${i}`);
+              
+              finalMessages.push({
+                id: `${chatId}-ig-${instagramAccount.username}-${Date.now()}`,
+                content: '',
+                sender: 'assistant' as 'assistant',
+                createdAt: new Date(message.createdAt || new Date()),
+                instagramAccount: {
+                  ...instagramAccount,
+                  followersCount: Number(instagramAccount.followersCount),
+                  mediaCount: Number(instagramAccount.mediaCount)
+                }
+              } as Message);
+              
+              addedAccounts.add(extractedUsername.username);
+            }
+          }
+          
+          messagesWithInstagram = finalMessages;
+          console.log('Final messages with Instagram:', messagesWithInstagram);
+        }
+        
         setState(prev => ({
           ...prev,
           chats: prev.chats.map(chat =>
             chat.id === chatId
-              ? { ...chat, messages: messages || [] }
+              ? { ...chat, messages: messagesWithInstagram }
               : chat
           ),
         }));
@@ -238,8 +323,28 @@ export const useChat = () => {
           chat.id === chatId
             ? {
                 ...chat,
-                messages: [...(chat.messages || []), ...(response.messages || [])],
-                messageCount: (chat.messageCount || 0) + (response.messages?.length || 0),
+                messages: [
+                  ...(chat.messages || []),
+                  ...(
+                    response.instagramAccount
+                      ? [{
+                          id: `${chatId}-ig-${Date.now()}`,
+                          content: '',
+                          sender: 'assistant' as 'assistant',
+                          createdAt: new Date(),
+                          instagramAccount: {
+                            ...response.instagramAccount,
+                            followersCount: Number(response.instagramAccount.followersCount),
+                            mediaCount: Number(response.instagramAccount.mediaCount)
+                          }
+                        } as Message]
+                      : (response.messages || [])
+                  )
+                ],
+                messageCount:
+                  (chat.messageCount || 0) +
+                  (response.messages?.length || 0) +
+                  (response.instagramAccount ? 1 : 0),
                 updatedAt: new Date(),
               }
             : chat

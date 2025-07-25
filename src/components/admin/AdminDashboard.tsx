@@ -7,7 +7,8 @@ import {
   MessageCircle, 
   ThumbsUp, 
   Database, 
-  Activity
+  Activity,
+  ArrowLeft
 } from 'lucide-react';
 import { AdminStats } from '../../types';
 import { adminApi } from '../../services/admin';
@@ -79,6 +80,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-lg border-r border-gray-200">
         <div className="p-6 border-b border-gray-200 ">
+          <button
+            onClick={() => window.location.href = '/'}
+            className="flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-4 text-sm font-medium"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
           <h2 className="text-lg font-semibold text-black">Admin Panel</h2>
           <p className="text-gray-500 text-sm capitalize mt-1">{userRole.replace('_', ' ')}</p>
         </div>
