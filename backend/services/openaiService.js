@@ -1,4 +1,6 @@
 const fetch = require('node-fetch');
+const { supabaseAdmin } = require('../config/supabase');
+const { mapProductToCampaign, normalizeCampaignName } = require('../utils/campaignMapper');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -6,34 +8,274 @@ if (!OPENAI_API_KEY) {
   throw new Error('OPENAI_API_KEY environment variable is not set. Please add it to your environment.');
 }
 
-async function generateOpenAIResponse(userMessage) {
-  const apiUrl = 'https://api.openai.com/v1/chat/completions';
-  const body = {
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: 'You are Smart Spidy, a helpful assistant.' },
-      { role: 'user', content: userMessage }
-    ],
-    max_tokens: 256,
-    temperature: 0.7
-  };
+/**
+ * Generate embedding for text using OpenAI
+ * @param {string} text - Text to generate embedding for
+ * @returns {number[]} - Embedding vector
+ */
+async function generateEmbedding(text) {
+  try {
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: text
+      })
+    });
 
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`
-    },
-    body: JSON.stringify(body)
-  });
+    if (!response.ok) {
+      throw new Error(`OpenAI Embedding API error: ${response.statusText}`);
+    }
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
+    const data = await response.json();
+    return data.data[0].embedding;
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    throw error;
   }
+}
 
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
+/**
+ * Test if campaign data exists in the database
+ * @param {string} campaign - Campaign name to test
+ * @returns {Object} - Diagnostic information
+ */
+async function testCampaignData(campaign) {
+  try {
+    console.log('=== Testing Campaign Data START ===');
+    console.log('Testing campaign:', campaign);
+    console.log('Campaign type:', typeof campaign);
+    console.log('Campaign length:', campaign ? campaign.length : 'null');
+    
+    // Check if any data exists for this campaign
+    console.log('🔍 Querying smartspidy table...');
+    console.log('Query: SELECT id, campaign, combined_text FROM smartspidy WHERE campaign =', campaign);
+    
+    const { data: allData, error: allError } = await supabaseAdmin
+      .from('smartspidy')
+      .select('id, campaign, combined_text')
+      .eq('campaign', campaign)
+      .limit(3);
+
+    console.log('📊 Query completed');
+    console.log('Data:', allData);
+    console.log('Error:', allError);
+
+    if (allError) {
+      console.error('❌ Error querying campaign data:', allError);
+      console.error('❌ Error details:', JSON.stringify(allError, null, 2));
+      return { exists: false, error: allError };
+    }
+
+    console.log('✅ Found', allData?.length || 0, 'records for campaign:', campaign);
+    if (allData && allData.length > 0) {
+      console.log('📋 Sample records:', allData.map(item => ({
+        id: item.id,
+        campaign: item.campaign,
+        text_preview: item.combined_text?.substring(0, 100) + '...'
+      })));
+    } else {
+      console.log('❌ No records found - this might be the issue!');
+      
+      // Let's check what campaigns actually exist
+      console.log('🔍 Checking what campaigns exist in database...');
+      const { data: allCampaigns, error: campaignError } = await supabaseAdmin
+        .from('smartspidy')
+        .select('campaign')
+        .limit(10);
+      
+      if (campaignError) {
+        console.error('Error getting all campaigns:', campaignError);
+      } else {
+        console.log('Available campaigns in database:', allCampaigns?.map(c => c.campaign));
+      }
+    }
+
+    return { exists: allData?.length > 0, count: allData?.length, sample: allData };
+  } catch (error) {
+    console.error('❌ Error testing campaign data:', error);
+    return { exists: false, error };
+  }
+}
+
+/**
+ * Get campaign-specific context from the knowledge base
+ * @param {string} query - User query
+ * @param {string} campaign - Campaign name
+ * @returns {string} - Relevant context
+ */
+async function getCampaignContext(query, campaign) {
+  try {
+    console.log('=== getCampaignContext START ===');
+    console.log('Query:', query);
+    console.log('Campaign:', campaign);
+    console.log('Campaign type:', typeof campaign);
+    
+    // First, test if campaign data exists
+    console.log('Testing if campaign data exists...');
+    const dataTest = await testCampaignData(campaign);
+    console.log('Data test result:', JSON.stringify(dataTest, null, 2));
+    
+    if (!dataTest.exists) {
+      console.log('❌ No data found for campaign:', campaign, 'in smartspidy table');
+      console.log('❌ Returning empty context');
+      return '';
+    }
+    
+    console.log('✅ Data exists for campaign, proceeding with embedding generation...');
+    
+    // Generate embedding for the query
+    console.log('Generating embedding for query...');
+    const queryEmbedding = await generateEmbedding(query);
+    console.log('✅ Embedding generated, length:', queryEmbedding.length);
+    
+    // Normalize campaign name
+    console.log('Normalizing campaign name...');
+    const normalizedCampaign = normalizeCampaignName(campaign);
+    console.log('Original campaign:', campaign);
+    console.log('Normalized campaign:', normalizedCampaign);
+    
+    // Search campaign-specific embeddings with lower threshold for better matching
+    console.log('=== ABOUT TO CALL RPC FUNCTION ===');
+    console.log('RPC Function: search_campaign_embeddings');
+    console.log('Parameters:', {
+      query_embedding_length: queryEmbedding.length,
+      campaign_name: normalizedCampaign,
+      match_threshold: 0.5,
+      match_count: 5
+    });
+    
+    console.log('🔍 Calling supabaseAdmin.rpc...');
+    const { data, error } = await supabaseAdmin.rpc('search_campaign_embeddings', {
+      query_embedding: queryEmbedding,
+      campaign_name: normalizedCampaign,
+      match_threshold: 0.5, // Lowered threshold for better matches
+      match_count: 5
+    });
+    
+    console.log('🔍 RPC call completed');
+    console.log('Data received:', data ? `${data.length} items` : 'null');
+    console.log('Error received:', error);
+
+    if (error) {
+      console.error('❌ Campaign context search error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error code:', error.code);
+      return '';
+    }
+
+    console.log('RAG search results:', data ? data.length : 0, 'items found');
+    if (data && data.length > 0) {
+      console.log('Sample results:', data.slice(0, 2).map(item => ({
+        campaign: item.campaign,
+        similarity: item.similarity,
+        text_preview: item.combined_text?.substring(0, 100) + '...'
+      })));
+      
+      const context = data.map(item => item.combined_text).join('\n---\n');
+      console.log('Found campaign context, length:', context.length);
+      return context;
+    } else {
+      console.log('No campaign-specific context found for campaign:', normalizedCampaign);
+      
+      // Try a broader search with an even lower threshold
+      console.log('Attempting broader search with threshold 0.3...');
+      const { data: broadData, error: broadError } = await supabaseAdmin.rpc('search_campaign_embeddings', {
+        query_embedding: queryEmbedding,
+        campaign_name: normalizedCampaign,
+        match_threshold: 0.3,
+        match_count: 10
+      });
+      
+      if (broadData && broadData.length > 0) {
+        console.log('Broader search found', broadData.length, 'results');
+        const context = broadData.map(item => item.combined_text).join('\n---\n');
+        return context;
+      }
+      
+      return '';
+    }
+  } catch (error) {
+    console.error('Error getting campaign context:', error);
+    return '';
+  }
+}
+
+async function generateOpenAIResponse(userMessage, chatDetails = null) {
+  try {
+    console.log('=== OpenAI Response Generation START ===');
+    console.log('User message:', userMessage);
+    console.log('Chat details received:', JSON.stringify(chatDetails, null, 2));
+    
+    let systemPrompt = 'You are Smart Spidy, a helpful assistant specializing in social impact campaigns.';
+    let contextualMessage = userMessage;
+    
+    // Check if chat details are provided
+    console.log('Checking chat details...');
+    console.log('chatDetails exists:', !!chatDetails);
+    console.log('chatDetails.product exists:', !!(chatDetails && chatDetails.product));
+    
+    // If chat details are provided, use campaign-aware RAG
+    if (chatDetails && chatDetails.product) {
+      console.log('=== ENTERING CAMPAIGN-AWARE RAG FLOW ===');
+      const campaign = mapProductToCampaign(chatDetails.product);
+      console.log('Product:', chatDetails.product);
+      console.log('Mapped campaign:', campaign);
+      console.log('Using campaign-aware RAG for campaign:', campaign);
+      
+      // Get campaign-specific context
+      console.log('About to call getCampaignContext...');
+      const context = await getCampaignContext(userMessage, campaign);
+      console.log('getCampaignContext returned, context length:', context ? context.length : 0);
+      
+      if (context) {
+        systemPrompt = `You are Smart Spidy, a helpful assistant specializing in social impact campaigns.
+
+Campaign Context:
+${context}
+
+Use this context to provide accurate, campaign-specific responses. Focus on information relevant to the ${campaign} campaign.`;
+        
+        contextualMessage = `Based on the ${campaign} campaign context, please answer: ${userMessage}`;
+      }
+    }
+
+    const apiUrl = 'https://api.openai.com/v1/chat/completions';
+    const body = {
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: contextualMessage }
+      ],
+      max_tokens: 500, // Increased for more detailed responses
+      temperature: 0.7
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${error}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error in generateOpenAIResponse:', error);
+    throw error;
+  }
 }
 
 /**
@@ -216,4 +458,4 @@ IMPORTANT: Respond with ONLY the JSON object, no markdown formatting, no code bl
   }
 }
 
-module.exports = { generateOpenAIResponse, analyzeInstagramAccount }; 
+module.exports = { generateOpenAIResponse, analyzeInstagramAccount, generateEmbedding, getCampaignContext, testCampaignData }; 

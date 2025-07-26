@@ -106,9 +106,9 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               required
             >
               <option value="" disabled>Select product</option>
-              <option value="khushi">Pads For Freedom</option>
-              <option value="animal care">Bowls Of Hope</option>
-              <option value="WAL">Wings Of Hope</option>
+              <option value="Pads For Freedom">Pads For Freedom</option>
+              <option value="Bowls Of Hope">Bowls Of Hope</option>
+              <option value="Wings Of Hope">Wings Of Hope</option>
             </select>
             <select
               value={fields.gender}

@@ -99,10 +99,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
                 <h3 className="text-lg font-medium text-black mb-2">
                   Start the conversation
                 </h3>
-                <p className="text-gray-600 mb-8">
+                <p className="text-gray-600 mb-4">
                   Send a message to begin chatting
                 </p>
-                {/* ChatInput removed from welcome screen */}
+                <div className="mb-8">
+                  <button
+                    onClick={() => onSendMessage('First DM')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 shadow-sm hover:shadow-md"
+                  >
+                    First DM
+                  </button>
+                  <p className="text-gray-500 text-sm mt-2">
+                    Get a personalized campaign DM template
+                  </p>
+                </div>
               </motion.div>
             </div>
           ) : (

@@ -4,6 +4,7 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { generateOpenAIResponse } = require('../services/openaiService');
 const { analyzeInstagramAccount } = require('../services/openaiService');
+const { getCampaignDM, replaceDMTemplate, isFirstDMRequest } = require('../services/campaignService');
 
 const pick = (obj, keys) =>
   keys.reduce((acc, key) => {
@@ -183,12 +184,87 @@ const createMessage = catchAsync(async (req, res) => {
     }
   }
   if (messageData.sender === 'user') {
+    console.log('=== USER MESSAGE PROCESSING START ===');
+    console.log('Message sender:', messageData.sender);
+    console.log('Message content:', messageData.content);
+    console.log('Chat ID:', messageData.chat_id);
+    console.log('User ID:', messageData.user_id);
+    
     let assistantContent = '';
     try {
-      assistantContent = await generateOpenAIResponse(messageData.content);
+      // Check if user is requesting a first DM
+      console.log('Checking if this is a First DM request...');
+      const isFirstDM = isFirstDMRequest(messageData.content);
+      console.log('Is First DM request:', isFirstDM);
+      
+      if (isFirstDM) {
+        console.log('User requesting first DM, fetching campaign DM template...');
+        
+        // Get chat details to fetch profession and name
+        const { data: chatDetails, error: chatError } = await supabaseAdmin
+          .from('chats')
+          .select('name, profession, product')
+          .eq('id', messageData.chat_id)
+          .single();
+
+        if (chatError || !chatDetails) {
+          console.error('Error fetching chat details:', chatError);
+          assistantContent = 'Sorry, I could not retrieve the campaign DM template at this time.';
+        } else {
+          const { name: chatName, profession, product } = chatDetails;
+          
+          // Get user's name from the users table
+          const { data: userData, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('name')
+            .eq('id', messageData.user_id)
+            .single();
+
+          const volunteerName = userData?.name || 'Smart Spidy Team';
+          console.log('Using volunteer name:', volunteerName);
+          
+          // Map product to campaign name (now they are the same)
+          const campaign = product || 'Pads For Freedom';
+          
+          // Get campaign DM template
+          const campaignDM = await getCampaignDM(profession, campaign);
+          
+          if (campaignDM && campaignDM.template) {
+            // Replace template placeholders with actual values
+            assistantContent = replaceDMTemplate(campaignDM.template, chatName, volunteerName);
+            console.log('Successfully generated campaign DM for profession:', profession);
+          } else {
+            assistantContent = `I couldn't find a specific campaign DM template for ${profession} in the ${campaign} campaign. Here's a general template you can customize:\n\nHello ${chatName},\n\nI hope you're doing well! I'm reaching out regarding our ${campaign} campaign. We'd love to have you as a campaign ambassador to help spread awareness about this important cause.\n\nWould you be interested in learning more about how you can get involved?\n\nBest regards,\n${volunteerName}`;
+          }
+        }
+      } else {
+        // Regular OpenAI response with campaign-aware RAG for non-first-DM messages
+        console.log('=== NON-FIRST-DM MESSAGE PROCESSING ===');
+        console.log('Message content:', messageData.content);
+        console.log('Chat ID:', messageData.chat_id);
+        
+        // Get chat details for campaign-aware context
+        console.log('Fetching chat details for RAG context...');
+        const { data: chatForContext, error: chatContextError } = await supabaseAdmin
+          .from('chats')
+          .select('product, profession, name')
+          .eq('id', messageData.chat_id)
+          .single();
+
+        if (chatContextError) {
+          console.error('Error fetching chat context:', chatContextError);
+        } else {
+          console.log('Chat context retrieved:', chatForContext);
+        }
+
+        const contextDetails = chatContextError ? null : chatForContext;
+        console.log('Passing context details to OpenAI:', contextDetails);
+        
+        assistantContent = await generateOpenAIResponse(messageData.content, contextDetails);
+      }
     } catch (err) {
       assistantContent = 'Sorry, I could not generate a response at this time.';
-      console.error('OpenAI error:', err);
+      console.error('Response generation error:', err);
     }
     const assistantMessageData = {
       content: assistantContent,

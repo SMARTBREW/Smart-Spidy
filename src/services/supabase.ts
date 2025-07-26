@@ -14,45 +14,78 @@ class SupabaseService {
     this.supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   }
 
-  async getRelevantContext(query: string): Promise<string> {
+  async getRelevantContext(query: string, campaign?: string): Promise<string> {
     try {
-      console.log('Getting relevant context for query:', query);
+      console.log('Getting relevant context for query:', query, 'campaign:', campaign);
       
       // First, generate embedding for the query
       const queryEmbedding = await this.generateEmbedding(query);
       console.log('Generated embedding, length:', queryEmbedding.length);
       
-      // Search for similar embeddings using the new match_smartspidy_chunks function
-      console.log('Calling match_smartspidy_chunks RPC...');
-      const { data, error } = await this.supabase.rpc("match_smartspidy_chunks", {
+      if (campaign) {
+        // Use campaign-specific search with the new schema
+        console.log('Calling search_campaign_embeddings RPC...');
+        const { data, error } = await this.supabase.rpc("search_campaign_embeddings", {
+          query_embedding: queryEmbedding,
+          campaign_name: campaign,
+          match_threshold: 0.52,
+          match_count: 5
+        });
+
+        if (error) {
+          console.error('Campaign-specific search error:', error);
+          console.error('Error details:', JSON.stringify(error, null, 2));
+          // Fallback to generic search if campaign-specific fails
+          return this.getGenericContext(queryEmbedding);
+        }
+
+        console.log('Campaign-specific RPC call successful, data:', data);
+        
+        if (data && data.length > 0) {
+          const context = data.map((item: any) => item.combined_text).join("\n---\n");
+          console.log('Found campaign-specific context, length:', context.length);
+          console.log('Context preview:', context.substring(0, 200) + '...');
+          return context;
+        } else {
+          console.log('No campaign-specific context found, falling back to generic search');
+          return this.getGenericContext(queryEmbedding);
+        }
+      } else {
+        // Fallback to generic search when no campaign specified
+        return this.getGenericContext(queryEmbedding);
+      }
+    } catch (error) {
+      console.error('Error getting relevant context:', error);
+      return '';
+    }
+  }
+
+  private async getGenericContext(queryEmbedding: number[]): Promise<string> {
+    try {
+      console.log('Performing generic embedding search...');
+      
+      // Search the new smartspidy table without campaign filter using the enhanced function
+      const { data, error } = await this.supabase.rpc("search_all_embeddings", {
         query_embedding: queryEmbedding,
-        match_count: 5,
-        similarity_threshold: 0.5
+        match_threshold: 0.5,
+        match_count: 5
       });
 
       if (error) {
-        console.error('Supabase search error:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Generic search error:', error);
         return '';
       }
 
-      console.log('RPC call successful, data:', data);
-      
-      // Return concatenated relevant context using the new schema
       if (data && data.length > 0) {
-        const context = data.map((item: any) => {
-          // Use combined_text if available, otherwise fall back to smartspidy_chunk
-          return item.combined_text || item.smartspidy_chunk;
-        }).join("\n---\n");
-        console.log('Found context, length:', context.length);
-        console.log('Context preview:', context.substring(0, 200) + '...');
+        const context = data.map((item: any) => item.combined_text).join("\n---\n");
+        console.log('Found generic context, length:', context.length);
         return context;
       } else {
         console.log('No relevant context found in database');
         return '';
       }
     } catch (error) {
-      console.error('Error getting relevant context:', error);
+      console.error('Error in generic search:', error);
       return '';
     }
   }
@@ -67,7 +100,7 @@ class SupabaseService {
         },
         body: JSON.stringify({
           input: text,
-          model: "text-embedding-3-small" // Using text-embedding-3-small as requested
+          model: "text-embedding-3-small" // Using text-embedding-3-small as requested by user
         })
       });
 
@@ -134,25 +167,22 @@ class SupabaseService {
     });
   }
 
-  async getFirstDMTemplates(profession: string, campaign: string = 'pads for freedom'): Promise<any[]> {
+  async getCampaignDM(profession: string, campaign: string = 'pads for freedom'): Promise<any> {
     try {
-      console.log('Getting first DM templates for profession:', profession, 'campaign:', campaign);
+      console.log('Getting campaign DM for profession:', profession, 'campaign:', campaign);
       
-      // First, try direct text search without embeddings for exact matches
+      // First, try direct text search for exact profession match
       console.log('Trying direct profession match...');
       const { data: directMatch, error: directError } = await this.supabase
-        .from('first_dm_templates')
+        .from('campaign_dms')
         .select('*')
         .ilike('profession', `%${profession}%`)
         .ilike('campaign', `%${campaign}%`)
-        .limit(3);
+        .limit(1);
 
       if (directMatch && directMatch.length > 0) {
-        console.log('Found direct matches:', directMatch.length);
-        return directMatch.map(item => ({
-          ...item,
-          similarity: 1.0 // Perfect match
-        }));
+        console.log('Found direct match for campaign DM');
+        return directMatch[0];
       }
 
       // If no direct match, try broader profession matching
@@ -171,45 +201,57 @@ class SupabaseService {
       
       for (const variant of professionVariants) {
         const { data: variantMatch, error: variantError } = await this.supabase
-          .from('first_dm_templates')
+          .from('campaign_dms')
           .select('*')
           .ilike('profession', `%${variant}%`)
           .ilike('campaign', `%${campaign}%`)
-          .limit(3);
+          .limit(1);
 
         if (variantMatch && variantMatch.length > 0) {
-          console.log(`Found matches for variant "${variant}":`, variantMatch.length);
-          return variantMatch.map(item => ({
-            ...item,
-            similarity: 0.9 // High similarity for variant match
-          }));
+          console.log(`Found match for variant "${variant}"`);
+          return variantMatch[0];
         }
       }
 
-      // Fallback to embedding search if no text matches found
-      console.log('No direct matches found, trying embedding search...');
-      const professionEmbedding = await this.generateEmbedding(profession);
-      console.log('Generated profession embedding, length:', professionEmbedding.length);
-      
-      const { data, error } = await this.supabase.rpc("match_first_dm_templates", {
-        query_embedding: professionEmbedding,
-        profession_filter: null, // Remove filter to get broader results
-        campaign_filter: campaign,
-        match_count: 3,
-        similarity_threshold: 0.3 // Lower threshold for more results
-      });
+      // If no matches found, return a default fallback
+      console.log('No campaign DM found for profession:', profession, 'campaign:', campaign);
+      return null;
+    } catch (error) {
+      console.error('Error getting campaign DM:', error);
+      return null;
+    }
+  }
+
+  // Helper function to replace template placeholders with dynamic values
+  replaceDMTemplate(template: string, chatName: string, volunteerName: string = 'Smart Spidy Team'): string {
+    try {
+      return template
+        .replace(/\{Name\}/g, chatName)
+        .replace(/\{Volunteer Name\}/g, volunteerName);
+    } catch (error) {
+      console.error('Error replacing DM template:', error);
+      return template;
+    }
+  }
+
+  // Get user name by ID
+  async getUserName(userId: string): Promise<string> {
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .select('name')
+        .eq('id', userId)
+        .single();
 
       if (error) {
-        console.error('First DM templates search error:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        return [];
+        console.error('Error fetching user name:', error);
+        return 'Smart Spidy Team';
       }
 
-      console.log('Embedding search results:', data);
-      return data || [];
+      return data?.name || 'Smart Spidy Team';
     } catch (error) {
-      console.error('Error getting first DM templates:', error);
-      return [];
+      console.error('Error getting user name:', error);
+      return 'Smart Spidy Team';
     }
   }
 
