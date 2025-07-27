@@ -164,36 +164,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     </label>
                   </div>
 
-                  {/* Quick Login Buttons */}
-                  <div className="space-y-3">
-                    <p className="text-sm text-gray-600 text-center">Quick Login (for testing)</p>
-                    <div className="flex gap-2">
-                      <motion.button
-                        type="button"
-                        onClick={() => {
-                          setEmail(staticCredentials.user.email);
-                          setPassword(staticCredentials.user.password);
-                        }}
-                        className="flex-1 py-2 px-4 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        User Login
-                      </motion.button>
-                      <motion.button
-                        type="button"
-                        onClick={() => {
-                          setEmail(staticCredentials.admin.email);
-                          setPassword(staticCredentials.admin.password);
-                        }}
-                        className="flex-1 py-2 px-4 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        Admin Login
-                      </motion.button>
-                    </div>
-                  </div>
+
 
                   <motion.button
                     initial={{ opacity: 0, y: 20 }}

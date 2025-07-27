@@ -72,13 +72,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
       <div className="bg-white border-b border-gray-300 py-2 px-4 flex items-center gap-4 min-h-[56px]">
         <div className="flex-1">
           <h1 className="text-xl font-semibold text-black text-left">{chat.name}</h1>
-          <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-600">
-            <span>Messages: {chat.messages?.length ?? 0}</span>
-            {chat.instagramUsername && <span>Instagram: {chat.instagramUsername}</span>}
-            {chat.occupation && <span>Occupation: {chat.occupation}</span>}
-            {chat.product && <span>Product: {chat.product}</span>}
-            {chat.gender && <span>Gender: {chat.gender}</span>}
-            {chat.profession && <span>Profession: {typeof chat.profession === 'string' ? chat.profession : JSON.stringify(chat.profession)}</span>}
+          <div className="mt-1 flex flex-wrap gap-3 text-sm">
+            <span><span className="font-bold text-gray-600">Messages:</span> <span className="text-gray-600">{chat.messages?.length ?? 0}</span></span>
+            {chat.instagramUsername && <span><span className="font-bold text-gray-600">Instagram:</span> <span className="text-gray-600">{chat.instagramUsername}</span></span>}
+            {chat.occupation && <span><span className="font-bold text-gray-600">Occupation:</span> <span className="text-gray-600">{chat.occupation}</span></span>}
+            {chat.product && <span><span className="font-bold text-gray-600">Product:</span> <span className="text-gray-600">{chat.product}</span></span>}
+            {chat.gender && <span><span className="font-bold text-gray-600">Gender:</span> <span className="text-gray-600">{chat.gender}</span></span>}
+            {chat.profession && <span><span className="font-bold text-gray-600">Profession:</span> <span className="text-gray-600">{typeof chat.profession === 'string' ? chat.profession : JSON.stringify(chat.profession)}</span></span>}
           </div>
         </div>
       </div>
