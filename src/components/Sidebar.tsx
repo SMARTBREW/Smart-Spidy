@@ -180,8 +180,8 @@ const SidebarComponent: React.FC<SidebarProps> = ({
               title="Expand Sidebar"
             >
               <img 
-                src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" 
-                alt="Smart Spidy" 
+                src="/smartspidy.png" 
+                alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘 Logo" 
                 className="w-8 h-8 rounded-lg"
               />
             </motion.button>
@@ -236,10 +236,10 @@ const SidebarComponent: React.FC<SidebarProps> = ({
             transition={contentTransition}
             className="flex items-center justify-between w-full"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pl-4">
               <img 
-                src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" 
-                alt="Smart Spidy" 
+                src="/smartspidy.png" 
+                alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘 Logo" 
                 className="w-10 h-10 rounded-lg"
               />
               <motion.h1 

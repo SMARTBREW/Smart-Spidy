@@ -46,7 +46,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             className="text-center max-w-2xl w-full px-4"
           >
             <div className="w-20 h-20 flex items-center justify-center mx-auto mb-6">
-              <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-20 h-20 rounded-xl shadow-lg" />
+              <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘 Logo" className="w-20 h-20 rounded-xl shadow-lg" />
             </div>
             <h2 className="text-3xl font-bold text-black mb-3">
               Welcome to 𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘
@@ -94,7 +94,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
                 className="text-center max-w-2xl w-full px-4"
               >
                 <div className="w-12 h-12 flex items-center justify-center mx-auto mb-4">
-                  <img src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" alt="Smart Spidy" className="w-12 h-12 rounded-lg" />
+                  <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘 Logo" className="w-12 h-12 rounded-lg" />
                 </div>
                 <h3 className="text-lg font-medium text-black mb-2">
                   Start the conversation

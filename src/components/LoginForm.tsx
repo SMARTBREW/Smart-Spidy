@@ -64,8 +64,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
             <div className="flex-1 relative overflow-hidden bg-gray-50 flex items-center justify-center">
               <div className="text-center">
                 <img 
-                  src="https://i.pinimg.com/736x/42/b1/a9/42b1a984eb088e65428a7ec727578ece.jpg" 
-                  alt="Smart Spidy Logo" 
+                  src="/smartspidy.png" 
+                  alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘 Logo" 
                   className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
                 />
                 <h2 className="text-3xl font-bold mb-2 text-black">𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h2>
