@@ -248,7 +248,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
                 transition={{ ...contentTransition, delay: 0.1 }}
                 className="text-2xl font-bold text-black"
               >
-                Smart Spidy
+                𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘
               </motion.h1>
             </div>
             <motion.button

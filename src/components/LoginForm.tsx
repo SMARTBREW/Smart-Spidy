@@ -68,7 +68,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                   alt="Smart Spidy Logo" 
                   className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
                 />
-                <h2 className="text-3xl font-bold mb-2 text-black">Smart Spidy</h2>
+                <h2 className="text-3xl font-bold mb-2 text-black">𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h2>
                 <p className="text-lg text-gray-600">Professional AI Assistant</p>
               </div>
             </div>
@@ -81,7 +81,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                 className="w-full max-w-sm mx-auto"
               >
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-black mb-2">Welcome to Smart Spidy</h1>
+                  <h1 className="text-3xl font-bold text-black mb-2">Welcome to 𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h1>
                   <p className="text-gray-600">Sign in to start your professional conversations</p>
                 </div>
 
