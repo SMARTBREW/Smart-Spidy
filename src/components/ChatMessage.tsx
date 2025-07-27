@@ -26,7 +26,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
     setCopied(true);
     setTimeout(() => setCopied(false), 1000);
   };
-  const formattedContent = type === 'assistant' ? textToShow.replace(/\*\*(.*?)\*\*/g, '"$1"') : textToShow;
+  const formattedContent = type === 'assistant' ? textToShow : textToShow;
   const timestamp = message.createdAt ? new Date(message.createdAt).toLocaleTimeString() : '';
 
   const handleFeedback = async (value: 'thumbs_up' | 'thumbs_down') => {
@@ -79,9 +79,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
   } else if (message.instagramAccount) {
     // Instagram account card for assistant message
     const account = message.instagramAccount;
-    const sourceLabel = account.source === 'live'
-      ? 'Fetched live from Instagram'
-      : 'Fetched from database';
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -90,17 +88,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
         className="flex justify-start w-full mb-2 mt-5"
       >
         <div className="w-full">
-          <div className="flex items-center gap-2 mb-1">
-            {account.source === 'live' ? (
-              <span className="text-xs font-bold px-3 py-1 rounded bg-blue-200 text-blue-900 border border-blue-400 shadow-sm">
-                {sourceLabel}
-              </span>
-            ) : (
-              <span className="text-xs px-2 py-1 rounded bg-gray-200 text-gray-700">
-                {sourceLabel}
-              </span>
-            )}
-          </div>
+
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium text-black">Instagram Profile</span>
             {account.hasDetailedAccess && <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">Full Access</span>}

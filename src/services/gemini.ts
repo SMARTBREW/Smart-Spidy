@@ -13,9 +13,31 @@ class GeminiService {
 
   async generateResponse(prompt: string): Promise<string> {
     try {
-      const result = await this.model.generateContent(prompt);
+      const enhancedPrompt = `${prompt}
+
+IMPORTANT: When emphasizing important words or phrases, use Unicode bold characters (𝐰𝐨𝐫𝐝) instead of markdown **bold** or "quotes" for emphasis.`;
+      
+      const result = await this.model.generateContent(enhancedPrompt);
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
+      
+      // Convert any remaining markdown bold to Unicode bold
+      text = text.replace(/\*\*(.*?)\*\*/g, (match: string, text: string) => {
+        return text.split('').map((char: string) => {
+          const code = char.charCodeAt(0);
+          if (code >= 97 && code <= 122) { // lowercase a-z
+            return String.fromCharCode(code - 97 + 120205); // 𝐚-𝐳
+          } else if (code >= 65 && code <= 90) { // uppercase A-Z
+            return String.fromCharCode(code - 65 + 120211); // 𝐀-𝐙
+          } else if (code >= 48 && code <= 57) { // 0-9
+            return String.fromCharCode(code - 48 + 120816); // 𝟎-𝟗
+          } else if (code === 32) { // space
+            return ' ';
+          }
+          return char;
+        }).join('');
+      });
+      
       return text;
     } catch (error: any) {
       console.error('Error generating response:', error);
@@ -44,12 +66,30 @@ class GeminiService {
           `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
         ).join('\n');
         
-        prompt = `Previous conversation:\n${conversation}\n\nUser: ${newMessage}\n\nPlease respond as a helpful AI assistant. When emphasizing a word, use double quotes ("word") instead of markdown's bold ( **word** ).`;
+        prompt = `Previous conversation:\n${conversation}\n\nUser: ${newMessage}\n\nPlease respond as a helpful AI assistant. When emphasizing important words or phrases, use Unicode bold characters (𝐰𝐨𝐫𝐝) instead of markdown **bold** or "quotes" for emphasis.`;
       }
       
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
+      
+      // Convert any remaining markdown bold to Unicode bold
+      text = text.replace(/\*\*(.*?)\*\*/g, (match: string, text: string) => {
+        return text.split('').map((char: string) => {
+          const code = char.charCodeAt(0);
+          if (code >= 97 && code <= 122) { // lowercase a-z
+            return String.fromCharCode(code - 97 + 120205); // 𝐚-𝐳
+          } else if (code >= 65 && code <= 90) { // uppercase A-Z
+            return String.fromCharCode(code - 65 + 120211); // 𝐀-𝐙
+          } else if (code >= 48 && code <= 57) { // 0-9
+            return String.fromCharCode(code - 48 + 120816); // 𝟎-𝟗
+          } else if (code === 32) { // space
+            return ' ';
+          }
+          return char;
+        }).join('');
+      });
+      
       return text;
     } catch (error) {
       console.error('Error generating chat response:', error);

@@ -212,7 +212,16 @@ async function generateOpenAIResponse(userMessage, chatDetails = null) {
     console.log('User message:', userMessage);
     console.log('Chat details received:', JSON.stringify(chatDetails, null, 2));
     
-    let systemPrompt = 'You are Smart Spidy, a helpful assistant specializing in social impact campaigns.';
+    let systemPrompt = `You are Smart Spidy, a helpful assistant specializing in social impact campaigns.
+
+IMPORTANT FORMATTING INSTRUCTIONS:
+- When emphasizing important words or phrases, use Unicode bold characters directly
+- Use 𝐔𝐧𝐢𝐜𝐨𝐝𝐞 𝐛𝐨𝐥𝐝 𝐜𝐡𝐚𝐫𝐚𝐜𝐭𝐞𝐫𝐬 for natural emphasis on key terms, concepts, or important information
+- Do NOT use markdown **bold** or *italic* formatting at all
+- Do NOT use "quotes" for emphasis
+- Apply Unicode bold to words that deserve emphasis based on context and importance
+- Do not hardcode specific words - let the context guide what should be emphasized
+- IMPORTANT: Never use ** or * for formatting - only use Unicode bold characters directly`;
     let contextualMessage = userMessage;
     
     // Check if chat details are provided
@@ -235,6 +244,15 @@ async function generateOpenAIResponse(userMessage, chatDetails = null) {
       
       if (context) {
         systemPrompt = `You are Smart Spidy, a helpful assistant specializing in social impact campaigns.
+
+IMPORTANT FORMATTING INSTRUCTIONS:
+- When emphasizing important words or phrases, use Unicode bold characters directly
+- Use 𝐔𝐧𝐢𝐜𝐨𝐝𝐞 𝐛𝐨𝐥𝐝 𝐜𝐡𝐚𝐫𝐚𝐜𝐭𝐞𝐫𝐬 for natural emphasis on key terms, concepts, or important information
+- Do NOT use markdown **bold** or *italic* formatting at all
+- Do NOT use "quotes" for emphasis
+- Apply Unicode bold to words that deserve emphasis based on context and importance
+- Do not hardcode specific words - let the context guide what should be emphasized
+- IMPORTANT: Never use ** or * for formatting - only use Unicode bold characters directly
 
 Campaign Context:
 ${context}
@@ -271,7 +289,24 @@ Use this context to provide accurate, campaign-specific responses. Focus on info
     }
 
     const data = await response.json();
-    return data.choices[0].message.content.trim();
+    let content = data.choices[0].message.content.trim();
+    
+    // Convert any remaining markdown bold to Unicode bold
+    content = content.replace(/\*\*(.*?)\*\*/g, (match, text) => {
+      // Use correct Unicode bold character mapping
+      const boldMap = {
+        'a': '𝐚', 'b': '𝐛', 'c': '𝐜', 'd': '𝐝', 'e': '𝐞', 'f': '𝐟', 'g': '𝐠', 'h': '𝐡', 'i': '𝐢', 'j': '𝐣', 'k': '𝐤', 'l': '𝐥', 'm': '𝐦', 'n': '𝐧', 'o': '𝐨', 'p': '𝐩', 'q': '𝐪', 'r': '𝐫', 's': '𝐬', 't': '𝐭', 'u': '𝐮', 'v': '𝐯', 'w': '𝐰', 'x': '𝐱', 'y': '𝐲', 'z': '𝐳',
+        'A': '𝐀', 'B': '𝐁', 'C': '𝐂', 'D': '𝐃', 'E': '𝐄', 'F': '𝐅', 'G': '𝐆', 'H': '𝐇', 'I': '𝐈', 'J': '𝐉', 'K': '𝐊', 'L': '𝐋', 'M': '𝐌', 'N': '𝐍', 'O': '𝐎', 'P': '𝐏', 'Q': '𝐐', 'R': '𝐑', 'S': '𝐒', 'T': '𝐓', 'U': '𝐔', 'V': '𝐕', 'W': '𝐖', 'X': '𝐗', 'Y': '𝐘', 'Z': '𝐙',
+        '0': '𝟎', '1': '𝟏', '2': '𝟐', '3': '𝟑', '4': '𝟒', '5': '𝟓', '6': '𝟔', '7': '𝟕', '8': '𝟖', '9': '𝟗',
+        ' ': ' '
+      };
+      
+      return text.split('').map(char => {
+        return boldMap[char] || char;
+      }).join('');
+    });
+    
+    return content;
   } catch (error) {
     console.error('Error in generateOpenAIResponse:', error);
     throw error;
