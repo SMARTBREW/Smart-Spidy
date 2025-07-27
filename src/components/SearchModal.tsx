@@ -34,22 +34,22 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
       }
       for (let i = 0; i < chat.messages.length; i++) {
         const msg = chat.messages[i];
-        if (msg.sender === 'user' && msg.query.toLowerCase().includes(lower)) {
+        if (msg.sender === 'user' && msg.content.toLowerCase().includes(lower)) {
           // Pair with next assistant message if exists
           const nextMsg = chat.messages[i + 1];
           matches.push({
             type: 'qa',
-            question: msg.query,
-            answer: nextMsg && nextMsg.sender === 'assistant' ? (nextMsg.answer ?? undefined) : undefined,
+            question: msg.content,
+            answer: nextMsg && nextMsg.sender === 'assistant' ? nextMsg.content : undefined,
             messageId: msg.id,
           });
-        } else if (msg.sender === 'assistant' && (msg.answer?.toLowerCase().includes(lower))) {
+        } else if (msg.sender === 'assistant' && msg.content.toLowerCase().includes(lower)) {
           // Pair with previous user message if exists
           const prevMsg = chat.messages[i - 1];
           matches.push({
             type: 'qa',
-            question: prevMsg && prevMsg.sender === 'user' ? prevMsg.query : undefined,
-            answer: msg.answer ?? undefined,
+            question: prevMsg && prevMsg.sender === 'user' ? prevMsg.content : undefined,
+            answer: msg.content,
             messageId: msg.id,
           });
         }
