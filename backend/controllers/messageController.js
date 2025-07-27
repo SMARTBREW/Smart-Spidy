@@ -238,8 +238,8 @@ const createMessage = catchAsync(async (req, res) => {
           }
         }
       } else {
-        // Regular OpenAI response with campaign-aware RAG for non-first-DM messages
-        console.log('=== NON-FIRST-DM MESSAGE PROCESSING ===');
+        // Enhanced RAG response with conversation memory for non-first-DM messages
+        console.log('=== ENHANCED RAG WITH CONVERSATION MEMORY ===');
         console.log('Message content:', messageData.content);
         console.log('Chat ID:', messageData.chat_id);
         
@@ -257,10 +257,30 @@ const createMessage = catchAsync(async (req, res) => {
           console.log('Chat context retrieved:', chatForContext);
         }
 
+        // Get conversation history for session memory
+        console.log('Fetching conversation history for memory...');
+        const { data: conversationHistory, error: historyError } = await supabaseAdmin
+          .from('messages')
+          .select('content, sender, created_at')
+          .eq('chat_id', messageData.chat_id)
+          .order('created_at', { ascending: true })
+          .limit(20); // Last 20 messages for context
+
+        if (historyError) {
+          console.error('Error fetching conversation history:', historyError);
+        } else {
+          console.log('Conversation history retrieved:', conversationHistory?.length || 0, 'messages');
+        }
+
         const contextDetails = chatContextError ? null : chatForContext;
-        console.log('Passing context details to OpenAI:', contextDetails);
+        const chatHistory = historyError ? [] : (conversationHistory || []);
         
-        assistantContent = await generateOpenAIResponse(messageData.content, contextDetails);
+        console.log('Passing enhanced context to OpenAI:', {
+          chatDetails: contextDetails,
+          historyLength: chatHistory.length
+        });
+        
+        assistantContent = await generateOpenAIResponse(messageData.content, contextDetails, chatHistory);
       }
     } catch (err) {
       assistantContent = 'Sorry, I could not generate a response at this time.';

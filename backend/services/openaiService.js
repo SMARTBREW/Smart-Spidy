@@ -206,13 +206,32 @@ async function getCampaignContext(query, campaign) {
   }
 }
 
-async function generateOpenAIResponse(userMessage, chatDetails = null) {
+async function generateOpenAIResponse(userMessage, chatDetails = null, conversationHistory = []) {
   try {
-    console.log('=== OpenAI Response Generation START ===');
+    console.log('=== Enhanced OpenAI Response Generation START ===');
     console.log('User message:', userMessage);
     console.log('Chat details received:', JSON.stringify(chatDetails, null, 2));
+    console.log('Conversation history length:', conversationHistory.length);
+    
+    // Build conversation memory context first
+    let conversationContext = '';
+    if (conversationHistory && conversationHistory.length > 0) {
+      console.log('Building conversation memory context...');
+      const recentMessages = conversationHistory.slice(-10); // Last 10 messages for context
+      conversationContext = recentMessages.map(msg => 
+        `${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n');
+      console.log('Conversation context built with', recentMessages.length, 'messages');
+    }
     
     let systemPrompt = `You are Smart Spidy, a helpful assistant specializing in social impact campaigns.
+
+CONVERSATION MEMORY INSTRUCTIONS:
+- Remember and reference previous conversations within this chat session
+- Use conversation history to provide contextual and personalized responses
+- If the user mentioned something earlier in the conversation, acknowledge it
+- Don't repeat information that was already discussed unless specifically asked
+- Build upon previous conversations to create continuity
 
 IMPORTANT FORMATTING INSTRUCTIONS:
 - When emphasizing important words or phrases, use Unicode bold characters directly
@@ -221,7 +240,14 @@ IMPORTANT FORMATTING INSTRUCTIONS:
 - Do NOT use "quotes" for emphasis
 - Apply Unicode bold to words that deserve emphasis based on context and importance
 - Do not hardcode specific words - let the context guide what should be emphasized
-- IMPORTANT: Never use ** or * for formatting - only use Unicode bold characters directly`;
+- IMPORTANT: Never use ** or * for formatting - only use Unicode bold characters directly
+
+${conversationContext ? `CONVERSATION HISTORY:
+${conversationContext}
+
+Use this conversation history to provide contextual responses and remember what has been discussed.
+
+` : ''}`;
     let contextualMessage = userMessage;
     
     // Check if chat details are provided
@@ -245,6 +271,13 @@ IMPORTANT FORMATTING INSTRUCTIONS:
       if (context) {
         systemPrompt = `You are Smart Spidy, a helpful assistant specializing in social impact campaigns.
 
+CONVERSATION MEMORY INSTRUCTIONS:
+- Remember and reference previous conversations within this chat session
+- Use conversation history to provide contextual and personalized responses
+- If the user mentioned something earlier in the conversation, acknowledge it
+- Don't repeat information that was already discussed unless specifically asked
+- Build upon previous conversations to create continuity
+
 IMPORTANT FORMATTING INSTRUCTIONS:
 - When emphasizing important words or phrases, use Unicode bold characters directly
 - Use 𝐔𝐧𝐢𝐜𝐨𝐝𝐞 𝐛𝐨𝐥𝐝 𝐜𝐡𝐚𝐫𝐚𝐜𝐭𝐞𝐫𝐬 for natural emphasis on key terms, concepts, or important information
@@ -254,7 +287,12 @@ IMPORTANT FORMATTING INSTRUCTIONS:
 - Do not hardcode specific words - let the context guide what should be emphasized
 - IMPORTANT: Never use ** or * for formatting - only use Unicode bold characters directly
 
-Campaign Context:
+${conversationContext ? `CONVERSATION HISTORY:
+${conversationContext}
+
+Use this conversation history to provide contextual responses and remember what has been discussed.
+
+` : ''}Campaign Context:
 ${context}
 
 Use this context to provide accurate, campaign-specific responses. Focus on information relevant to the ${campaign} campaign.`;
