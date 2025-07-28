@@ -76,6 +76,16 @@ const pinChat = {
   }),
 };
 
+const searchChats = {
+  query: Joi.object().keys({
+    q: Joi.string().min(1).max(500).required(),
+    page: Joi.number().integer().min(1),
+    limit: Joi.number().integer().min(1).max(100),
+    include_messages: Joi.boolean().default(true),
+    user_id: Joi.string().custom(uuid), // For admin to specify which user to search
+  }),
+};
+
 module.exports = {
   createChat,
   getChats,
@@ -84,4 +94,5 @@ module.exports = {
   deleteChat,
   updateChatStatus,
   pinChat,
+  searchChats,
 }; 

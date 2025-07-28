@@ -91,6 +91,7 @@ class AuthService {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpires');
     localStorage.removeItem('user');
+    localStorage.removeItem('sessionId');
   }
 
   async login(email: string, password: string): Promise<LoginResponse> {
@@ -111,6 +112,9 @@ class AuthService {
         
         this.setTokens(data.tokens);
         localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.session_id) {
+          localStorage.setItem('sessionId', data.session_id);
+        }
         return data;
       } catch (error) {
         console.error('Login error:', error);

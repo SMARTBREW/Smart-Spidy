@@ -141,21 +141,15 @@ const handleResponse = async (response: Response) => {
 export const messageApi = {
   // Create a single message
   async createMessage(data: CreateMessageRequest): Promise<CreateMessageResponse> {
-    const createMessageFn = async () => {
-      const response = await authService.authenticatedRequest(
-        `${API_BASE_URL}/messages`,
-        {
-          method: 'POST',
-          body: JSON.stringify(data),
-        }
-      );
-      return handleResponse(response);
-    };
-
-    if (withLoading) {
-      return withLoading('message-create', createMessageFn)();
-    }
-    return createMessageFn();
+    // Don't use loading wrapper for createMessage - we want to show typing indicator instead
+    const response = await authService.authenticatedRequest(
+      `${API_BASE_URL}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    return handleResponse(response);
   },
 
   // Get messages for a specific chat

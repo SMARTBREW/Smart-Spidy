@@ -10,6 +10,7 @@ const router = express.Router();
 router.use(auth());
 
 router.get('/stats', authorize('admin'), chatController.getChatStats);
+router.get('/search', validate(chatValidation.searchChats), chatController.searchChats);
 router.get('/', validate(chatValidation.getChats), chatController.getChats);
 router.post('/', validate(chatValidation.createChat), chatController.createChat);
 

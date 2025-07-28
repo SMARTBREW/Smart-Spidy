@@ -109,7 +109,7 @@ export const chatApi = {
     return deleteChatFn();
   },
 
-  async updateChatStatus(id: string, status: 'green' | 'yellow' | 'red' | null, makeGold?: boolean): Promise<any> {
+  async updateChatStatus(id: string, status: 'green' | 'yellow' | 'red' | null | undefined, makeGold?: boolean): Promise<any> {
     const updateStatusFn = async () => {
       const body: any = {};
       if (status !== undefined) body.status = status;
@@ -145,5 +145,42 @@ export const chatApi = {
   async getChatStats(): Promise<any> {
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/stats`, { method: 'GET' });
     return handleResponse(response);
+  },
+
+  async searchChats(params: {
+    q: string;
+    page?: number;
+    limit?: number;
+    include_messages?: boolean;
+  }): Promise<{
+    results: Array<{
+      chat: Chat;
+      messages: Array<{
+        id: string;
+        content: string;
+        sender: 'user' | 'assistant';
+        created_at: string;
+        message_order: number;
+      }>;
+    }>;
+    pagination: any;
+    query: string;
+  }> {
+    const searchChatsFn = async () => {
+      const searchParams = new URLSearchParams();
+      searchParams.append('q', params.q);
+      if (params.page) searchParams.append('page', params.page.toString());
+      if (params.limit) searchParams.append('limit', params.limit.toString());
+      if (params.include_messages !== undefined) searchParams.append('include_messages', params.include_messages.toString());
+      
+      const url = `${API_BASE_URL}/chats/search?${searchParams}`;
+      const response = await authService.authenticatedRequest(url, { method: 'GET' });
+      return handleResponse(response);
+    };
+
+    if (withLoading) {
+      return withLoading('chat-search', searchChatsFn)();
+    }
+    return searchChatsFn();
   },
 }; 

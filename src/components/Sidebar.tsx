@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star, Shield, Settings } from 'lucide-react';
+import { Plus, MessageSquare, User, LogOut, Trash2, X, Search, Pin, MoreVertical, Star, Shield, Settings, Filter, ChevronDown } from 'lucide-react';
 import { LogoutModal } from './LogoutModal';
 import { Chat, User as UserType } from '../types';
 import { CreateChatModal } from './CreateChatModal';
@@ -76,6 +76,8 @@ const SidebarComponent: React.FC<SidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [sortBy, setSortBy] = useState<'all' | 'green' | 'yellow' | 'red' | 'fundraiser' | 'fundraiser-green' | 'fundraiser-yellow' | 'fundraiser-red'>('all');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   
   // Use useRef for context menu state that doesn't need to trigger re-renders
   const contextMenuRef = useRef<{ x: number; y: number; chatId: string } | null>(null);
@@ -85,10 +87,35 @@ const SidebarComponent: React.FC<SidebarProps> = ({
   const isAdmin = useMemo(() => user.role === 'admin', [user.role]);
   
   const filteredChats = useMemo(() => {
-    return chats.filter(chat => 
+    let filtered = chats.filter(chat => 
       chat.name.toLowerCase().includes(search.toLowerCase())
     );
-  }, [chats, search]);
+
+    // Apply sorting filter
+    if (sortBy !== 'all') {
+      filtered = filtered.filter(chat => {
+        if (sortBy === 'fundraiser') {
+          return chat.is_gold === true;
+        }
+        if (sortBy === 'fundraiser-green') {
+          return chat.is_gold === true && chat.status === 'green';
+        }
+        if (sortBy === 'fundraiser-yellow') {
+          return chat.is_gold === true && chat.status === 'yellow';
+        }
+        if (sortBy === 'fundraiser-red') {
+          return chat.is_gold === true && chat.status === 'red';
+        }
+        // For regular status filters (green, yellow, red), exclude fundraisers
+        if (sortBy === 'green' || sortBy === 'yellow' || sortBy === 'red') {
+          return chat.status === sortBy && chat.is_gold === false;
+        }
+        return chat.status === sortBy;
+      });
+    }
+
+    return filtered;
+  }, [chats, search, sortBy]);
 
   const pinnedChats = useMemo(() => {
     return filteredChats.filter(chat => chat.pinned);
@@ -149,6 +176,25 @@ const SidebarComponent: React.FC<SidebarProps> = ({
   }, []);
 
   const closeContextMenu = useCallback(() => setContextMenuVisible(false), []);
+  
+  // Close dropdown when clicking outside
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSortDropdown]);
 
   return (
     <motion.div
@@ -313,6 +359,121 @@ const SidebarComponent: React.FC<SidebarProps> = ({
                 onFocus={onOpenSearch}
                 onClick={onOpenSearch}
               />
+            </div>
+            
+            {/* Sorting Dropdown */}
+            <div className="px-2 pb-1 relative" ref={dropdownRef}>
+              <motion.button
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...contentTransition, delay: 0.15 }}
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className="w-full flex items-center justify-between p-1.5 bg-gray-100 border border-gray-300 rounded-lg text-black hover:bg-gray-200 transition-all duration-200 text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Filter className="w-3 h-3" />
+                  <span>
+                    {sortBy === 'all' && 'All Chats'}
+                    {sortBy === 'green' && 'Green Status'}
+                    {sortBy === 'yellow' && 'Yellow Status'}
+                    {sortBy === 'red' && 'Red Status'}
+                    {sortBy === 'fundraiser' && 'All Fundraisers'}
+                    {sortBy === 'fundraiser-green' && 'Fundraiser (Green)'}
+                    {sortBy === 'fundraiser-yellow' && 'Fundraiser (Yellow)'}
+                    {sortBy === 'fundraiser-red' && 'Fundraiser (Red)'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showSortDropdown ? 'rotate-180' : ''}`} />
+              </motion.button>
+              
+              <AnimatePresence>
+                {showSortDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-full left-2 right-2 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50"
+                  >
+                    <div className="py-1">
+                      <button
+                        onClick={() => { setSortBy('all'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                          sortBy === 'all' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        All Chats
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('green'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'green' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        Green Status
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('yellow'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'yellow' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                        Yellow Status
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('red'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'red' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                        Red Status
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('fundraiser'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'fundraiser' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        All Fundraisers
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('fundraiser-green'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'fundraiser-green' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        Fundraiser (Green)
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('fundraiser-yellow'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'fundraiser-yellow' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                        Fundraiser (Yellow)
+                      </button>
+                      <button
+                        onClick={() => { setSortBy('fundraiser-red'); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                          sortBy === 'fundraiser-red' ? 'bg-gray-100 text-black font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                        Fundraiser (Red)
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}

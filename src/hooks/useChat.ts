@@ -23,11 +23,8 @@ export const useChat = () => {
     isLoading: false, // Changed to false since loading is now handled globally
   });
   
-  // Use useRef for values that don't need to trigger re-renders
-  const isTypingRef = useRef(false);
-  const setIsTyping = useCallback((value: boolean) => {
-    isTypingRef.current = value;
-  }, []);
+  // Use useState for isTyping to trigger re-renders when typing state changes
+  const [isTyping, setIsTyping] = useState(false);
 
   // Memoized current chat to avoid unnecessary computations
   const currentChat = useMemo(() => {
@@ -278,10 +275,12 @@ export const useChat = () => {
     try {
       const currentChat = state.chats.find(chat => chat.id === chatId);
       let makeGold: boolean | undefined = undefined;
-      let colorStatus: 'green' | 'yellow' | 'red' | null = null;
+      let colorStatus: 'green' | 'yellow' | 'red' | null | undefined = undefined;
+      
       if (status === 'gold') {
         makeGold = true;
-        colorStatus = null;
+        // Don't set colorStatus to null when making gold - preserve existing status
+        // Only set colorStatus if we're explicitly changing it
       } else {
         colorStatus = status;
         if (currentChat?.is_gold) makeGold = true;
@@ -361,7 +360,7 @@ export const useChat = () => {
   return {
     ...state,
     currentChat,
-    isTyping: isTypingRef.current,
+    isTyping,
     login,
     logout,
     createChat,

@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Chat } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageSquare, Search } from 'lucide-react';
+import { X, MessageSquare, Search, Loader2 } from 'lucide-react';
+import { chatApi } from '../services/chat';
 
 interface SearchModalProps {
   chats: Chat[];
@@ -12,6 +13,18 @@ interface SearchModalProps {
 
 export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSelectChat, currentChatId }) => {
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Array<{
+    chat: Chat;
+    messages: Array<{
+      id: string;
+      content: string;
+      sender: 'user' | 'assistant';
+      created_at: string;
+      message_order: number;
+    }>;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -23,43 +36,35 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const lower = query.toLowerCase();
-    const res: { chat: Chat; matches: { type: 'name' | 'qa'; question?: string; answer?: string; value?: string; messageId?: string }[] }[] = [];
-    for (const chat of chats) {
-      const matches: { type: 'name' | 'qa'; question?: string; answer?: string; value?: string; messageId?: string }[] = [];
-      if (chat.name.toLowerCase().includes(lower)) {
-        matches.push({ type: 'name', value: chat.name });
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (query.trim().length < 2) {
+        setResults([]);
+        setError(null);
+        return;
       }
-      for (let i = 0; i < chat.messages.length; i++) {
-        const msg = chat.messages[i];
-        if (msg.sender === 'user' && msg.content.toLowerCase().includes(lower)) {
-          // Pair with next assistant message if exists
-          const nextMsg = chat.messages[i + 1];
-          matches.push({
-            type: 'qa',
-            question: msg.content,
-            answer: nextMsg && nextMsg.sender === 'assistant' ? nextMsg.content : undefined,
-            messageId: msg.id,
-          });
-        } else if (msg.sender === 'assistant' && msg.content.toLowerCase().includes(lower)) {
-          // Pair with previous user message if exists
-          const prevMsg = chat.messages[i - 1];
-          matches.push({
-            type: 'qa',
-            question: prevMsg && prevMsg.sender === 'user' ? prevMsg.content : undefined,
-            answer: msg.content,
-            messageId: msg.id,
-          });
-        }
+
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const searchResults = await chatApi.searchChats({
+          q: query.trim(),
+          limit: 50,
+          include_messages: true
+        });
+        setResults(searchResults.results);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Search failed');
+        setResults([]);
+      } finally {
+        setLoading(false);
       }
-      if (matches.length > 0) {
-        res.push({ chat, matches });
-      }
-    }
-    return res;
-  }, [query, chats]);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
 
   return (
     <AnimatePresence>
@@ -95,11 +100,25 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
               className="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
             />
           </div>
-          {query.trim() && results.length === 0 && (
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+              <span className="ml-2 text-gray-500">Searching...</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="text-red-500 text-center py-4">
+              {error}
+            </div>
+          )}
+          
+          {!loading && !error && query.trim() && results.length === 0 && (
             <div className="text-gray-500 text-center py-8">No results found.</div>
           )}
+          
           <div className="max-h-96 overflow-y-auto space-y-4">
-            {results.map(({ chat, matches }) => (
+            {results.map(({ chat, messages }) => (
               <div
                 key={chat.id}
                 className={`bg-gray-100 rounded-lg p-4 border border-gray-300 cursor-pointer transition-shadow hover:shadow-lg active:shadow-inner ${currentChatId === chat.id ? 'ring-2 ring-gray-400' : ''}`}
@@ -114,27 +133,21 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
                     {chat.name}
                   </div>
                 </div>
-                <ul className="space-y-1">
-                  {matches.map((m, i) => (
-                    <li key={i} className="text-gray-700 text-sm">
-                      {m.type === 'name' ? (
-                        <>
-                          <span className="bg-gray-200 text-black px-1 rounded">Chat name match</span>{' '}
-                          <span className="break-words">{m.value}</span>
-                        </>
-                      ) : (
-                        <div className="bg-gray-50 rounded p-2 border border-gray-300 mb-1">
-                          <div className="text-xs text-gray-600 mb-1">Question:</div>
-                          <div className="mb-1 text-black">{m.question}</div>
-                          {m.answer && <>
-                            <div className="text-xs text-gray-600 mb-1">Answer:</div>
-                            <div className="text-black">{m.answer}</div>
-                          </>}
+                {messages.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-600 font-medium">Matching messages:</div>
+                    {messages.map((message, index) => (
+                      <div key={message.id} className="bg-gray-50 rounded p-2 border border-gray-300">
+                        <div className="text-xs text-gray-600 mb-1">
+                          {message.sender === 'user' ? 'Question' : 'Answer'}:
                         </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                        <div className="text-black text-sm break-words">
+                          {message.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

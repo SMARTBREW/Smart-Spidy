@@ -148,19 +148,44 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
     </span>
   );
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds || seconds <= 0) return 'N/A';
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${remainingSeconds}s`;
+  const formatDuration = (seconds: number | null, isActive: boolean, loginTime: string | null, logoutTime: string | null) => {
+    if (isActive) {
+      // For active sessions, show live duration
+      if (!seconds || seconds <= 0) return 'N/A';
+      
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainingSeconds = seconds % 60;
+      
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      } else if (minutes > 0) {
+        return `${minutes}m ${remainingSeconds}s`;
+      } else {
+        return `${remainingSeconds}s`;
+      }
     } else {
-      return `${remainingSeconds}s`;
+      // For ended sessions, calculate duration from login and logout times
+      if (logoutTime && loginTime) {
+        const loginTimeDate = new Date(loginTime);
+        const logoutTimeDate = new Date(logoutTime);
+        const durationSeconds = Math.floor((logoutTimeDate.getTime() - loginTimeDate.getTime()) / 1000);
+        
+        if (durationSeconds <= 0) return 'N/A';
+        
+        const hours = Math.floor(durationSeconds / 3600);
+        const minutes = Math.floor((durationSeconds % 3600) / 60);
+        const remainingSeconds = durationSeconds % 60;
+        
+        if (hours > 0) {
+          return `${hours}h ${minutes}m`;
+        } else if (minutes > 0) {
+          return `${minutes}m ${remainingSeconds}s`;
+        } else {
+          return `${remainingSeconds}s`;
+        }
+      }
+      return 'N/A';
     }
   };
 
@@ -247,7 +272,7 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
         </div>
         <div className="flex items-center space-x-4">
           <button
-            onClick={fetchSessions}
+            onClick={() => fetchSessions()}
             className="flex items-center space-x-2 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-150"
           >
             <RefreshCw className="w-4 h-4" />
@@ -298,6 +323,7 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Status</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Duration</th>
                 <th className="text-left py-4 px-6 font-semibold text-gray-900">Login Time</th>
+                <th className="text-left py-4 px-6 font-semibold text-gray-900">Logout Time</th>
                 <th className="text-right py-4 px-6 font-semibold text-gray-900">Actions</th>
               </tr>
             </thead>
@@ -354,7 +380,7 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                       <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-600 font-medium">
-                          {formatDuration(session.sessionDuration)}
+                          {formatDuration(session.sessionDuration, session.isActive, session.loginTime, session.logoutTime)}
                         </span>
                         {session.isActive && (
                           <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
@@ -368,6 +394,15 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-500 text-sm">
                           {session.loginTime ? new Date(session.loginTime).toLocaleString() : 'N/A'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-5 px-6">
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-500 text-sm">
+                          {session.logoutTime ? new Date(session.logoutTime).toLocaleString() : 
+                           session.isActive ? 'Active' : 'N/A'}
                         </span>
                       </div>
                     </td>

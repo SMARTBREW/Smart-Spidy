@@ -193,7 +193,10 @@ const updateChatStatus = catchAsync(async (req, res) => {
   if (fetchError || !currentChat) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   }
+  
   const updateData = { updated_at: new Date().toISOString() };
+  
+  // Handle status updates
   if (status !== undefined) {
     const validStatuses = ['green', 'yellow', 'red', null];
     if (!validStatuses.includes(status)) {
@@ -202,6 +205,7 @@ const updateChatStatus = catchAsync(async (req, res) => {
     updateData.status = status;
   }
 
+  // Handle gold/fundraiser updates
   if (makeGold !== undefined) {
     if (makeGold === false && currentChat.is_gold === true) {
       throw new ApiError(
@@ -211,6 +215,11 @@ const updateChatStatus = catchAsync(async (req, res) => {
     }
     if (makeGold === true) {
       updateData.is_gold = true;
+      // When making a chat gold/fundraiser, preserve the current status
+      // Only set status to null if it's not already set
+      if (!updateData.hasOwnProperty('status')) {
+        updateData.status = currentChat.status;
+      }
     }
   }
 
@@ -285,6 +294,140 @@ const pinChat = catchAsync(async (req, res) => {
   res.send(sanitizeChat(updatedChat));
 });
 
+const searchChats = catchAsync(async (req, res) => {
+  const { q: query, page = 1, limit = 20, include_messages = true } = req.query;
+  const offset = (page - 1) * limit;
+
+  // ALWAYS restrict to current user's chats only (except for admin with specific user_id filter)
+  let chatQuery = supabaseAdmin
+    .from('chats')
+    .select('*, users(id, name, email)', { count: 'exact' });
+
+  // For all users (including admin), search their own chats by default
+  if (req.user.role !== 'admin') {
+    // Regular users can only search their own chats
+    chatQuery = chatQuery.eq('user_id', req.user.id);
+  } else {
+    // Admin can search their own chats by default, or specify user_id to search other users
+    if (req.query.user_id) {
+      // Admin wants to search specific user's chats
+      chatQuery = chatQuery.eq('user_id', req.query.user_id);
+    } else {
+      // Admin searches their own chats (default behavior)
+      chatQuery = chatQuery.eq('user_id', req.user.id);
+    }
+  }
+
+  // Check if query is a status keyword
+  const statusKeywords = ['green', 'yellow', 'red'];
+  const isStatusSearch = statusKeywords.includes(query.toLowerCase());
+  
+  if (isStatusSearch) {
+    // If searching for a status, filter by that status and exclude fundraisers
+    const status = query.toLowerCase();
+    chatQuery = chatQuery.eq('status', status).eq('is_gold', false);
+  } else {
+    // Regular search in chat names
+    chatQuery = chatQuery.or(`name.ilike.%${query}%`);
+  }
+
+  const { data: chats, count: chatCount, error: chatError } = await chatQuery
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (chatError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, chatError.message);
+
+  // If include_messages is true, search in messages as well
+  let messageResults = [];
+  if (include_messages) {
+    // First get the chat IDs that belong to the current user (or specified user for admin)
+    let userChatIdsQuery = supabaseAdmin
+      .from('chats')
+      .select('id');
+
+    if (req.user.role !== 'admin') {
+      // Regular users can only search their own chats
+      userChatIdsQuery = userChatIdsQuery.eq('user_id', req.user.id);
+    } else {
+      // Admin can search their own chats by default, or specify user_id to search other users
+      if (req.query.user_id) {
+        // Admin wants to search specific user's chats
+        userChatIdsQuery = userChatIdsQuery.eq('user_id', req.query.user_id);
+      } else {
+        // Admin searches their own chats (default behavior)
+        userChatIdsQuery = userChatIdsQuery.eq('user_id', req.user.id);
+      }
+    }
+
+    const { data: userChatIds, error: chatIdsError } = await userChatIdsQuery;
+    if (chatIdsError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, chatIdsError.message);
+
+    if (userChatIds && userChatIds.length > 0) {
+      const chatIds = userChatIds.map(chat => chat.id);
+      
+      let messageQuery = supabaseAdmin
+        .from('messages')
+        .select('*, chats(id, name, user_id, pinned, status, is_gold, created_at, users(id, name, email))')
+        .in('chat_id', chatIds);
+      
+      if (isStatusSearch) {
+        // For status searches, also filter by status and exclude fundraisers
+        const status = query.toLowerCase();
+        messageQuery = messageQuery.eq('chats.status', status).eq('chats.is_gold', false);
+      } else {
+        // Regular message content search
+        messageQuery = messageQuery.or(`content.ilike.%${query}%`);
+      }
+
+      const { data: messages, error: messageError } = await messageQuery
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (messageError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, messageError.message);
+
+      // Group messages by chat and format results
+      const chatMessageMap = new Map();
+      messages.forEach(msg => {
+        if (!chatMessageMap.has(msg.chat_id)) {
+          chatMessageMap.set(msg.chat_id, {
+            chat: sanitizeChat(msg.chats),
+            messages: []
+          });
+        }
+        chatMessageMap.get(msg.chat_id).messages.push({
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          created_at: msg.created_at,
+          message_order: msg.message_order
+        });
+      });
+
+      messageResults = Array.from(chatMessageMap.values());
+    }
+  }
+
+  // Combine and deduplicate results
+  const chatIds = new Set(chats.map(chat => chat.id));
+  const uniqueMessageResults = messageResults.filter(result => !chatIds.has(result.chat.id));
+
+  const combinedResults = [
+    ...chats.map(chat => ({ chat: sanitizeChat(chat), messages: [] })),
+    ...uniqueMessageResults
+  ];
+
+  res.send({
+    results: combinedResults,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total: chatCount + uniqueMessageResults.length,
+      pages: Math.ceil((chatCount + uniqueMessageResults.length) / limit),
+    },
+    query: query
+  });
+});
+
 module.exports = {
   createChat,
   getChats,
@@ -294,4 +437,5 @@ module.exports = {
   getChatStats,
   updateChatStatus,
   pinChat,
+  searchChats,
 };
