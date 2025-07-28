@@ -99,7 +99,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
             {/* AI Score Badge - now inside the card */}
             {account.aiAnalysisScore !== undefined && account.aiAnalysisScore !== null && (
               <div className="absolute top-4 right-4 px-4 py-2 rounded-full text-base font-bold shadow z-10 bg-gray-100 text-gray-800 border border-gray-300">
-                🤖 Smart Spidy Score: {account.aiAnalysisScore}/100
+                <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘" className="w-5 h-5 inline-block mr-1" /> 𝐒𝐦𝐚𝐫𝐭 𝐒𝐩𝐢𝐝𝐲 𝐒𝐜𝐨𝐫𝐞: {account.aiAnalysisScore}/100
               </div>
             )}
 
@@ -189,7 +189,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
             {account.aiAnalysisDetails && (
               <div className="bg-white/10 rounded-lg p-3">
                 <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  🤖 Smart Spidy Analysis
+                  <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘" className="w-5 h-5 inline-block mr-1" /> 𝐒𝐦𝐚𝐫𝐭 𝐒𝐩𝐢𝐝𝐲 𝐀𝐧𝐚𝐥𝐲𝐬𝐢𝐬
                   {account.aiAnalysisDetails.category && (
                     <span className="text-xs bg-white/20 px-2 py-1 rounded">
                       {account.aiAnalysisDetails.category}
@@ -208,7 +208,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
             {/* Activity Status */}
             {account.lastPostDate && (
               <div className="bg-white/10 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2">📊 Account Activity</div>
+                <div className="text-sm font-semibold mb-2">Account Activity</div>
                 <div className="text-center">
                   {(() => {
                     const lastPostDate = new Date(account.lastPostDate);
