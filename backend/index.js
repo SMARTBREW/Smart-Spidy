@@ -14,7 +14,6 @@ const fundraiserRoutes = require('./routes/fundraiserRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
-// Initialize cron service for automatic notifications
 require('./services/cronService');
 
 const ApiError = require('./utils/ApiError');
@@ -57,7 +56,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(passport.initialize());
 
-// Minimal request logging (only in development)
 if (config.env === 'development') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
@@ -87,16 +85,12 @@ app.use((req, res, next) => {
 
 app.use((err, req, res, next) => {
   let { statusCode, message } = err;
-  
-  // Provide default values if they're undefined
   if (!statusCode) {
     statusCode = httpStatus.INTERNAL_SERVER_ERROR;
   }
-  
   if (!message) {
     message = 'Internal Server Error';
   }
-  
   if (config.env === 'production' && !err.isOperational) {
     statusCode = httpStatus.INTERNAL_SERVER_ERROR;
     message = httpStatus[httpStatus.INTERNAL_SERVER_ERROR];
