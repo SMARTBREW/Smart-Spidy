@@ -1,11 +1,11 @@
 const Joi = require('joi');
-const { uuid } = require('./custom.validation');
+const { objectId } = require('./custom.validation');
 
 const createFundraiser = {
   body: Joi.object().keys({
     name: Joi.string().required(),
-    created_by: Joi.string().custom(uuid).required(),
-    chat_id: Joi.string().custom(uuid).optional().allow(null),
+    created_by: Joi.string().custom(objectId).required(),
+    chat_id: Joi.string().custom(objectId).optional().allow(null),
   }),
 };
 
@@ -14,8 +14,8 @@ const getFundraisers = {
     page: Joi.number().integer().min(1),
     limit: Joi.number().integer().min(1).max(100),
     name: Joi.string(),
-    created_by: Joi.string().custom(uuid),
-    chat_id: Joi.string().custom(uuid),
+    created_by: Joi.string().custom(objectId),
+    chat_id: Joi.string().custom(objectId),
     last_week: Joi.string().valid('true', 'false').optional(),
     start_date: Joi.string().isoDate().optional(),
     end_date: Joi.string().isoDate().optional(),
@@ -24,26 +24,26 @@ const getFundraisers = {
 
 const getFundraiser = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
 };
 
 const updateFundraiser = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
   body: Joi.object()
     .keys({
       name: Joi.string(),
-      created_by: Joi.string().custom(uuid),
-      chat_id: Joi.string().custom(uuid).allow(null),
+      created_by: Joi.string().custom(objectId),
+      chat_id: Joi.string().custom(objectId).allow(null),
     })
     .min(1),
 };
 
 const deleteFundraiser = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
 };
 

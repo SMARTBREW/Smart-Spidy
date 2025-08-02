@@ -18,7 +18,6 @@ import { MessagesTable } from './MessagesTable';
 import { UserSessionsTable } from './UserSessionsTable';
 import { FundraisersTable } from './FundraisersTable';
 import { NotificationTable } from './NotificationTable';
-
 interface AdminDashboardProps {
   userRole: 'admin';
 }
@@ -69,7 +68,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
       case 'sessions':
         return <UserSessionsTable stats={stats} isLoading={isLoading} />;
       case 'notifications':
-        return <NotificationTable />;
+        return <NotificationTable stats={stats} isLoading={isLoading} />;
       default:
         return null;
     }

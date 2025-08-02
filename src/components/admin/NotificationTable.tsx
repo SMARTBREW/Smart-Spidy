@@ -1,330 +1,280 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Chat } from '../../types';
-import { Star, X, Calendar, MessageCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  Bell, 
+  Clock, 
+  MessageCircle, 
+  CheckCircle, 
+  X,
+  RefreshCw,
+  Filter
+} from 'lucide-react';
+import { Notification, NotificationStats } from '../../types';
+import { getAllNotifications, markNotificationAsRead, deleteNotification, getAdminNotificationStats } from '../../services/notification';
 
-// Extended demo data for demonstration
-const notifications = [
-  {
-    id: 1,
-    chatName: 'Project Alpha',
-    user: { name: 'Alice Johnson', email: 'alice@example.com' },
-    status: 'green',
-    days: 2,
-    lastMessage: 'Thanks for the update on the project timeline.',
-    timestamp: '2024-01-15 14:30',
-    messageCount: 12,
-    is_read: false,
-  },
-  {
-    id: 2,
-    chatName: 'VIP Client',
-    user: { name: 'Bob Smith', email: 'bob@example.com' },
-    status: 'gold',
-    days: 2,
-    lastMessage: 'When can we schedule the next meeting?',
-    timestamp: '2024-01-15 11:45',
-    messageCount: 8,
-    is_read: false,
-  },
-  {
-    id: 3,
-    chatName: 'Support Ticket',
-    user: { name: 'Charlie Brown', email: 'charlie@example.com' },
-    status: 'yellow',
-    days: 3,
-    lastMessage: 'I need help with the login issue.',
-    timestamp: '2024-01-14 16:20',
-    messageCount: 5,
-    is_read: false,
-  },
-  {
-    id: 4,
-    chatName: 'Marketing Campaign',
-    user: { name: 'Diana Prince', email: 'diana@example.com' },
-    status: 'green',
-    days: 2,
-    lastMessage: 'The campaign results look promising!',
-    timestamp: '2024-01-15 09:15',
-    messageCount: 15,
-    is_read: false,
-  },
-  {
-    id: 5,
-    chatName: 'Product Launch',
-    user: { name: 'Ethan Hunt', email: 'ethan@example.com' },
-    status: 'gold',
-    days: 2,
-    lastMessage: 'Everything is ready for the launch.',
-    timestamp: '2024-01-15 13:22',
-    messageCount: 20,
-    is_read: false,
-  },
-  {
-    id: 6,
-    chatName: 'Bug Report',
-    user: { name: 'Fiona Gallagher', email: 'fiona@example.com' },
-    status: 'yellow',
-    days: 2,
-    lastMessage: 'Found a critical bug in the checkout process.',
-    timestamp: '2024-01-15 10:30',
-    messageCount: 3,
-    is_read: false,
-  },
-  {
-    id: 7,
-    chatName: 'Partnership Discussion',
-    user: { name: 'George Washington', email: 'george@example.com' },
-    status: 'green',
-    days: 2,
-    lastMessage: 'Looking forward to our collaboration.',
-    timestamp: '2024-01-15 15:45',
-    messageCount: 7,
-    is_read: false,
-  },
-  {
-    id: 8,
-    chatName: 'Premium Support',
-    user: { name: 'Helen Troy', email: 'helen@example.com' },
-    status: 'gold',
-    days: 2,
-    lastMessage: 'Thank you for the priority support.',
-    timestamp: '2024-01-15 12:10',
-    messageCount: 18,
-    is_read: false,
-  },
-  {
-    id: 9,
-    chatName: 'Feature Request',
-    user: { name: 'Ivan Drago', email: 'ivan@example.com' },
-    status: 'yellow',
-    days: 2,
-    lastMessage: 'Can we add dark mode to the application?',
-    timestamp: '2024-01-15 08:55',
-    messageCount: 4,
-    is_read: false,
-  },
-  {
-    id: 10,
-    chatName: 'Sales Inquiry',
-    user: { name: 'Julia Roberts', email: 'julia@example.com' },
-    status: 'green',
-    days: 2,
-    lastMessage: 'Interested in the enterprise package.',
-    timestamp: '2024-01-15 16:30',
-    messageCount: 6,
-    is_read: false,
-  },
-  {
-    id: 11,
-    chatName: 'Technical Support',
-    user: { name: 'Kevin Costner', email: 'kevin@example.com' },
-    status: 'gold',
-    days: 2,
-    lastMessage: 'Server optimization is working great!',
-    timestamp: '2024-01-15 14:15',
-    messageCount: 11,
-    is_read: false,
-  },
-  {
-    id: 12,
-    chatName: 'Training Session',
-    user: { name: 'Lisa Simpson', email: 'lisa@example.com' },
-    status: 'yellow',
-    days: 2,
-    lastMessage: 'When is the next training scheduled?',
-    timestamp: '2024-01-15 11:20',
-    messageCount: 9,
-    is_read: false,
-  },
-];
+interface NotificationTableProps {
+  stats?: any;
+  isLoading?: boolean;
+}
 
-export const NotificationTable: React.FC = () => {
-  const [selectedNotification, setSelectedNotification] = useState<any>(null);
-  const [notificationList, setNotificationList] = useState(notifications.map(n => ({ ...n, is_read: n.is_read || false })));
+export const NotificationTable: React.FC<NotificationTableProps> = ({ 
+  stats, 
+  isLoading 
+}) => {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationStats, setNotificationStats] = useState<NotificationStats>({ total: 0, unread: 0, read: 0 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
-  // Only show notifications for exactly 2 days ago
-  const filtered = notificationList.filter(n => n.days === 2);
-
-  const markAsRead = (id: number) => {
-    setNotificationList(list => list.map(n => n.id === id ? { ...n, is_read: true } : n));
-    // TODO: Call backend API to mark as read
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [notificationsData, statsData] = await Promise.all([
+        getAllNotifications(),
+        getAdminNotificationStats()
+      ]);
+      setNotifications(notificationsData);
+      setNotificationStats(statsData);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setError('Failed to fetch notifications');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId ? { ...n, isRead: true } : n
+        )
+      );
+      // Refresh stats
+      const stats = await getAdminNotificationStats();
+      setNotificationStats(stats);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleDelete = async (notificationId: string) => {
+    try {
+      await deleteNotification(notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      // Refresh stats
+      const stats = await getAdminNotificationStats();
+      setNotificationStats(stats);
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const filteredNotifications = notifications.filter(notification => {
+    if (filter === 'unread') return !notification.isRead;
+    if (filter === 'read') return notification.isRead;
+    return true;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-        <span className="text-gray-500">Showing chats for exactly 2 days ago</span>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+          <p className="text-gray-600 mt-1">
+            Manage system notifications and alerts
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchNotifications}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
       
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-[calc(100vh-200px)] overflow-hidden">
-        <div className="h-full overflow-y-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="sticky top-0 bg-white z-10">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chat Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Message</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center text-gray-400 py-8">No notifications for 2 days ago.</td>
-                </tr>
-              ) : (
-                filtered.map((n) => (
-                  <tr 
-                    key={n.id} 
-                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${n.is_read ? 'opacity-60' : ''}`}
-                    onClick={() => setSelectedNotification(n)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{n.chatName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700">
-                      {n.user.name} <span className="text-xs text-gray-400">({n.user.email})</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {n.status === 'gold' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                          <Star className="w-3 h-3 mr-1.5 text-amber-400" fill="currentColor" />
-                          {n.status && n.status !== 'gold' && (
-                            <span className={`w-2 h-2 rounded-full mr-1.5 ${n.status === 'green' ? 'bg-green-500' : n.status === 'yellow' ? 'bg-yellow-400' : n.status === 'red' ? 'bg-red-500' : ''}`}></span>
-                          )}
-                          Gold
-                        </span>
-                      ) : n.status === 'green' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                          <span className="w-2 h-2 rounded-full mr-1.5 bg-green-500" /> Green
-                        </span>
-                      ) : n.status === 'yellow' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border-yellow-200">
-                          <span className="w-2 h-2 rounded-full mr-1.5 bg-yellow-400" /> Yellow
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{n.lastMessage}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {n.timestamp}
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Notifications</p>
+              <p className="text-2xl font-bold text-gray-900">{notificationStats.total}</p>
+            </div>
+            <Bell className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Unread</p>
+              <p className="text-2xl font-bold text-red-600">{notificationStats.unread}</p>
+            </div>
+            <MessageCircle className="w-8 h-8 text-red-600" />
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Read</p>
+              <p className="text-2xl font-bold text-green-600">{notificationStats.read}</p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-green-600" />
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {n.is_read ? (
-                        <span className="text-xs text-green-600 font-semibold">Read</span>
-                      ) : (
-                        <span className="text-xs text-yellow-600 font-semibold">Pending</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
 
-      {/* Right-side notification panel */}
-      <AnimatePresence>
-        {selectedNotification && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 z-40"
-              onClick={() => setSelectedNotification(null)}
-            />
-            
-            {/* Side panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
-              className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 overflow-y-auto"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Notification Details</h2>
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className="flex items-center gap-4">
+          <Filter className="w-5 h-5 text-gray-500" />
+          <div className="flex gap-2">
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'unread', label: 'Unread' },
+              { key: 'read', label: 'Read' }
+            ].map(({ key, label }) => (
                   <button
-                    onClick={() => setSelectedNotification(null)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5" />
+                key={key}
+                onClick={() => setFilter(key as any)}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  filter === key
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {label}
                   </button>
+            ))}
+          </div>
+        </div>
                 </div>
                 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Chat Name</label>
-                    <p className="text-lg font-semibold text-gray-900">{selectedNotification.chatName}</p>
+      {/* Notifications List */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">
+            {filter === 'all' ? 'All Notifications' : 
+             filter === 'unread' ? 'Unread Notifications' : 'Read Notifications'}
+          </h3>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
-                    <p className="text-gray-900">{selectedNotification.user.name}</p>
-                    <p className="text-sm text-gray-500">{selectedNotification.user.email}</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="text-center py-12">
+            <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No notifications found</p>
+            <p className="text-sm text-gray-400 mt-1">
+              {filter === 'all' ? 'No notifications available' :
+               filter === 'unread' ? 'No unread notifications' : 'No read notifications'}
+            </p>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <div className="mt-1">
-                      {selectedNotification.status === 'gold' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                          <Star className="w-4 h-4 mr-1.5 text-amber-400" fill="currentColor" /> Gold Member
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {filteredNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`p-6 transition-colors ${
+                  notification.isRead ? 'bg-gray-50' : 'bg-white'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="font-semibold text-gray-900">
+                        {notification.title}
+                      </h4>
+                      {!notification.isRead && (
+                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                          New
                         </span>
-                      ) : selectedNotification.status === 'green' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                          <span className="w-3 h-3 rounded-full mr-1.5 bg-green-500" /> Active
+                      )}
+                      {notification.notificationType && (
+                        <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                          {notification.notificationType}
                         </span>
-                      ) : selectedNotification.status === 'yellow' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                          <span className="w-3 h-3 rounded-full mr-1.5 bg-yellow-400" /> Pending
-                        </span>
-                      ) : null}
+                      )}
                     </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Message</label>
-                    <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedNotification.lastMessage}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Timestamp</label>
-                      <div className="flex items-center text-gray-600">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        <span className="text-sm">{selectedNotification.timestamp}</span>
+                    <p className="text-gray-600 mb-3">{notification.message}</p>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{new Date(notification.createdAt).toLocaleString()}</span>
                       </div>
+                      {notification.chatName && (
+                        <div className="flex items-center gap-1">
+                          <span>•</span>
+                          <span className="text-blue-600">{notification.chatName}</span>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Messages</label>
-                      <div className="flex items-center text-gray-600">
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        <span className="text-sm">{selectedNotification.messageCount} messages</span>
+                      )}
+                      {notification.userId && (
+                        <div className="flex items-center gap-1">
+                          <span>•</span>
+                          <span className="text-gray-600">User: {notification.userId}</span>
                       </div>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t">
-                    <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                      View Full Chat
+                  <div className="flex items-center gap-2 ml-4">
+                    {!notification.isRead && (
+                      <button
+                        onClick={() => handleMarkAsRead(notification.id)}
+                        className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                        title="Mark as read"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(notification.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Delete notification"
+                    >
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </>
+            ))}
+          </div>
         )}
-      </AnimatePresence>
     </div>
+    </motion.div>
   );
 }; 

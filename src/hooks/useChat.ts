@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Chat, Message, AppState, ProfessionType } from '../types';
-import { openaiService } from '../services/openai';
-import { fetchInstagramAccountDetails } from '../services/instagram';
 import authService from '../services/auth';
 import { chatApi } from '../services/chat';
 import { messageApi } from '../services/message';
@@ -294,7 +292,13 @@ export const useChat = () => {
 
   // Send message with backend integration
   const sendMessage = useCallback(async (query: string) => {
-    setIsTyping(true);
+    // Check if this is an Instagram fetch request
+    const isInstagramRequest = /(?:ig|instagram)\s*:?\s*([a-zA-Z0-9._]+)/i.test(query);
+    
+    if (!isInstagramRequest) {
+      setIsTyping(true);
+    }
+    
     try {
       let chatId = state.currentChatId;
       // Create new chat if none exists
@@ -308,6 +312,7 @@ export const useChat = () => {
       // Get current message order
       const currentChat = state.chats.find(chat => chat.id === chatId);
       const messageOrder = (currentChat?.messages?.length || 0);
+      
       // Save user message to backend and get both user and assistant messages
       const response = await messageApi.createMessage({
         content: query,

@@ -19,6 +19,9 @@ const envVarsSchema = Joi.object()
     SMTP_USERNAME: Joi.string().description('username for email server'),
     SMTP_PASSWORD: Joi.string().description('password for email server'),
     EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
+    OPENAI_API_KEY: Joi.string().description('OpenAI API key'),
+    INSTAGRAM_ACCESS_TOKEN: Joi.string().description('Instagram Graph API access token'),
+    INSTAGRAM_BUSINESS_ACCOUNT_ID: Joi.string().description('Instagram business account ID'),
   })
   .unknown();
 
@@ -53,5 +56,12 @@ module.exports = {
       },
     },
     from: envVars.EMAIL_FROM,
+  },
+  openai: {
+    apiKey: envVars.OPENAI_API_KEY,
+  },
+  instagram: {
+    accessToken: envVars.INSTAGRAM_ACCESS_TOKEN,
+    businessAccountId: envVars.INSTAGRAM_BUSINESS_ACCOUNT_ID,
   },
 };

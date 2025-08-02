@@ -8,13 +8,10 @@ const userValidation = require('../validators/user.validation');
 
 const router = express.Router();
 
-// Auth routes
 router.post('/register', validate(userValidation.register), authController.register);
 router.post('/login', validate(userValidation.login), authController.login);
 router.post('/logout', auth(), authController.logout);
 router.post('/refresh-token', validate(userValidation.refreshToken), authController.refreshToken);
-
-// User profile
 router.get('/profile', auth(), authController.getProfile);
 
 // User sessions (admin only)

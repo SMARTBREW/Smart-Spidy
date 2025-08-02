@@ -79,7 +79,6 @@ const getUsers = catchAsync(async (req, res) => {
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: users, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-  // Count total active and inactive users
   const { count: activeCount, error: activeError } = await supabaseAdmin
     .from('users')
     .select('id', { count: 'exact', head: true })
@@ -221,10 +220,9 @@ const getUserSessions = catchAsync(async (req, res) => {
     .select('*, users(id, name, email)', { count: 'exact' });
   if (user_id) query = query.eq('user_id', user_id);
   if (is_active !== undefined) query = query.eq('is_active', is_active === 'true');
-  query = query.order('login_time', { ascending: false }).range(offset, offset + limit - 1);
+  query = query.order('updated_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: sessions, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-  // Count total active and ended sessions
   const { count: activeCount, error: activeError } = await supabaseAdmin
     .from('user_sessions')
     .select('id', { count: 'exact', head: true })

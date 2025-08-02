@@ -12,7 +12,11 @@ const userRoutes = require('./routes/userRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const fundraiserRoutes = require('./routes/fundraiserRoutes');
 const messageRoutes = require('./routes/messageRoutes');
-const testRoutes = require('./routes/testRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+
+// Initialize cron service for automatic notifications
+require('./services/cronService');
+
 const ApiError = require('./utils/ApiError');
 
 const app = express();
@@ -20,7 +24,7 @@ const app = express();
 passport.use('jwt', jwtStrategy);
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -73,7 +77,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/fundraisers', fundraiserRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/test', testRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+
 
 app.use((req, res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));

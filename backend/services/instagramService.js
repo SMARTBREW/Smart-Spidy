@@ -2,8 +2,8 @@ const config = require('../config/config');
 const fetch = require('node-fetch');
 
 // Instagram API configuration
-const GRAPH_API_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || "EAAXy9R6Gng0BPLLeWI3LMBH6bzKKS4OEijdROjZCaz3bVhogDwv0iroKSQd2GHTMwdemJ3fTk0driBzxWX2M09iysyNHPUyyTqyUtnktzmqX56MiKfQYSOj6rvgeGZAhPAL7BfYdOtO8ft1mp2UvJpnr8YEizYXQ0lwZADG5ps6MWsYZCeDKuhq8uLsP";
-const DEFAULT_IG_USER_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || "17841475777137453";
+const GRAPH_API_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
+const DEFAULT_IG_USER_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ;
 
 /**
  * Fetch comprehensive Instagram account details using multiple Graph API endpoints

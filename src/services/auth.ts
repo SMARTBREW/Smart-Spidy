@@ -33,7 +33,7 @@ interface AuthTokens {
 }
 
 class AuthService {
-  private baseURL = 'http://localhost:3000/api';
+  private baseURL = import.meta.env.VITE_API_URL ;
   private withLoading: any = null;
 
   // Method to set the loading wrapper from the context

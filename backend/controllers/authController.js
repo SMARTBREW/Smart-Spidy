@@ -6,12 +6,9 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const config = require('../config/config');
 
-// Helper to remove sensitive fields
 const sanitizeUser = (user) => {
   if (!user) return user;
   const { password_hash, ...rest } = user;
-  
-  // Transform snake_case to camelCase for frontend compatibility
   return {
     id: rest.id,
     name: rest.name,
@@ -27,23 +24,19 @@ const sanitizeUser = (user) => {
 const generateToken = (payload, secret, expiresIn) => {
   return jwt.sign(payload, secret, { expiresIn });
 };
-
 const generateAuthTokens = (user) => {
   const accessTokenExpires = config.jwt.accessExpirationMinutes * 60;
   const refreshTokenExpires = config.jwt.refreshExpirationDays * 24 * 60 * 60;
-
   const accessToken = generateToken(
     { sub: user.id, type: 'access' },
     config.jwt.secret,
     `${accessTokenExpires}s`
   );
-
   const refreshToken = generateToken(
     { sub: user.id, type: 'refresh' },
     config.jwt.refreshSecret,
     `${refreshTokenExpires}s`
   );
-
   return {
     access: {
       token: accessToken,
@@ -58,32 +51,22 @@ const generateAuthTokens = (user) => {
 
 const register = catchAsync(async (req, res) => {
   const { email, password, ...rest } = req.body;
-
-  // Check if user already exists
   const { data: existingUser } = await supabaseAdmin
     .from('users')
     .select('id')
     .eq('email', email)
     .single();
-
   if (existingUser) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
   }
-
-  // Hash password
   const hashedPassword = await bcrypt.hash(password, 12);
-
-  // Create user
   const { data: user, error } = await supabaseAdmin
     .from('users')
     .insert([{ email, password_hash: hashedPassword, ...rest, is_active: true }])
     .select('*')
     .single();
-
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-
   const tokens = generateAuthTokens(user);
-
   res.status(httpStatus.CREATED).send({
     user: sanitizeUser(user),
     tokens
@@ -92,29 +75,22 @@ const register = catchAsync(async (req, res) => {
 
 const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
-
   const { data: user, error } = await supabaseAdmin
     .from('users')
     .select('*')
     .eq('email', email)
     .eq('is_active', true)
     .single();
-
   if (error || !user) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
   }
-
   const isPasswordMatch = await bcrypt.compare(password, user.password_hash);
   if (!isPasswordMatch) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
   }
-
-  // Parallel operations for better performance
   const currentTime = new Date().toISOString();
   const tokens = generateAuthTokens(user);
-
   const [updateResult, sessionResult] = await Promise.allSettled([
-    // Update user's last login
     supabaseAdmin
       .from('users')
       .update({
@@ -122,9 +98,37 @@ const login = catchAsync(async (req, res) => {
         updated_at: currentTime,
       })
       .eq('id', user.id),
-    
-    // Create user session
     supabaseAdmin
+      .from('user_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+  ]);
+  if (updateResult.status === 'rejected') {
+    console.error('Failed to update last login:', updateResult.reason);
+  }
+  let sessionId = null;
+  if (sessionResult.status === 'fulfilled' && sessionResult.value.data) {
+    const existingSession = sessionResult.value.data;
+    const { data: updatedSession, error: updateError } = await supabaseAdmin
+      .from('user_sessions')
+      .update({ 
+        login_time: currentTime,
+        logout_time: null,
+        session_duration: null,
+        is_active: true,
+        updated_at: currentTime
+      })
+      .eq('id', existingSession.id)
+      .select('*')
+      .single();
+    if (!updateError && updatedSession) {
+      sessionId = updatedSession.id;
+    } else {
+      console.error('Failed to update existing session:', updateError);
+    }
+  } else {
+    const { data: newSession, error: createError } = await supabaseAdmin
       .from('user_sessions')
       .insert([{ 
         user_id: user.id, 
@@ -132,21 +136,13 @@ const login = catchAsync(async (req, res) => {
         is_active: true 
       }])
       .select('*')
-      .single()
-  ]);
-
-  // Log any errors but don't fail the login
-  if (updateResult.status === 'rejected') {
-    console.error('Failed to update last login:', updateResult.reason);
+      .single();
+    if (!createError && newSession) {
+      sessionId = newSession.id;
+    } else {
+      console.error('Failed to create user session:', createError);
+    }
   }
-  
-  let sessionId = null;
-  if (sessionResult.status === 'fulfilled') {
-    sessionId = sessionResult.value.data?.id;
-  } else {
-    console.error('Failed to create user session:', sessionResult.reason);
-  }
-
   res.send({
     user: sanitizeUser(user),
     tokens,
@@ -159,22 +155,18 @@ const refreshToken = catchAsync(async (req, res) => {
   if (!refreshToken) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Refresh token is required');
   }
-
   try {
     const payload = jwt.verify(refreshToken, config.jwt.refreshSecret);
     const userId = payload.sub;
-
     const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', userId)
       .eq('is_active', true)
       .single();
-
     if (error || !user) {
       throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid refresh token');
     }
-
     const tokens = generateAuthTokens(user);
     res.send({ tokens });
   } catch (error) {
@@ -183,48 +175,30 @@ const refreshToken = catchAsync(async (req, res) => {
 });
 
 const getProfile = catchAsync(async (req, res) => {
-  // The user is already authenticated and available in req.user from the auth middleware
   res.send(sanitizeUser(req.user));
 });
 
 const logout = catchAsync(async (req, res) => {
-  const { session_id } = req.body;
   const userId = req.user.id;
-
-  if (session_id) {
-    // Update the specific session
-    const { data: session, error: fetchError } = await supabaseAdmin
-      .from('user_sessions')
-      .select('*')
-      .eq('id', session_id)
-      .eq('user_id', userId)
-      .single();
-
-    if (!fetchError && session) {
-      const logoutTime = new Date().toISOString();
-      const sessionDuration = Math.floor((new Date(logoutTime) - new Date(session.login_time)) / 1000);
-
-      await supabaseAdmin
-        .from('user_sessions')
-        .update({ 
-          logout_time: logoutTime,
-          session_duration: sessionDuration,
-          is_active: false 
-        })
-        .eq('id', session_id);
-    }
-  } else {
-    // Logout all active sessions for the user
+  const { data: session, error: fetchError } = await supabaseAdmin
+    .from('user_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .single();
+  if (!fetchError && session) {
+    const logoutTime = new Date().toISOString();
+    const sessionDuration = Math.floor((new Date(logoutTime) - new Date(session.login_time)) / 1000);
     await supabaseAdmin
       .from('user_sessions')
       .update({ 
-        logout_time: new Date().toISOString(),
-        is_active: false 
+        logout_time: logoutTime,
+        session_duration: sessionDuration,
+        is_active: false,
+        updated_at: logoutTime
       })
-      .eq('user_id', userId)
-      .eq('is_active', true);
+      .eq('id', session.id);
   }
-
   res.status(httpStatus.OK).send({ message: 'Logged out successfully' });
 });
 

@@ -5,6 +5,7 @@ const catchAsync = require('../utils/catchAsync');
 const { generateOpenAIResponse } = require('../services/openaiService');
 const { analyzeInstagramAccount } = require('../services/openaiService');
 const { getCampaignDM, replaceDMTemplate, isFirstDMRequest } = require('../services/campaignService');
+const { updateChatLastActivity, updateFundraiserLastActivity } = require('../services/notificationService');
 
 const pick = (obj, keys) =>
   keys.reduce((acc, key) => {
@@ -26,8 +27,6 @@ const sanitizeMessage = (message) => {
   };
 };
 
-
-// Enhanced: Detect double colon for force live fetch
 const extractInstagramUsername = (content) => {
   const livePattern = /(?:ig|instagram)\s*::\s*([a-zA-Z0-9._]+)/i;
   const cachedPattern = /(?:ig|instagram)\s*:\s*([a-zA-Z0-9._]+)/i;
@@ -39,7 +38,6 @@ const extractInstagramUsername = (content) => {
   return null;
 };
 
-// Accept forceLive param
 const handleInstagramData = async (username, userId, forceLive = false) => {
   try {
     let didLiveFetch = false;
@@ -50,35 +48,26 @@ const handleInstagramData = async (username, userId, forceLive = false) => {
         .eq('username', username)
         .single();
       if (existingAccount) {
-        console.log(`Instagram account @${username} fetched from database`);
         return { ...existingAccount, source: 'database' };
       }
     } else {
       didLiveFetch = true;
     }
-    // If forceLive or not found in DB, fetch from API
     let instagramDetails = null;
     try {
       const instagramService = require('../services/instagramService');
       const { fetchInstagramWithFallback } = instagramService;
-      console.log(`Fetching Instagram data for @${username}...`);
       const result = await fetchInstagramWithFallback(undefined, username, false);
       instagramDetails = result.details;
-      console.log(`Successfully fetched Instagram data for @${username}`);
     } catch (apiError) {
       console.warn(`Instagram API failed for @${username}:`, apiError.message);
       return null;
     }
-
-    // Run AI analysis on the fetched Instagram data
-    console.log(`Running AI analysis for @${username}...`);
     let aiAnalysis = null;
     try {
       aiAnalysis = await analyzeInstagramAccount(instagramDetails);
-      console.log(`AI analysis completed for @${username} with score: ${aiAnalysis.score}`);
     } catch (aiError) {
       console.warn(`AI analysis failed for @${username}:`, aiError.message);
-      // Continue without AI analysis if it fails
     }
 
     const instagramData = {
@@ -113,7 +102,6 @@ const handleInstagramData = async (username, userId, forceLive = false) => {
       console.error('Error saving Instagram account to database:', error);
       return null;
     }
-    // Always re-fetch from DB after saving
     const { data: savedAccount } = await supabaseAdmin
       .from('instagram_accounts')
       .select('*')
@@ -123,7 +111,6 @@ const handleInstagramData = async (username, userId, forceLive = false) => {
       console.error('Error: Instagram account not found in DB after saving');
       return null;
     }
-    console.log(`Saved Instagram account @${username} to database and returning DB record`);
     return { ...savedAccount, source: 'live' };
   } catch (error) {
     console.error('Error handling Instagram data:', error);
@@ -143,7 +130,6 @@ const createMessage = catchAsync(async (req, res) => {
   }
   const instagramUsername = extractInstagramUsername(messageData.content);
   let instagramAccount = null;
-  
   if (instagramUsername) {
     instagramAccount = await handleInstagramData(instagramUsername.username, messageData.user_id, instagramUsername.forceLive);
   }
@@ -152,7 +138,6 @@ const createMessage = catchAsync(async (req, res) => {
     .insert([messageData])
     .select('*')
     .single();
-
   if (userError) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, userError.message);
   }
@@ -167,119 +152,68 @@ const createMessage = catchAsync(async (req, res) => {
     const newCount = (chat.message_count || 0) + 1;
     const chatUpdateData = { 
       message_count: newCount,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      last_activity: new Date().toISOString()
     };
-    
-    // Don't overwrite instagram_username to preserve multiple Instagram accounts
-    // if (instagramUsername) {
-    //   chatUpdateData.instagram_username = instagramUsername;
-    // }
-    
     const { error: updateError } = await supabaseAdmin
       .from('chats')
       .update(chatUpdateData)
       .eq('id', messageData.chat_id);
     if (updateError) {
       console.error('Error updating chat message count:', updateError);
+    } else {
+      await updateChatLastActivity(messageData.chat_id);
     }
   }
   if (messageData.sender === 'user') {
-    console.log('=== USER MESSAGE PROCESSING START ===');
-    console.log('Message sender:', messageData.sender);
-    console.log('Message content:', messageData.content);
-    console.log('Chat ID:', messageData.chat_id);
-    console.log('User ID:', messageData.user_id);
-    
     let assistantContent = '';
     try {
-      // Check if user is requesting a first DM
-      console.log('Checking if this is a First DM request...');
       const isFirstDM = isFirstDMRequest(messageData.content);
-      console.log('Is First DM request:', isFirstDM);
-      
       if (isFirstDM) {
-        console.log('User requesting first DM, fetching campaign DM template...');
-        
-        // Get chat details to fetch profession and name
         const { data: chatDetails, error: chatError } = await supabaseAdmin
           .from('chats')
           .select('name, profession, product')
           .eq('id', messageData.chat_id)
           .single();
-
         if (chatError || !chatDetails) {
           console.error('Error fetching chat details:', chatError);
           assistantContent = 'Sorry, I could not retrieve the campaign DM template at this time.';
         } else {
           const { name: chatName, profession, product } = chatDetails;
-          
-          // Get user's name from the users table
           const { data: userData, error: userError } = await supabaseAdmin
             .from('users')
             .select('name')
             .eq('id', messageData.user_id)
             .single();
-
           const volunteerName = userData?.name || 'Smart Spidy Team';
-          console.log('Using volunteer name:', volunteerName);
-          
-          // Map product to campaign name (now they are the same)
           const campaign = product || 'Pads For Freedom';
-          
-          // Get campaign DM template
           const campaignDM = await getCampaignDM(profession, campaign);
-          
           if (campaignDM && campaignDM.template) {
-            // Replace template placeholders with actual values
             assistantContent = replaceDMTemplate(campaignDM.template, chatName, volunteerName);
-            console.log('Successfully generated campaign DM for profession:', profession);
           } else {
             assistantContent = `I couldn't find a specific campaign DM template for ${profession} in the ${campaign} campaign. Here's a general template you can customize:\n\nHello ${chatName},\n\nI hope you're doing well! I'm reaching out regarding our ${campaign} campaign. We'd love to have you as a campaign ambassador to help spread awareness about this important cause.\n\nWould you be interested in learning more about how you can get involved?\n\nBest regards,\n${volunteerName}`;
           }
         }
       } else {
-        // Enhanced RAG response with conversation memory for non-first-DM messages
-        console.log('=== ENHANCED RAG WITH CONVERSATION MEMORY ===');
-        console.log('Message content:', messageData.content);
-        console.log('Chat ID:', messageData.chat_id);
-        
-        // Get chat details for campaign-aware context
-        console.log('Fetching chat details for RAG context...');
         const { data: chatForContext, error: chatContextError } = await supabaseAdmin
           .from('chats')
           .select('product, profession, name')
           .eq('id', messageData.chat_id)
           .single();
-
         if (chatContextError) {
           console.error('Error fetching chat context:', chatContextError);
-        } else {
-          console.log('Chat context retrieved:', chatForContext);
         }
-
-        // Get conversation history for session memory
-        console.log('Fetching conversation history for memory...');
         const { data: conversationHistory, error: historyError } = await supabaseAdmin
           .from('messages')
           .select('content, sender, created_at')
           .eq('chat_id', messageData.chat_id)
           .order('created_at', { ascending: true })
-          .limit(20); // Last 20 messages for context
-
+          .limit(20); 
         if (historyError) {
           console.error('Error fetching conversation history:', historyError);
-        } else {
-          console.log('Conversation history retrieved:', conversationHistory?.length || 0, 'messages');
         }
-
         const contextDetails = chatContextError ? null : chatForContext;
         const chatHistory = historyError ? [] : (conversationHistory || []);
-        
-        console.log('Passing enhanced context to OpenAI:', {
-          chatDetails: contextDetails,
-          historyLength: chatHistory.length
-        });
-        
         assistantContent = await generateOpenAIResponse(messageData.content, contextDetails, chatHistory);
       }
     } catch (err) {
@@ -289,7 +223,7 @@ const createMessage = catchAsync(async (req, res) => {
     const assistantMessageData = {
       content: assistantContent,
       sender: 'assistant',
-      user_id: null, // or messageData.user_id if you want to associate
+      user_id: null, 
       chat_id: messageData.chat_id,
       message_order: (typeof messageData.message_order === 'number' ? messageData.message_order + 1 : 1),
       feedback: null,
@@ -346,7 +280,6 @@ const createMessage = catchAsync(async (req, res) => {
         media: instagramAccount.media,
         fetchedAt: instagramAccount.fetched_at,
         hasDetailedAccess: !!(instagramAccount.insights || instagramAccount.media || instagramAccount.audience_gender_age),
-        // Calculate aggregate stats from media
         totalLikesCount: instagramAccount.media ? 
           instagramAccount.media.reduce((sum, post) => sum + (post.like_count || 0), 0) : null,
         totalCommentsCount: instagramAccount.media ? 
@@ -356,7 +289,6 @@ const createMessage = catchAsync(async (req, res) => {
             .filter(post => post.timestamp)
             .map(post => new Date(post.timestamp))
             .sort((a, b) => b.getTime() - a.getTime())[0]?.toISOString() : null,
-        // AI Analysis
         aiAnalysisScore: instagramAccount.ai_analysis_score,
         aiAnalysisDetails: instagramAccount.ai_analysis_details,
         rawJson: instagramAccount.raw_json
@@ -387,7 +319,6 @@ const createMessage = catchAsync(async (req, res) => {
       media: instagramAccount.media,
               fetchedAt: instagramAccount.fetched_at,
         hasDetailedAccess: !!(instagramAccount.insights || instagramAccount.media || instagramAccount.audience_gender_age),
-        // Calculate aggregate stats from media
         totalLikesCount: instagramAccount.media ? 
           instagramAccount.media.reduce((sum, post) => sum + (post.like_count || 0), 0) : null,
         totalCommentsCount: instagramAccount.media ? 
@@ -397,7 +328,6 @@ const createMessage = catchAsync(async (req, res) => {
             .filter(post => post.timestamp)
             .map(post => new Date(post.timestamp))
             .sort((a, b) => b.getTime() - a.getTime())[0]?.toISOString() : null,
-        // AI Analysis
         aiAnalysisScore: instagramAccount.ai_analysis_score,
         aiAnalysisDetails: instagramAccount.ai_analysis_details,
         rawJson: instagramAccount.raw_json
@@ -414,7 +344,6 @@ const getMessages = catchAsync(async (req, res) => {
     .select('user_id, instagram_username')
     .eq('id', chatId)
     .single();
-
   if (chatError || !chat) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   }
@@ -428,21 +357,14 @@ const getMessages = catchAsync(async (req, res) => {
     .order('message_order', { ascending: true })
     .order('created_at', { ascending: true })
     .range(offset, offset + limit - 1);
-
   if (error) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
   }
-
-  // Fetch Instagram account - check both chat.instagram_username and messages content
   let instagramAccounts = [];
   const instagramUsernames = new Set();
-  
-  // Add chat's instagram_username if it exists
   if (chat.instagram_username) {
     instagramUsernames.add(chat.instagram_username);
   }
-  
-  // Check all messages for Instagram usernames
   if (messages) {
     for (const message of messages) {
       const extractedUsername = extractInstagramUsername(message.content);
@@ -451,10 +373,7 @@ const getMessages = catchAsync(async (req, res) => {
       }
     }
   }
-  
-  // Get all Instagram accounts for the usernames found
   for (const username of instagramUsernames) {
-    console.log(`Looking for Instagram account with username: ${username}`);
     const { data: igAccount } = await supabaseAdmin
       .from('instagram_accounts')
       .select('*')
@@ -506,22 +425,14 @@ const getMessages = catchAsync(async (req, res) => {
         rawJson: igAccount.raw_json
       };
       instagramAccounts.push(formattedAccount);
-      console.log(`Added Instagram account to list:`, { 
-        id: formattedAccount.id, 
-        username: formattedAccount.username,
-        hasDetailedAccess: formattedAccount.hasDetailedAccess 
-      });
     }
   }
-  console.log(`Final instagramAccounts in response:`, instagramAccounts.length, 'accounts found');
 
-  // Build instagramTriggers: for each message that triggers a fetch, include { messageId, username, account }
   const instagramTriggers = [];
   if (messages) {
     for (const message of messages) {
       const extracted = extractInstagramUsername(message.content);
       if (extracted && extracted.username) {
-        // Find the account for this username (from instagramAccounts array)
         const account = instagramAccounts.find(acc => acc.username === extracted.username);
         if (account) {
           instagramTriggers.push({
@@ -550,13 +461,11 @@ const getMessages = catchAsync(async (req, res) => {
 
 const getMessage = catchAsync(async (req, res) => {
   const { id } = req.params;
-
   const { data: message, error } = await supabaseAdmin
     .from('messages')
     .select('*, chats(user_id)')
     .eq('id', id)
     .single();
-
   if (error || !message) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Message not found');
   }
@@ -574,7 +483,6 @@ const updateMessage = catchAsync(async (req, res) => {
     .select('*, chats(user_id)')
     .eq('id', id)
     .single();
-
   if (fetchError || !currentMessage) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Message not found');
   }
@@ -587,7 +495,6 @@ const updateMessage = catchAsync(async (req, res) => {
     .eq('id', id)
     .select('*')
     .single();
-
   if (error) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
   }
@@ -601,7 +508,6 @@ const deleteMessage = catchAsync(async (req, res) => {
     .select('*, chats(user_id)')
     .eq('id', id)
     .single();
-
   if (fetchError || !currentMessage) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Message not found');
   }
@@ -635,17 +541,14 @@ const deleteMessage = catchAsync(async (req, res) => {
       console.error('Error updating chat message count:', updateError);
     }
   }
-
   res.status(httpStatus.NO_CONTENT).send();
 });
 
 const createMessages = catchAsync(async (req, res) => {
   const { messages, chat_id } = req.body;
-
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Messages array is required');
   }
-
   if (!chat_id) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Chat ID is required');
   }
@@ -654,11 +557,9 @@ const createMessages = catchAsync(async (req, res) => {
     .select('user_id, message_count')
     .eq('id', chat_id)
     .single();
-
   if (chatError || !chat) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   }
-
   if (req.user.role !== 'admin' && chat.user_id !== req.user.id) {
     throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
   }
@@ -720,13 +621,11 @@ const getAllMessages = catchAsync(async (req, res) => {
   const { data: messages, count, error } = await supabaseAdmin
     .from('messages')
     .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false }) // Newest first
+    .order('created_at', { ascending: false }) 
     .range(offset, offset + limit - 1);
-
   if (error) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
   }
-  // Count total user and assistant messages
   const { count: userCount, error: userCountError } = await supabaseAdmin
     .from('messages')
     .select('id', { count: 'exact', head: true })
@@ -735,11 +634,9 @@ const getAllMessages = catchAsync(async (req, res) => {
     .from('messages')
     .select('id', { count: 'exact', head: true })
     .eq('sender', 'assistant');
-
   if (userCountError || assistantCountError) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count user/assistant messages');
   }
-
   res.send({
     messages: messages.map(sanitizeMessage),
     pagination: {

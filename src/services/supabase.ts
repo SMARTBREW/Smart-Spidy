@@ -91,29 +91,8 @@ class SupabaseService {
   }
 
   private async generateEmbedding(text: string): Promise<number[]> {
-    try {
-      const response = await fetch("https://api.openai.com/v1/embeddings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          input: text,
-          model: "text-embedding-3-small" // Using text-embedding-3-small as requested by user
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Embedding API error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result.data[0].embedding;
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      throw error;
-    }
+    // This should be handled by the backend
+    throw new Error('Embedding generation should be handled by the backend');
   }
 
   async storeKnowledgeData(data: {
@@ -256,45 +235,9 @@ class SupabaseService {
   }
 
   async extractProfessionFromBio(bio: string): Promise<string> {
-    try {
-      console.log('Extracting profession from bio:', bio.substring(0, 100) + '...');
-      
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "You are a profession extraction expert. Extract the main profession/job title from the given Instagram bio. Return only the profession in 1-3 words (e.g., 'doctor', 'software engineer', 'business owner', 'student', 'fitness trainer', 'artist', etc.). If no clear profession is found, return 'general'."
-            },
-            {
-              role: "user", 
-              content: `Extract the profession from this Instagram bio: "${bio}"`
-            }
-          ],
-          max_tokens: 20,
-          temperature: 0.1
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Profession extraction API error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const profession = result.choices[0]?.message?.content?.trim().toLowerCase() || 'general';
-      
-      console.log('Extracted profession:', profession);
-      return profession;
-    } catch (error) {
-      console.error('Error extracting profession from bio:', error);
-      return 'general'; // Fallback profession
-    }
+    // This should be handled by the backend
+    console.log('Profession extraction should be handled by the backend');
+    return 'general'; // Fallback profession
   }
 
   async storeFirstDMTemplate(data: {

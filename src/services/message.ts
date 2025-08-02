@@ -1,7 +1,7 @@
 import authService from './auth';
 import { Message } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL ;
 
 // Global loading wrapper for message API calls
 let withLoading: any = null;
@@ -141,15 +141,26 @@ const handleResponse = async (response: Response) => {
 export const messageApi = {
   // Create a single message
   async createMessage(data: CreateMessageRequest): Promise<CreateMessageResponse> {
-    // Don't use loading wrapper for createMessage - we want to show typing indicator instead
-    const response = await authService.authenticatedRequest(
-      `${API_BASE_URL}/messages`,
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    );
-    return handleResponse(response);
+    const createMessageFn = async () => {
+      const response = await authService.authenticatedRequest(
+        `${API_BASE_URL}/messages`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }
+      );
+      return handleResponse(response);
+    };
+
+    // Check if this is an Instagram request
+    const isInstagramRequest = /(?:ig|instagram)\s*:+\s*([a-zA-Z0-9._]+)/i.test(data.content);
+    
+    if (isInstagramRequest && withLoading) {
+      return withLoading('message-create-instagram', createMessageFn)();
+    }
+    
+    // Don't use loading wrapper for regular messages - we want to show typing indicator instead
+    return createMessageFn();
   },
 
   // Get messages for a specific chat

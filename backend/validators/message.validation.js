@@ -5,8 +5,8 @@ const createMessage = {
   body: Joi.object().keys({
     content: Joi.string().required().max(10000),
     sender: Joi.string().valid('user', 'assistant').required(),
-    user_id: objectId,
-    chat_id: objectId.required(),
+    user_id: Joi.string().custom(objectId),
+    chat_id: Joi.string().custom(objectId).required(),
     message_order: Joi.number().integer().min(0),
     feedback: Joi.string().max(1000),
   }),
@@ -14,7 +14,7 @@ const createMessage = {
 
 const getMessages = {
   params: Joi.object().keys({
-    chatId: objectId.required(),
+    chatId: Joi.string().custom(objectId).required(),
   }),
   query: Joi.object().keys({
     page: Joi.number().integer().min(1).default(1),
@@ -24,13 +24,13 @@ const getMessages = {
 
 const getMessage = {
   params: Joi.object().keys({
-    id: objectId.required(),
+    id: Joi.string().custom(objectId).required(),
   }),
 };
 
 const updateMessage = {
   params: Joi.object().keys({
-    id: objectId.required(),
+    id: Joi.string().custom(objectId).required(),
   }),
   body: Joi.object()
     .keys({
@@ -42,19 +42,19 @@ const updateMessage = {
 
 const deleteMessage = {
   params: Joi.object().keys({
-    id: objectId.required(),
+    id: Joi.string().custom(objectId).required(),
   }),
 };
 
 const createMessages = {
   body: Joi.object().keys({
-    chat_id: objectId.required(),
+    chat_id: Joi.string().custom(objectId).required(),
     messages: Joi.array()
       .items(
         Joi.object().keys({
           content: Joi.string().required().max(10000),
           sender: Joi.string().valid('user', 'assistant').required(),
-          user_id: objectId,
+          user_id: Joi.string().custom(objectId),
           message_order: Joi.number().integer().min(0),
           feedback: Joi.string().max(1000),
         })

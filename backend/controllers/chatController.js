@@ -40,15 +40,12 @@ const createChat = catchAsync(async (req, res) => {
   const chatData = pick(req.body, [
     'name', 'user_id', 'instagram_username', 'profession', 'product', 'gender',
   ]);
-
   const { data: chat, error } = await supabaseAdmin
     .from('chats')
     .insert([{ ...chatData, pinned: false, message_count: 0, is_gold: false }])
     .select('*, users(id, name, email)')
     .single();
-
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-
   res.status(httpStatus.CREATED).send(sanitizeChat(chat));
 });
 
@@ -65,11 +62,9 @@ const getChats = catchAsync(async (req, res) => {
   ]);
   const { page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
-
   let query = supabaseAdmin
     .from('chats')
     .select('*, users(id, name, email)', { count: 'exact' });
-
   if (req.user.role !== 'admin') {
     query = query.eq('user_id', req.user.id);
   } else if (filter.user_id) {
@@ -82,13 +77,9 @@ const getChats = catchAsync(async (req, res) => {
   if (filter.profession) query = query.eq('profession', filter.profession);
   if (filter.product) query = query.ilike('product', `%${filter.product}%`);
   if (filter.gender) query = query.eq('gender', filter.gender);
-
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
-
   const { data: chats, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-
-  // Count total pinned and gold chats
   const { count: pinnedCount, error: pinnedError } = await supabaseAdmin
     .from('chats')
     .select('id', { count: 'exact', head: true })
@@ -119,7 +110,6 @@ const getChat = catchAsync(async (req, res) => {
     .select('*, users(id, name, email)')
     .eq('id', req.params.id)
     .single();
-
   if (error || !chat) throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   res.send(sanitizeChat(chat));
 });
@@ -157,13 +147,11 @@ const getChatStats = catchAsync(async (_req, res) => {
       supabaseAdmin.from('chats').select('*', { count: 'exact', head: true }).eq('status', status)
     ),
   ]);
-
   const [total, pinned, gold, ...statusCounts] = statResults.map((r) => r.count || 0);
   const totalChats = total || 0;
   const pinnedChats = pinned || 0;
   const goldChats = gold || 0;
   const [greenChats, yellowChats, redChats] = statusCounts;
-
   res.send({
     overall: {
       total: totalChats,
@@ -183,20 +171,15 @@ const getChatStats = catchAsync(async (_req, res) => {
 const updateChatStatus = catchAsync(async (req, res) => {
   const { status, makeGold } = req.body; 
   const { id } = req.params;
-
   const { data: currentChat, error: fetchError } = await supabaseAdmin
     .from('chats')
     .select('status, is_gold, user_id, name')
     .eq('id', id)
     .single();
-
   if (fetchError || !currentChat) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   }
-  
   const updateData = { updated_at: new Date().toISOString() };
-  
-  // Handle status updates
   if (status !== undefined) {
     const validStatuses = ['green', 'yellow', 'red', null];
     if (!validStatuses.includes(status)) {
@@ -204,8 +187,6 @@ const updateChatStatus = catchAsync(async (req, res) => {
     }
     updateData.status = status;
   }
-
-  // Handle gold/fundraiser updates
   if (makeGold !== undefined) {
     if (makeGold === false && currentChat.is_gold === true) {
       throw new ApiError(
@@ -215,21 +196,17 @@ const updateChatStatus = catchAsync(async (req, res) => {
     }
     if (makeGold === true) {
       updateData.is_gold = true;
-      // When making a chat gold/fundraiser, preserve the current status
-      // Only set status to null if it's not already set
       if (!updateData.hasOwnProperty('status')) {
         updateData.status = currentChat.status;
       }
     }
   }
-
   const { data: updatedChat, error } = await supabaseAdmin
     .from('chats')
     .update(updateData)
     .eq('id', id)
     .select('*, users(id, name, email)')
     .single();
-
   if (error || !updatedChat) throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
   if (updateData.is_gold === true) {
     const { data: existingFundraiser } = await supabaseAdmin
@@ -237,7 +214,6 @@ const updateChatStatus = catchAsync(async (req, res) => {
       .select('*')
       .eq('chat_id', id)
       .single();
-
     if (!existingFundraiser) {
       const { data: fundraiser, error: fundraiserError } = await supabaseAdmin
         .from('fundraisers')
@@ -249,24 +225,19 @@ const updateChatStatus = catchAsync(async (req, res) => {
     }
     return res.send({ chat: sanitizeChat(updatedChat), fundraiser: existingFundraiser });
   }
-
   res.send(sanitizeChat(updatedChat));
 });
 
 const pinChat = catchAsync(async (req, res) => {
   const { pinned } = req.body;
   const { id } = req.params;
-
-  // Fetch the chat to get the user_id
   const { data: chat, error: fetchError } = await supabaseAdmin
     .from('chats')
     .select('user_id')
     .eq('id', id)
     .single();
   if (fetchError || !chat) throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
-
   if (pinned) {
-    // Count currently pinned chats for this user
     const { count: pinnedCount, error: countError } = await supabaseAdmin
       .from('chats')
       .select('id', { count: 'exact', head: true })
@@ -277,13 +248,11 @@ const pinChat = catchAsync(async (req, res) => {
       throw new ApiError(httpStatus.BAD_REQUEST, 'You can only pin up to 5 chats. Unpin another chat first.');
     }
   }
-
   const updateData = {
     pinned,
     pinned_at: pinned ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   };
-
   const { data: updatedChat, error } = await supabaseAdmin
     .from('chats')
     .update(updateData)
@@ -297,95 +266,64 @@ const pinChat = catchAsync(async (req, res) => {
 const searchChats = catchAsync(async (req, res) => {
   const { q: query, page = 1, limit = 20, include_messages = true } = req.query;
   const offset = (page - 1) * limit;
-
-  // ALWAYS restrict to current user's chats only (except for admin with specific user_id filter)
   let chatQuery = supabaseAdmin
     .from('chats')
     .select('*, users(id, name, email)', { count: 'exact' });
-
-  // For all users (including admin), search their own chats by default
   if (req.user.role !== 'admin') {
-    // Regular users can only search their own chats
     chatQuery = chatQuery.eq('user_id', req.user.id);
   } else {
-    // Admin can search their own chats by default, or specify user_id to search other users
     if (req.query.user_id) {
-      // Admin wants to search specific user's chats
       chatQuery = chatQuery.eq('user_id', req.query.user_id);
     } else {
-      // Admin searches their own chats (default behavior)
       chatQuery = chatQuery.eq('user_id', req.user.id);
     }
   }
-
-  // Check if query is a status keyword
   const statusKeywords = ['green', 'yellow', 'red'];
   const isStatusSearch = statusKeywords.includes(query.toLowerCase());
-  
   if (isStatusSearch) {
-    // If searching for a status, filter by that status and exclude fundraisers
     const status = query.toLowerCase();
     chatQuery = chatQuery.eq('status', status).eq('is_gold', false);
   } else {
-    // Regular search in chat names
     chatQuery = chatQuery.or(`name.ilike.%${query}%`);
   }
-
   const { data: chats, count: chatCount, error: chatError } = await chatQuery
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
-
   if (chatError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, chatError.message);
-
-  // If include_messages is true, search in messages as well
   let messageResults = [];
   if (include_messages) {
-    // First get the chat IDs that belong to the current user (or specified user for admin)
     let userChatIdsQuery = supabaseAdmin
       .from('chats')
       .select('id');
-
     if (req.user.role !== 'admin') {
-      // Regular users can only search their own chats
       userChatIdsQuery = userChatIdsQuery.eq('user_id', req.user.id);
     } else {
-      // Admin can search their own chats by default, or specify user_id to search other users
       if (req.query.user_id) {
-        // Admin wants to search specific user's chats
         userChatIdsQuery = userChatIdsQuery.eq('user_id', req.query.user_id);
       } else {
-        // Admin searches their own chats (default behavior)
         userChatIdsQuery = userChatIdsQuery.eq('user_id', req.user.id);
       }
     }
-
     const { data: userChatIds, error: chatIdsError } = await userChatIdsQuery;
     if (chatIdsError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, chatIdsError.message);
-
     if (userChatIds && userChatIds.length > 0) {
       const chatIds = userChatIds.map(chat => chat.id);
-      
       let messageQuery = supabaseAdmin
         .from('messages')
         .select('*, chats(id, name, user_id, pinned, status, is_gold, created_at, users(id, name, email))')
         .in('chat_id', chatIds);
       
       if (isStatusSearch) {
-        // For status searches, also filter by status and exclude fundraisers
         const status = query.toLowerCase();
         messageQuery = messageQuery.eq('chats.status', status).eq('chats.is_gold', false);
       } else {
-        // Regular message content search
         messageQuery = messageQuery.or(`content.ilike.%${query}%`);
       }
 
       const { data: messages, error: messageError } = await messageQuery
         .order('created_at', { ascending: false })
         .limit(limit);
-
       if (messageError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, messageError.message);
-
-      // Group messages by chat and format results
       const chatMessageMap = new Map();
       messages.forEach(msg => {
         if (!chatMessageMap.has(msg.chat_id)) {
@@ -402,20 +340,15 @@ const searchChats = catchAsync(async (req, res) => {
           message_order: msg.message_order
         });
       });
-
       messageResults = Array.from(chatMessageMap.values());
     }
   }
-
-  // Combine and deduplicate results
   const chatIds = new Set(chats.map(chat => chat.id));
   const uniqueMessageResults = messageResults.filter(result => !chatIds.has(result.chat.id));
-
   const combinedResults = [
     ...chats.map(chat => ({ chat: sanitizeChat(chat), messages: [] })),
     ...uniqueMessageResults
   ];
-
   res.send({
     results: combinedResults,
     pagination: {

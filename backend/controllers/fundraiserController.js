@@ -40,7 +40,6 @@ const createFundraiser = catchAsync(async (req, res) => {
       .eq('id', fundraiserData.chat_id)
       .single();
     if (chatError || !chat) throw new ApiError(httpStatus.BAD_REQUEST, 'Chat not found');
-    
     if (!chat.is_gold) {
       await supabaseAdmin
         .from('chats')
@@ -48,7 +47,6 @@ const createFundraiser = catchAsync(async (req, res) => {
         .eq('id', fundraiserData.chat_id);
     }
   }
-  
   if (fundraiserData.created_by) {
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
@@ -57,7 +55,6 @@ const createFundraiser = catchAsync(async (req, res) => {
       .single();
     if (userError || !user) throw new ApiError(httpStatus.BAD_REQUEST, 'User not found');
   }
-  
   const { data: fundraiser, error } = await supabaseAdmin
     .from('fundraisers')
     .insert([fundraiserData])
@@ -77,16 +74,12 @@ const getFundraisers = catchAsync(async (req, res) => {
   if (filter.name) query = query.ilike('name', `%${filter.name}%`);
   if (filter.created_by) query = query.eq('created_by', filter.created_by);
   if (filter.chat_id) query = query.eq('chat_id', filter.chat_id);
-
-  // Add last week filter
   if (last_week === 'true') {
     const now = new Date();
     const lastWeek = new Date();
     lastWeek.setDate(now.getDate() - 7);
     query = query.gte('created_at', lastWeek.toISOString());
   }
-
-  // Add custom date range filter
   if (start_date && end_date) {
     query = query.gte('created_at', new Date(start_date).toISOString())
                  .lte('created_at', new Date(end_date).toISOString());
@@ -95,11 +88,9 @@ const getFundraisers = catchAsync(async (req, res) => {
   } else if (end_date) {
     query = query.lte('created_at', new Date(end_date).toISOString());
   }
-
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: fundraisers, count, error } = await query;
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-  // Count total fundraisers this month and this week
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
@@ -145,7 +136,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
     .eq('id', id)
     .single();
   if (fetchError || !fundraiser) throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
-  
   if (req.body.chat_id) {
     const { data: chat, error: chatError } = await supabaseAdmin
       .from('chats')
@@ -153,7 +143,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
       .eq('id', req.body.chat_id)
       .single();
     if (chatError || !chat) throw new ApiError(httpStatus.BAD_REQUEST, 'Chat not found');
-    
     if (!chat.is_gold) {
       await supabaseAdmin
         .from('chats')
@@ -161,7 +150,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
         .eq('id', req.body.chat_id);
     }
   }
-  
   if (req.body.created_by) {
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
@@ -170,7 +158,6 @@ const updateFundraiser = catchAsync(async (req, res) => {
       .single();
     if (userError || !user) throw new ApiError(httpStatus.BAD_REQUEST, 'User not found');
   }
-  
   const updateData = { ...req.body, updated_at: new Date().toISOString() };
   const { data: updatedFundraiser, error } = await supabaseAdmin
     .from('fundraisers')
@@ -189,7 +176,6 @@ const deleteFundraiser = catchAsync(async (req, res) => {
     .select('chat_id')
     .eq('id', id)
     .single();
-  
   if (fetchError || !fundraiser) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Fundraiser not found');
   }

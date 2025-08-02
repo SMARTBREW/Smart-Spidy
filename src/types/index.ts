@@ -255,3 +255,28 @@ export const PROFESSION_LIST = [
 ] as const;
 
 export type ProfessionType = typeof PROFESSION_LIST[number];
+
+export interface Notification {
+  id: string;
+  chatId?: string;
+  fundraiserId?: string;
+  userId: string;
+  title: string;
+  message: string;
+  chatName?: string;
+  messageCount?: number;
+  daysInactive?: number;
+  lastActivityDate?: string;
+  notificationType: string;
+  isRead: boolean;
+  isSent: boolean;
+  createdAt: string;
+  sentAt?: string;
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  read: number;
+}
+

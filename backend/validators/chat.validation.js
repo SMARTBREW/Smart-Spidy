@@ -1,10 +1,10 @@
 const Joi = require('joi');
-const { uuid } = require('./custom.validation');
+const { objectId } = require('./custom.validation');
 
 const createChat = {
   body: Joi.object().keys({
     name: Joi.string().required(),
-    user_id: Joi.string().custom(uuid).required(),
+    user_id: Joi.string().custom(objectId).required(),
     instagram_username: Joi.string().optional().allow(''),
     profession: Joi.string().optional().allow(''),
     product: Joi.string().optional().allow(''),
@@ -19,7 +19,7 @@ const getChats = {
     name: Joi.string(),
     status: Joi.string().valid('green', 'yellow', 'red', 'gold'),
     pinned: Joi.boolean(),
-    user_id: Joi.string().custom(uuid),
+    user_id: Joi.string().custom(objectId),
     profession: Joi.string(),
     product: Joi.string(),
     gender: Joi.string(),
@@ -28,13 +28,13 @@ const getChats = {
 
 const getChat = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
 };
 
 const updateChat = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
   body: Joi.object()
     .keys({
@@ -53,13 +53,13 @@ const updateChat = {
 
 const deleteChat = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
 };
 
 const updateChatStatus = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
   body: Joi.object().keys({
     status: Joi.string().valid('green', 'yellow', 'red', null),
@@ -69,7 +69,7 @@ const updateChatStatus = {
 
 const pinChat = {
   params: Joi.object().keys({
-    id: Joi.string().custom(uuid),
+    id: Joi.string().custom(objectId),
   }),
   body: Joi.object().keys({
     pinned: Joi.boolean().required(),
@@ -82,7 +82,7 @@ const searchChats = {
     page: Joi.number().integer().min(1),
     limit: Joi.number().integer().min(1).max(100),
     include_messages: Joi.boolean().default(true),
-    user_id: Joi.string().custom(uuid), // For admin to specify which user to search
+    user_id: Joi.string().custom(objectId), // For admin to specify which user to search
   }),
 };
 
