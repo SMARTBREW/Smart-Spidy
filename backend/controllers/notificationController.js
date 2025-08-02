@@ -8,6 +8,8 @@ const sanitizeNotification = (notification) => ({
   chatId: notification.chat_id,
   fundraiserId: notification.fundraiser_id,
   userId: notification.user_id,
+  userName: notification.user_name, // Add user name
+  userEmail: notification.user_email, // Add user email
   title: notification.title,
   message: notification.message,
   chatName: notification.chat_name,
@@ -62,12 +64,25 @@ const getNotificationStats = catchAsync(async (req, res) => {
 const getAllNotifications = catchAsync(async (req, res) => {
   const { data: notifications, error } = await supabaseAdmin
     .from('notifications')
-    .select('*')
+    .select(`
+      *,
+      users!notifications_user_id_fkey (
+        name,
+        email
+      )
+    `)
     .order('created_at', { ascending: false });
+  
   if (error) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
   }
-  const sanitizedNotifications = notifications?.map(sanitizeNotification) || [];
+  
+  const sanitizedNotifications = notifications?.map(notification => ({
+    ...sanitizeNotification(notification),
+    userName: notification.users?.name || 'Unknown User',
+    userEmail: notification.users?.email || 'No email'
+  })) || [];
+  
   res.send({
     notifications: sanitizedNotifications,
     count: sanitizedNotifications.length

@@ -2,6 +2,33 @@ const { supabaseAdmin } = require('../config/supabase');
 const ApiError = require('../utils/ApiError');
 const httpStatus = require('http-status');
 
+// Helper function to check if notification already exists for a chat today
+const checkExistingNotification = async (chatId, notificationType) => {
+  try {
+    const today = new Date();
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const { data: existingNotifications, error } = await supabaseAdmin
+      .from('notifications')
+      .select('id')
+      .eq('chat_id', chatId)
+      .eq('notification_type', notificationType)
+      .gte('created_at', todayStart.toISOString())
+      .limit(1);
+
+    if (error) {
+      console.error('❌ Error checking existing notifications:', error);
+      return false;
+    }
+
+    return existingNotifications && existingNotifications.length > 0;
+  } catch (error) {
+    console.error('❌ Error checking existing notifications:', error);
+    return false;
+  }
+};
+
 // Generate notifications for inactive chats (2-day and 5-day)
 const generateInactiveChatNotifications = async () => {
   try {
@@ -62,35 +89,49 @@ const generateInactiveChatNotifications = async () => {
 
     console.log(`📊 Found ${twoDayInactiveChats.length} 2-day inactive chats and ${fiveDayInactiveChats.length} 5-day inactive chats`);
 
-    // Generate notifications for 2-day inactive chats
-    const twoDayNotifications = twoDayInactiveChats.map(chat => ({
-      chat_id: chat.id,
-      user_id: chat.user_id,
-      title: 'Chat Inactive Alert',
-      message: `Chat "${chat.name}" has been inactive for 2 days. Consider re-engaging!`,
-      chat_name: chat.name,
-      message_count: chat.message_count,
-      days_inactive: 2,
-      last_activity_date: chat.updated_at,
-      notification_type: 'chat_inactive_2days',
-      is_read: false,
-      is_sent: false
-    }));
+    // Filter out chats that already have notifications today
+    const twoDayNotifications = [];
+    const fiveDayNotifications = [];
 
-    // Generate notifications for 5-day inactive chats
-    const fiveDayNotifications = fiveDayInactiveChats.map(chat => ({
-      chat_id: chat.id,
-      user_id: chat.user_id,
-      title: 'Chat Action Required',
-      message: `Chat "${chat.name}" has been inactive for 5 days. Time to take action!`,
-      chat_name: chat.name,
-      message_count: chat.message_count,
-      days_inactive: 5,
-      last_activity_date: chat.updated_at,
-      notification_type: 'chat_inactive_4days', // Changed from 5days to 4days to match DB constraint
-      is_read: false,
-      is_sent: false
-    }));
+    // Check and create 2-day notifications
+    for (const chat of twoDayInactiveChats) {
+      const hasExistingNotification = await checkExistingNotification(chat.id, 'chat_inactive_2days');
+      if (!hasExistingNotification) {
+        twoDayNotifications.push({
+          chat_id: chat.id,
+          user_id: chat.user_id,
+          title: 'Chat Inactive Alert',
+          message: `Chat "${chat.name}" has been inactive for 2 days. Consider re-engaging!`,
+          chat_name: chat.name,
+          message_count: chat.message_count,
+          days_inactive: 2,
+          last_activity_date: chat.updated_at,
+          notification_type: 'chat_inactive_2days',
+          is_read: false,
+          is_sent: false
+        });
+      }
+    }
+
+    // Check and create 5-day notifications
+    for (const chat of fiveDayInactiveChats) {
+      const hasExistingNotification = await checkExistingNotification(chat.id, 'chat_inactive_4days');
+      if (!hasExistingNotification) {
+        fiveDayNotifications.push({
+          chat_id: chat.id,
+          user_id: chat.user_id,
+          title: 'Chat Action Required',
+          message: `Chat "${chat.name}" has been inactive for 5 days. Time to take action!`,
+          chat_name: chat.name,
+          message_count: chat.message_count,
+          days_inactive: 5,
+          last_activity_date: chat.updated_at,
+          notification_type: 'chat_inactive_4days', // Changed from 5days to 4days to match DB constraint
+          is_read: false,
+          is_sent: false
+        });
+      }
+    }
 
     // Insert all notifications
     const allNotifications = [...twoDayNotifications, ...fiveDayNotifications];
@@ -106,7 +147,7 @@ const generateInactiveChatNotifications = async () => {
 
       console.log(`✅ Generated ${twoDayNotifications.length} 2-day notifications and ${fiveDayNotifications.length} 5-day notifications`);
     } else {
-      console.log('ℹ️ No inactive chats found for notification generation');
+      console.log('ℹ️ No new inactive chat notifications to generate (all existing)');
     }
 
     return {
@@ -181,35 +222,49 @@ const generateInactiveFundraiserChatNotifications = async () => {
 
     console.log(`📊 Found ${twoDayInactiveFundraisers.length} 2-day inactive fundraisers and ${fiveDayInactiveFundraisers.length} 5-day inactive fundraisers`);
 
-    // Generate notifications for 2-day inactive fundraisers
-    const twoDayNotifications = twoDayInactiveFundraisers.map(fundraiser => ({
-      chat_id: fundraiser.id,
-      user_id: fundraiser.user_id,
-      title: 'Fundraiser Alert',
-      message: `Your fundraiser "${fundraiser.name}" has been inactive for 2 days. Don't lose momentum!`,
-      chat_name: fundraiser.name,
-      message_count: fundraiser.message_count,
-      days_inactive: 2,
-      last_activity_date: fundraiser.updated_at,
-      notification_type: 'fundraiser_inactive_2days',
-      is_read: false,
-      is_sent: false
-    }));
+    // Filter out fundraisers that already have notifications today
+    const twoDayNotifications = [];
+    const fiveDayNotifications = [];
 
-    // Generate notifications for 5-day inactive fundraisers
-    const fiveDayNotifications = fiveDayInactiveFundraisers.map(fundraiser => ({
-      chat_id: fundraiser.id,
-      user_id: fundraiser.user_id,
-      title: 'Fundraiser Action Required',
-      message: `Your fundraiser "${fundraiser.name}" has been inactive for 5 days. Immediate action required!`,
-      chat_name: fundraiser.name,
-      message_count: fundraiser.message_count,
-      days_inactive: 5,
-      last_activity_date: fundraiser.updated_at,
-      notification_type: 'fundraiser_inactive_4days', // Changed from 5days to 4days to match DB constraint
-      is_read: false,
-      is_sent: false
-    }));
+    // Check and create 2-day fundraiser notifications
+    for (const fundraiser of twoDayInactiveFundraisers) {
+      const hasExistingNotification = await checkExistingNotification(fundraiser.id, 'fundraiser_inactive_2days');
+      if (!hasExistingNotification) {
+        twoDayNotifications.push({
+          chat_id: fundraiser.id,
+          user_id: fundraiser.user_id,
+          title: 'Fundraiser Alert',
+          message: `Your fundraiser "${fundraiser.name}" has been inactive for 2 days. Don't lose momentum!`,
+          chat_name: fundraiser.name,
+          message_count: fundraiser.message_count,
+          days_inactive: 2,
+          last_activity_date: fundraiser.updated_at,
+          notification_type: 'fundraiser_inactive_2days',
+          is_read: false,
+          is_sent: false
+        });
+      }
+    }
+
+    // Check and create 5-day fundraiser notifications
+    for (const fundraiser of fiveDayInactiveFundraisers) {
+      const hasExistingNotification = await checkExistingNotification(fundraiser.id, 'fundraiser_inactive_4days');
+      if (!hasExistingNotification) {
+        fiveDayNotifications.push({
+          chat_id: fundraiser.id,
+          user_id: fundraiser.user_id,
+          title: 'Fundraiser Action Required',
+          message: `Your fundraiser "${fundraiser.name}" has been inactive for 5 days. Immediate action required!`,
+          chat_name: fundraiser.name,
+          message_count: fundraiser.message_count,
+          days_inactive: 5,
+          last_activity_date: fundraiser.updated_at,
+          notification_type: 'fundraiser_inactive_4days', // Changed from 5days to 4days to match DB constraint
+          is_read: false,
+          is_sent: false
+        });
+      }
+    }
 
     // Insert all notifications
     const allNotifications = [...twoDayNotifications, ...fiveDayNotifications];
@@ -225,7 +280,7 @@ const generateInactiveFundraiserChatNotifications = async () => {
 
       console.log(`✅ Generated ${twoDayNotifications.length} 2-day fundraiser notifications and ${fiveDayNotifications.length} 5-day fundraiser notifications`);
     } else {
-      console.log('ℹ️ No inactive fundraisers found for notification generation');
+      console.log('ℹ️ No new inactive fundraiser notifications to generate (all existing)');
     }
 
     return {

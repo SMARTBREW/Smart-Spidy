@@ -261,6 +261,8 @@ export interface Notification {
   chatId?: string;
   fundraiserId?: string;
   userId: string;
+  userName?: string; // Add user name
+  userEmail?: string; // Add user email
   title: string;
   message: string;
   chatName?: string;
