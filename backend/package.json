@@ -7,8 +7,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "jest",
-    "generate-notifications": "node scripts/generateNotifications.js",
-    "create-test-notifications": "node scripts/createTestNotifications.js"
+    "generate-notifications": "node -e \"const { generateAllNotifications } = require('./services/notificationService'); generateAllNotifications().then(() => console.log('✅ Notifications generated')).catch(console.error)\""
   },
   "keywords": [],
   "author": "",
