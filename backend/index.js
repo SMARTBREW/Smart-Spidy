@@ -23,17 +23,8 @@ const app = express();
 passport.use('jwt', jwtStrategy);
 app.use(helmet());
 app.use(cors({
-  origin: config.env === 'production' 
-    ? [
-        'http://localhost:5173', 
-        'http://localhost:5174', 
-        'http://localhost:3000', 
-        'http://127.0.0.1:5173', 
-        'http://127.0.0.1:5174',
-        'https://smartspidy.smartbrew.in'
-      ]
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
-  credentials: true,
+  origin: '*', // Allow all origins temporarily
+  credentials: false, // Set to false when using '*'
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
