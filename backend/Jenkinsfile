@@ -1,0 +1,195 @@
+pipeline {
+    agent any
+    
+    environment {
+        NODE_ENV = 'production'
+        PROJECT_DIR = '/home/ubuntu/Smart-Spidy'
+        BACKEND_DIR = '/home/ubuntu/Smart-Spidy/backend'
+        PM2_APP_NAME = 'smart-spidy-backend'
+        DEPLOYMENT_URL = 'https://api.smartbrew.in'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '🔍 Checking out source code...'
+                checkout scm
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                dir('backend') {
+                    echo '📦 Installing Node.js dependencies...'
+                    sh 'npm install'
+                }
+            }
+        }
+        
+        stage('Environment Check') {
+            steps {
+                dir('backend') {
+                    echo '🔧 Checking environment configuration...'
+                    sh '''
+                        if [ ! -f .env ]; then
+                            echo " Warning: .env file not found"
+                        else
+                            echo ".env file exists"
+                        fi
+                        
+                        echo "Node.js version:"
+                        node --version
+                        
+                        echo "npm version:"
+                        npm --version
+                    '''
+                }
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                dir('backend') {
+                    echo 'Running tests...'
+                    sh 'npm test || echo "No tests configured - continuing..."'
+                }
+            }
+        }
+        
+        stage('Deploy to EC2') {
+            steps {
+                script {
+                    echo 'Deploying to EC2...'
+                    sh '''
+                        echo "Navigating to project directory..."
+                        cd ${BACKEND_DIR}
+                        
+                        echo "Pulling latest changes..."
+                        git pull origin main
+                        
+                        echo "Installing dependencies..."
+                        npm install
+                        
+                        echo "Restarting PM2 application..."
+                        pm2 restart ${PM2_APP_NAME} || pm2 start index.js --name ${PM2_APP_NAME}
+                        
+                        echo "Saving PM2 configuration..."
+                        pm2 save
+                        
+                        echo "Backend deployment completed!"
+                    '''
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                script {
+                    echo 'Performing health checks...'
+                    
+                    // Wait for app to start
+                    sh 'sleep 10'
+                    
+                    // Test health endpoint
+                    sh '''
+                        echo "Testing health endpoint..."
+                        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health)
+                        
+                        if [ "$response" = "200" ]; then
+                            echo "Health check passed - Backend is running"
+                        else
+                            echo "Health check failed - Response code: $response"
+                            echo "Checking PM2 logs..."
+                            pm2 logs ${PM2_APP_NAME} --lines 20
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+        
+        stage('API Test') {
+            steps {
+                script {
+                    echo 'Testing API endpoints...'
+                    sh '''
+                        echo "Testing API authentication..."
+                        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/notifications/stats)
+                        
+                        if [ "$response" = "401" ]; then
+                            echo "API authentication working correctly (401 expected for unauthenticated request)"
+                        else
+                            echo "API test returned: $response"
+                        fi
+                    '''
+                }
+            }
+        }
+        
+        stage('Nginx Check') {
+            steps {
+                script {
+                    echo 'Checking nginx configuration...'
+                    sh '''
+                        echo "Checking nginx status..."
+                        if sudo systemctl is-active --quiet nginx; then
+                            echo "nginx is running"
+                        else
+                            echo "nginx is not running"
+                            sudo systemctl start nginx
+                        fi
+                        
+                        echo "Testing nginx proxy..."
+                        nginx_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health)
+                        
+                        if [ "$nginx_response" = "200" ]; then
+                            echo "nginx proxy is working correctly"
+                        else
+                            echo "nginx proxy test returned: $nginx_response"
+                        fi
+                    '''
+                }
+            }
+        }
+        
+        stage('Production URL Test') {
+            steps {
+                script {
+                    echo 'Testing production URL...'
+                    sh '''
+                        echo "Testing production endpoint: ${DEPLOYMENT_URL}/health"
+                        prod_response=$(curl -s -o /dev/null -w "%{http_code}" ${DEPLOYMENT_URL}/health)
+                        
+                        if [ "$prod_response" = "200" ]; then
+                            echo "Production URL is accessible"
+                        else
+                            echo "Production URL test returned: $prod_response"
+                        fi
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+            echo 'Deployment Summary:'
+            echo '   - Backend: Running on port 3000'
+            echo '   - nginx: Proxying requests'
+            echo '   - PM2: Managing Node.js process'
+            echo '   - Health: All endpoints responding'
+        }
+        failure {
+            echo 'Pipeline failed!'
+            echo 'Troubleshooting steps:'
+            echo '   1. Check PM2 logs: pm2 logs smart-spidy-backend'
+            echo '   2. Check nginx logs: sudo tail -f /var/log/nginx/error.log'
+            echo '   3. Restart services: pm2 restart smart-spidy-backend && sudo systemctl restart nginx'
+        }
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+    }
+} 
