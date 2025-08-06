@@ -47,16 +47,16 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex justify-end w-full mb-2 mt-5"
+        className="flex justify-end w-full mb-2 mt-4 sm:mt-5"
       >
-        <div className="w-1/2">
-          <div className="bg-gray-100 border border-gray-300 rounded-xl p-4 shadow-sm">
+        <div className="w-full sm:w-1/2">
+          <div className="bg-gray-100 border border-gray-300 rounded-xl p-3 sm:p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium text-black">You</span>
+              <span className="font-medium text-black text-sm sm:text-base">You</span>
               <span className="text-xs text-gray-600">{timestamp}</span>
             </div>
             <div className="prose prose-sm max-w-none">
-              <p className="text-black leading-relaxed whitespace-pre-wrap break-words">
+              <p className="text-black leading-relaxed whitespace-pre-wrap break-words text-sm sm:text-base">
                 {formattedContent}
               </p>
             </div>
@@ -66,7 +66,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
                 className="p-1 flex items-center"
                 onClick={handleCopy}
               >
-                <Copy size={18} />
+                <Copy size={16} className="sm:w-[18px] sm:h-[18px]" />
                 {copied && (
                   <span className="text-xs text-black font-semibold ml-1">Copied!</span>
                 )}
@@ -85,93 +85,93 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex justify-start w-full mb-2 mt-5"
+        className="flex justify-start w-full mb-2 mt-4 sm:mt-5"
       >
         <div className="w-full">
 
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-black">Instagram Profile</span>
+            <span className="font-medium text-black text-sm sm:text-base">Instagram Profile</span>
             {account.hasDetailedAccess && <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">Full Access</span>}
             <span className="text-xs text-gray-600">{timestamp}</span>
           </div>
           
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow text-black space-y-4 relative">
+          <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow text-black space-y-3 sm:space-y-4 relative">
             {/* AI Score Badge - now inside the card */}
             {account.aiAnalysisScore !== undefined && account.aiAnalysisScore !== null && (
-              <div className="absolute top-4 right-4 px-4 py-2 rounded-full text-base font-bold shadow z-10 bg-gray-100 text-gray-800 border border-gray-300">
-                <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘" className="w-5 h-5 inline-block mr-1" /> 𝐒𝐦𝐚𝐫𝐭 𝐒𝐩𝐢𝐝𝐲 𝐒𝐜𝐨𝐫𝐞: {account.aiAnalysisScore}/100
+              <div className="absolute top-3 sm:top-4 right-3 sm:right-4 px-2 sm:px-4 py-1 sm:py-2 rounded-full text-sm sm:text-base font-bold shadow z-10 bg-gray-100 text-gray-800 border border-gray-300">
+                <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘" className="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1" /> 𝐒𝐦𝐚𝐫𝐭 𝐒𝐩𝐢𝐝𝐲 𝐒𝐜𝐨𝐫𝐞: {account.aiAnalysisScore}/100
               </div>
             )}
 
             {/* Profile Header */}
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-700">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 flex items-center justify-center text-lg sm:text-2xl font-bold text-gray-700">
                 {account.username.charAt(0).toUpperCase()}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="text-xl font-bold text-black">@{account.username}</div>
+                  <div className="text-lg sm:text-xl font-bold text-black truncate">@{account.username}</div>
                   {account.isVerified && <span className="text-gray-500">✓</span>}
                 </div>
-                {account.name && <div className="text-lg text-gray-700">{account.name}</div>}
-                {account.accountType && <div className="text-sm text-gray-500">{account.accountType} Account</div>}
+                {account.name && <div className="text-base sm:text-lg text-gray-700 truncate">{account.name}</div>}
+                {account.accountType && <div className="text-xs sm:text-sm text-gray-500">{account.accountType} Account</div>}
               </div>
             </div>
 
             {/* Biography */}
             {account.biography && (
-              <div className="text-sm italic border-l-2 border-gray-200 pl-3 text-gray-700">
+              <div className="text-xs sm:text-sm italic border-l-2 border-gray-200 pl-3 text-gray-700">
                 "{account.biography}"
               </div>
             )}
 
             {/* Website */}
             {account.website && (
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-semibold">🌐 Website:</span> 
-                <a href={account.website} target="_blank" rel="noopener noreferrer" className="underline ml-1 text-gray-800 hover:text-black">
+                <a href={account.website} target="_blank" rel="noopener noreferrer" className="underline ml-1 text-gray-800 hover:text-black truncate block">
                   {account.website}
                 </a>
               </div>
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-4 bg-gray-100 rounded-lg p-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-gray-100 rounded-lg p-2 sm:p-3">
               <div className="text-center">
-                <div className="text-lg font-bold text-black">{account.followersCount?.toLocaleString() || 'N/A'}</div>
+                <div className="text-base sm:text-lg font-bold text-black">{account.followersCount?.toLocaleString() || 'N/A'}</div>
                 <div className="text-xs text-gray-500">Followers</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-black">{account.followsCount?.toLocaleString() || 'N/A'}</div>
+                <div className="text-base sm:text-lg font-bold text-black">{account.followsCount?.toLocaleString() || 'N/A'}</div>
                 <div className="text-xs text-gray-500">Following</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-black">{account.mediaCount?.toLocaleString() || 'N/A'}</div>
+                <div className="text-base sm:text-lg font-bold text-black">{account.mediaCount?.toLocaleString() || 'N/A'}</div>
                 <div className="text-xs text-gray-500">Posts</div>
               </div>
             </div>
 
             {/* Engagement Stats */}
             {(account.totalLikesCount !== null || account.totalCommentsCount !== null || account.lastPostDate) && (
-              <div className="bg-gray-100 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2 text-gray-700">Engagement & Activity</div>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-100 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-semibold mb-2 text-gray-700">Engagement & Activity</div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   {account.totalLikesCount !== null && account.totalLikesCount !== undefined && (
                     <div className="text-center">
-                      <div className="text-lg font-bold text-black">{account.totalLikesCount.toLocaleString()}</div>
+                      <div className="text-base sm:text-lg font-bold text-black">{account.totalLikesCount.toLocaleString()}</div>
                       <div className="text-xs text-gray-500">Total Likes</div>
                     </div>
                   )}
                   {account.totalCommentsCount !== null && account.totalCommentsCount !== undefined && (
                     <div className="text-center">
-                      <div className="text-lg font-bold text-black">{account.totalCommentsCount.toLocaleString()}</div>
+                      <div className="text-base sm:text-lg font-bold text-black">{account.totalCommentsCount.toLocaleString()}</div>
                       <div className="text-xs text-gray-500">Total Comments</div>
                     </div>
                   )}
                 </div>
                 {account.lastPostDate && (
                   <div className="mt-2 text-center">
-                    <div className="text-sm text-gray-700">Last Post: <span className="font-semibold">
+                    <div className="text-xs sm:text-sm text-gray-700">Last Post: <span className="font-semibold">
                       {new Date(account.lastPostDate).toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'short', 
@@ -187,9 +187,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
 
             {/* AI Analysis Section */}
             {account.aiAnalysisDetails && (
-              <div className="bg-white/10 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘" className="w-5 h-5 inline-block mr-1" /> 𝐒𝐦𝐚𝐫𝐭 𝐒𝐩𝐢𝐝𝐲 𝐀𝐧𝐚𝐥𝐲𝐬𝐢𝐬
+              <div className="bg-white/10 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-semibold mb-2 flex items-center gap-2">
+                  <img src="/smartspidy.png" alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘" className="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1" /> 𝐒𝐦𝐚𝐫𝐭 𝐒𝐩𝐢𝐝𝐲 𝐀𝐧𝐚𝐥𝐲𝐬𝐢𝐬
                   {account.aiAnalysisDetails.category && (
                     <span className="text-xs bg-white/20 px-2 py-1 rounded">
                       {account.aiAnalysisDetails.category}
@@ -207,8 +207,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
 
             {/* Activity Status */}
             {account.lastPostDate && (
-              <div className="bg-white/10 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2">Account Activity</div>
+              <div className="bg-white/10 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-semibold mb-2">Account Activity</div>
                 <div className="text-center">
                   {(() => {
                     const lastPostDate = new Date(account.lastPostDate);
@@ -219,7 +219,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
                       return (
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                          <span className="text-green-200 font-semibold">Active</span>
+                          <span className="text-green-200 font-semibold text-xs sm:text-sm">Active</span>
                           <span className="text-xs opacity-75">({daysDiff} days ago)</span>
                         </div>
                       );
@@ -227,7 +227,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
                       return (
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                          <span className="text-yellow-200 font-semibold">Partially Active</span>
+                          <span className="text-yellow-200 font-semibold text-xs sm:text-sm">Partially Active</span>
                           <span className="text-xs opacity-75">({daysDiff} days ago)</span>
                         </div>
                       );
@@ -235,7 +235,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
                       return (
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                          <span className="text-red-200 font-semibold">Inactive</span>
+                          <span className="text-red-200 font-semibold text-xs sm:text-sm">Inactive</span>
                           <span className="text-xs opacity-75">({daysDiff} days ago)</span>
                         </div>
                       );
@@ -247,8 +247,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
 
             {/* Insights Section (for managed accounts) */}
             {account.insights && Object.keys(account.insights).length > 0 && (
-              <div className="bg-white/10 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2">📊 Recent Insights</div>
+              <div className="bg-white/10 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-semibold mb-2">📊 Recent Insights</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {account.insights.profileViews !== undefined && (
                     <div>Profile Views: <span className="font-semibold">{account.insights.profileViews.toLocaleString()}</span></div>
@@ -296,8 +296,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
 
             {/* Audience Demographics */}
             {(account.audienceGenderAge || account.audienceCountry) && (
-              <div className="bg-white/10 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2">👥 Audience Insights</div>
+              <div className="bg-white/10 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-semibold mb-2">👥 Audience Insights</div>
                 <div className="text-xs opacity-90">
                   Detailed audience demographics available in full data
                 </div>
@@ -306,8 +306,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
 
             {/* Mentions */}
             {account.mentions && account.mentions.length > 0 && (
-              <div className="bg-white/10 rounded-lg p-3">
-                <div className="text-sm font-semibold mb-2">🏷️ Recent Mentions ({account.mentions.length})</div>
+              <div className="bg-white/10 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-semibold mb-2">🏷️ Recent Mentions ({account.mentions.length})</div>
                 <div className="text-xs opacity-90">
                   Account has been mentioned in {account.mentions.length} recent posts
                 </div>
@@ -330,7 +330,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
               className="p-1 flex items-center"
               onClick={handleCopy}
             >
-              <Copy size={18} />
+              <Copy size={16} className="sm:w-[18px] sm:h-[18px]" />
               {copied && (
                 <span className="text-xs text-black font-semibold ml-1">Copied!</span>
               )}
@@ -346,15 +346,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex justify-start w-full mb-2 mt-5"
+        className="flex justify-start w-full mb-2 mt-4 sm:mt-5"
       >
         <div className="w-full">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-black">Smart Spidy</span>
+            <span className="font-medium text-black text-sm sm:text-base">Smart Spidy</span>
             <span className="text-xs text-gray-600">{timestamp}</span>
           </div>
           <div className="prose prose-sm max-w-none">
-            <p className="text-black leading-relaxed whitespace-pre-wrap break-words">
+            <p className="text-black leading-relaxed whitespace-pre-wrap break-words text-sm sm:text-base">
               {formattedContent}
             </p>
           </div>
@@ -364,7 +364,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
               className="p-1 flex items-center"
               onClick={handleCopy}
             >
-              <Copy size={18} />
+              <Copy size={16} className="sm:w-[18px] sm:h-[18px]" />
               {copied && (
                 <span className="text-xs text-black font-semibold ml-1">Copied!</span>
               )}
@@ -377,22 +377,22 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
                   className="p-1 flex items-center text-black hover:text-gray-600"
                   onClick={() => handleFeedback('thumbs_up')}
                 >
-                  <ThumbsUp size={18} stroke="black" fill="none" />
+                  <ThumbsUp size={16} className="sm:w-[18px] sm:h-[18px]" stroke="black" fill="none" />
                 </button>
                 <button
                   aria-label="Thumbs down"
                   className="p-1 flex items-center text-black hover:text-gray-600"
                   onClick={() => handleFeedback('thumbs_down')}
                 >
-                  <ThumbsDown size={18} stroke="black" fill="none" />
+                  <ThumbsDown size={16} className="sm:w-[18px] sm:h-[18px]" stroke="black" fill="none" />
                 </button>
               </>
             )}
             {feedback === 'thumbs_up' && (
-              <ThumbsUp size={18} stroke="black" fill="#4B5563" />
+              <ThumbsUp size={16} className="sm:w-[18px] sm:h-[18px]" stroke="black" fill="#4B5563" />
             )}
             {feedback === 'thumbs_down' && (
-              <ThumbsDown size={18} stroke="black" fill="#4B5563" />
+              <ThumbsDown size={16} className="sm:w-[18px] sm:h-[18px]" stroke="black" fill="#4B5563" />
             )}
           </div>
         </div>

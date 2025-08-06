@@ -142,13 +142,14 @@ export const useChat = () => {
     navigate('/', { replace: true });
   }, [navigate]);
 
-  const createChat = useCallback(async (name: string, instagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string): Promise<string | null> => {
+  const createChat = useCallback(async (name: string, instagramUsername?: string, executiveInstagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string): Promise<string | null> => {
     try {
       const currentUser = authService.getCurrentUser();
       const chatData: any = {
         name,
         user_id: currentUser?.id,
         instagram_username: instagramUsername,
+        executive_instagram_username: executiveInstagramUsername,
         profession: profession as ProfessionType,
         product,
         gender,

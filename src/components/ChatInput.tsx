@@ -170,9 +170,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
   };
 
   return (
-    <div className="border-t border-gray-300 bg-white p-4">
+    <div className="border-t border-gray-300 bg-white p-3 sm:p-4">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-        <div className="flex gap-4 items-end">
+        <div className="flex gap-2 sm:gap-4 items-end">
           <div className="flex-1">
             <div className="relative">
               <textarea
@@ -187,10 +187,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
                 }}
                 placeholder={listening ? "Listening..." : "Type your message..."}
                 rows={1}
-                className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 pr-12 text-black placeholder-gray-500 focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 shadow-sm overflow-hidden"
+                className="w-full resize-none rounded-xl border border-gray-300 px-3 sm:px-4 py-2 sm:py-3 pr-12 text-black placeholder-gray-500 focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 shadow-sm overflow-hidden text-sm sm:text-base"
                 disabled={disabled || listening}
                 style={{
-                  minHeight: '48px',
+                  minHeight: '44px',
                   maxHeight: '120px',
                   height: 'auto',
                   paddingBottom: listening ? '40px' : '12px', // Add space for waveform
@@ -199,7 +199,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
               
               {/* Waveform visualization canvas - positioned at bottom of textarea */}
               {listening && (
-                <div className="absolute bottom-2 left-4 right-16 pointer-events-none">
+                <div className="absolute bottom-2 left-3 sm:left-4 right-16 pointer-events-none">
                   <canvas
                     ref={canvasRef}
                     width={800}
@@ -211,7 +211,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
               
               <button
                 type="button"
-                className={`absolute right-10 top-2 p-2 transition-colors duration-200 ${
+                className={`absolute right-10 top-2 p-1.5 sm:p-2 transition-colors duration-200 ${
                   listening 
                     ? 'text-red-500 hover:text-red-600' 
                     : 'text-gray-500 hover:text-gray-700'
@@ -222,10 +222,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
                 title={listening ? "Stop voice input" : "Start voice input"}
                 disabled={disabled}
               >
-                <Mic className={`w-4 h-4 ${listening ? 'animate-pulse' : ''}`} />
+                <Mic className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${listening ? 'animate-pulse' : ''}`} />
               </button>
               
-              <label className="absolute right-2 top-2 p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200 cursor-pointer">
+              <label className="absolute right-2 top-2 p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200 cursor-pointer">
                 <input
                   type="file"
                   accept="image/*"
@@ -233,7 +233,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
                   onChange={handleFileChange}
                   disabled={disabled}
                 />
-                <Paperclip className="w-4 h-4" />
+                <Paperclip className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </label>
             </div>
           </div>
@@ -243,9 +243,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
             whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={!message.trim() || disabled || listening}
-            className="bg-black text-white p-4 mb-2 rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-sm"
+            className="bg-black text-white p-3 sm:p-4 mb-1 sm:mb-2 rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-sm"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         </div>
       </form>

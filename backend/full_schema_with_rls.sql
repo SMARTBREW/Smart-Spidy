@@ -28,6 +28,7 @@ CREATE TABLE chats (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   instagram_username VARCHAR(255),
+  executive_instagram_username VARCHAR(255),
   profession VARCHAR(255),
   product VARCHAR(255),
   gender VARCHAR(50)
@@ -36,6 +37,7 @@ CREATE INDEX idx_chats_user_id ON chats(user_id);
 CREATE INDEX idx_chats_status ON chats(status);
 CREATE INDEX idx_chats_product ON chats(product);
 CREATE INDEX idx_chats_gender ON chats(gender);
+CREATE INDEX idx_chats_executive_instagram_username ON chats(executive_instagram_username);
 CREATE INDEX idx_chats_created_at ON chats(created_at);
 CREATE INDEX idx_chats_last_activity ON chats(last_activity);
 
@@ -98,6 +100,16 @@ CREATE TABLE user_sessions (
   logout_time TIMESTAMPTZ,
   session_duration INTEGER,
   is_active BOOLEAN DEFAULT true,
+  timeout_reason VARCHAR(50) CHECK (
+    timeout_reason IN (
+      'manual_logout',
+      'inactivity', 
+      'server_cleanup',
+      'token_expired',
+      'user_deleted',
+      'system_timeout'
+    )
+  ),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -105,6 +117,7 @@ CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_login_time ON user_sessions(login_time);
 CREATE INDEX idx_user_sessions_is_active ON user_sessions(is_active);
 CREATE INDEX idx_user_sessions_updated_at ON user_sessions(updated_at);
+CREATE INDEX idx_user_sessions_timeout_reason ON user_sessions(timeout_reason);
 
 -- FUNDRAISERS TABLE
 CREATE TABLE fundraisers (

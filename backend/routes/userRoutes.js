@@ -11,6 +11,7 @@ const router = express.Router();
 router.post('/register', validate(userValidation.register), authController.register);
 router.post('/login', validate(userValidation.login), authController.login);
 router.post('/logout', auth(), authController.logout);
+router.post('/session-timeout', auth(), authController.sessionTimeout);
 router.post('/refresh-token', validate(userValidation.refreshToken), authController.refreshToken);
 router.get('/profile', auth(), authController.getProfile);
 

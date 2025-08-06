@@ -9,6 +9,7 @@ interface CreateChatModalProps {
   onCreateChat: (fields: {
     name: string;
     instagramUsername: string;
+    executiveInstagramUsername: string;
     occupation: string;
     product: string;
     gender: string;
@@ -20,6 +21,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
   const [fields, setFields] = useState({
     name: '',
     instagramUsername: '',
+    executiveInstagramUsername: '',
     occupation: '',
     product: '',
     gender: '',
@@ -28,7 +30,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
 
   useEffect(() => {
     if (!isOpen) {
-      setFields({ name: '', instagramUsername: '', occupation: '', product: '', gender: '', profession: '' });
+      setFields({ name: '', instagramUsername: '', executiveInstagramUsername: '', occupation: '', product: '', gender: '', profession: '' });
     }
   }, [isOpen]);
 
@@ -84,7 +86,15 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               type="text"
               value={fields.instagramUsername}
               onChange={e => setFields(f => ({ ...f, instagramUsername: e.target.value }))}
-              placeholder="Instagram username"
+              placeholder="Prospect's Instagram username"
+              className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              maxLength={50}
+            />
+            <input
+              type="text"
+              value={fields.executiveInstagramUsername}
+              onChange={e => setFields(f => ({ ...f, executiveInstagramUsername: e.target.value }))}
+              placeholder="Your Instagram username"
               className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
               maxLength={50}
             />

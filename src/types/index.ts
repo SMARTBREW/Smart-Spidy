@@ -29,6 +29,7 @@ export interface UserSession {
   userAgent: string | null;
   sessionDuration: number | null;
   isActive: boolean;
+  timeoutReason?: string;
   createdAt: Date;
   user?: User;
 }
@@ -147,11 +148,12 @@ export interface Chat {
   userId?: string;
   messageCount?: number;
   user?: User;
-  instagramUsername?: string;
-  occupation?: string;
-  product?: string;
-  gender?: string;
-  profession?: ProfessionType; // <-- Added profession field
+      instagramUsername?: string;
+    executiveInstagramUsername?: string;
+    occupation?: string;
+    product?: string;
+    gender?: string;
+    profession?: ProfessionType; // <-- Added profession field
 }
 
 export interface TrainingData {

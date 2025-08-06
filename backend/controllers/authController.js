@@ -195,11 +195,42 @@ const logout = catchAsync(async (req, res) => {
         logout_time: logoutTime,
         session_duration: sessionDuration,
         is_active: false,
+        timeout_reason: 'manual_logout',
         updated_at: logoutTime
       })
       .eq('id', session.id);
   }
   res.status(httpStatus.OK).send({ message: 'Logged out successfully' });
+});
+
+const sessionTimeout = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { data: session, error: fetchError } = await supabaseAdmin
+    .from('user_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .single();
+  
+  if (!fetchError && session) {
+    const logoutTime = new Date().toISOString();
+    const sessionDuration = Math.floor((new Date(logoutTime) - new Date(session.login_time)) / 1000);
+    await supabaseAdmin
+      .from('user_sessions')
+      .update({ 
+        logout_time: logoutTime,
+        session_duration: sessionDuration,
+        is_active: false,
+        updated_at: logoutTime,
+        timeout_reason: 'inactivity'
+      })
+      .eq('id', session.id);
+  }
+  
+  res.status(httpStatus.OK).send({ 
+    message: 'Session timed out due to inactivity',
+    reason: 'inactivity'
+  });
 });
 
 module.exports = {
@@ -208,4 +239,5 @@ module.exports = {
   logout,
   refreshToken,
   getProfile,
+  sessionTimeout,
 }; 

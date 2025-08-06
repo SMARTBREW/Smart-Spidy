@@ -53,39 +53,41 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-white flex">
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-12">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="w-full max-w-4xl bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
         >
-          <div className="flex min-h-[600px]">
-            <div className="flex-1 relative overflow-hidden bg-gray-50 flex items-center justify-center">
+          <div className="flex flex-col lg:flex-row min-h-[500px] sm:min-h-[550px] md:min-h-[600px] lg:min-h-[600px]">
+            {/* Logo/Brand Section */}
+            <div className="flex-1 relative overflow-hidden bg-gray-50 flex items-center justify-center p-6 sm:p-8 md:p-10 lg:p-12">
               <div className="text-center">
                 <img 
                   src="/smartspidy.png" 
                   alt="𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘 Logo" 
-                  className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+                  className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 mx-auto mb-4 sm:mb-6 rounded-2xl shadow-lg"
                 />
-                <h2 className="text-3xl font-bold mb-2 text-black">𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h2>
-                <p className="text-lg text-gray-600">Professional AI Assistant</p>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 text-black">𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h2>
+                <p className="text-sm sm:text-base md:text-lg text-gray-600">Professional AI Assistant</p>
               </div>
             </div>
 
-            <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center bg-white">
+            {/* Login Form Section */}
+            <div className="flex-1 p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center bg-white">
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="w-full max-w-sm mx-auto"
               >
-                <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-black mb-2">Welcome to 𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h1>
-                  <p className="text-gray-600">Sign in to start your professional conversations</p>
+                <div className="mb-6 sm:mb-8">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2 whitespace-nowrap">Welcome to 𝐒𝐌𝐀𝐑𝐓 𝐒𝐏𝐈𝐃𝐘</h1>
+                  <p className="text-sm sm:text-base text-gray-600">Sign in to start your professional conversations</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
 
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -97,7 +99,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                       Email Address
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 sm:w-5 sm:h-5" />
                       <motion.input
                         whileHover={{ scale: 1.01 }}
                         type="email"
@@ -105,7 +107,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                         name="email"
                         value={email}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
+                        className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                         placeholder="Enter your email"
                         required
                       />
@@ -122,7 +124,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                       Password
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 sm:w-5 sm:h-5" />
                       <motion.input
                         whileHover={{ scale: 1.01 }}
                         type={showPassword ? 'text' : 'password'}
@@ -130,7 +132,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                         name="password"
                         value={password}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-12 py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300"
+                        className="w-full pl-9 sm:pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 bg-gray-50 focus:ring-gray-500 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                         placeholder="Enter your password"
                         required
                       />
@@ -140,16 +142,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                       >
                         {showPassword ? (
-                          <EyeOff className="w-5 h-5" />
+                          <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
                         ) : (
-                          <Eye className="w-5 h-5" />
+                          <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                         )}
                       </button>
                     </div>
                   </motion.div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base">
                       {error}
                     </div>
                   )}
@@ -160,11 +162,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                         type="checkbox"
                         className="w-4 h-4 text-black bg-gray-100 border-gray-300 rounded focus:ring-gray-500 focus:ring-2"
                       />
-                      <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                      <span className="ml-2 text-xs sm:text-sm text-gray-600">Remember me</span>
                     </label>
                   </div>
-
-
 
                   <motion.button
                     initial={{ opacity: 0, y: 20 }}
@@ -174,10 +174,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-2.5 sm:py-3 px-6 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                   >
                     {isLoading ? 'Signing In...' : 'Sign In'}
-                    {!isLoading && <ArrowRight className="w-5 h-5" />}
+                    {!isLoading && <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </motion.button>
                 </form>
               </motion.div>

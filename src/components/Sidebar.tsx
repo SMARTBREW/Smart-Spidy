@@ -46,6 +46,8 @@ interface SidebarProps {
   onClose?: () => void;
   onPinChat: (chatId: string, pinned: boolean) => void;
   onSetChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => void;
+  isMobileCollapsed?: boolean;
+  onToggleMobileCollapse?: () => void;
 }
 
 // Animation transition types
@@ -68,6 +70,8 @@ const SidebarComponent: React.FC<SidebarProps> = ({
   onClose,
   onPinChat,
   onSetChatStatus,
+  isMobileCollapsed,
+  onToggleMobileCollapse,
 }) => {
   const navigate = useNavigate();
   
@@ -141,6 +145,20 @@ const SidebarComponent: React.FC<SidebarProps> = ({
     }
   }, [isCollapsed]);
 
+  // On mobile, handle collapsed state based on props
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const shouldShowCollapsed = isMobile ? isMobileCollapsed : isCollapsed;
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleAdminPanelClick = useCallback((): void => {
     navigate('/admin');
   }, [navigate]);
@@ -200,17 +218,17 @@ const SidebarComponent: React.FC<SidebarProps> = ({
     <motion.div
       initial={false}
       animate={{ 
-        width: isCollapsed ? 72 : 320,
+        width: shouldShowCollapsed ? 72 : (isMobile ? 280 : 320),
       }}
       transition={sidebarTransition}
-      className={`h-screen flex flex-col border-r border-gray-300 shadow-lg bg-white relative z-20 overflow-hidden`}
+      className={`h-screen flex flex-col border-r border-gray-300 shadow-lg bg-white overflow-hidden ${isMobile && !shouldShowCollapsed ? 'fixed left-0 top-0 z-40' : 'relative z-20'}`}
       style={{ minWidth: 72, maxWidth: 400 }}
     >
       {/* Header Section */}
       <div className={`flex flex-col items-center w-full transition-all duration-300 ${
-        isCollapsed ? 'py-2 min-h-[100px]' : 'py-3 border-b border-gray-300 min-h-[68.5px]'
+        shouldShowCollapsed ? 'py-2 min-h-[100px]' : 'py-3 border-b border-gray-300 min-h-[68.5px]'
       }`}>
-        {isCollapsed ? (
+        {shouldShowCollapsed ? (
           // Collapsed Header
           <motion.div
             initial={false}
@@ -221,9 +239,9 @@ const SidebarComponent: React.FC<SidebarProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={expandSidebar}
+              onClick={isMobile && onToggleMobileCollapse ? onToggleMobileCollapse : expandSidebar}
               className="w-10 h-10 flex items-center justify-center mb-4 transition-all duration-200"
-              title="Expand Sidebar"
+              title={isMobile ? "Toggle mobile sidebar" : "Expand Sidebar"}
             >
               <img 
                 src="/smartspidy.png" 
@@ -235,13 +253,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                if (isCollapsed) {
-                  expandSidebar();
-                } else {
-                  onCreateChat();
-                }
-              }}
+              onClick={onCreateChat}
               className="w-10 h-10 flex items-center justify-center mb-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200"
               title="New Chat"
             >
@@ -300,9 +312,9 @@ const SidebarComponent: React.FC<SidebarProps> = ({
             <motion.button
               whileHover={{ scale: 1.05, rotate: 90 }}
               whileTap={{ scale: 0.95 }}
-              onClick={toggleSidebar}
+              onClick={isMobile && onToggleMobileCollapse ? onToggleMobileCollapse : toggleSidebar}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              aria-label="Collapse sidebar"
+              aria-label={isMobile ? "Toggle mobile sidebar" : "Collapse sidebar"}
             >
               <X className="w-5 h-5 text-gray-700" />
             </motion.button>
@@ -312,7 +324,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
 
       {/* New Chat Button and Search Input */}
       <AnimatePresence>
-        {!isCollapsed && (
+        {!shouldShowCollapsed && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -481,7 +493,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
 
       {/* Chat List */}
       <AnimatePresence>
-        {!isCollapsed && (
+        {!shouldShowCollapsed && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -715,7 +727,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
 
       {/* Bottom Profile Section */}
       <div className="w-full mt-auto">
-        {isCollapsed ? (
+        {shouldShowCollapsed ? (
           // Collapsed Profile
           <motion.div
             initial={false}

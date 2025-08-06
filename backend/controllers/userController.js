@@ -41,6 +41,7 @@ const sanitizeSession = (session) => {
     userAgent: session.user_agent,
     sessionDuration,
     isActive: session.is_active,
+    timeoutReason: session.timeout_reason,
     createdAt: session.created_at,
     user: session.users ? {
       id: session.users.id,

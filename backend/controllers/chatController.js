@@ -23,6 +23,7 @@ const sanitizeChat = (chat) => {
     createdAt: chat.created_at || null,
     updatedAt: chat.updated_at || null,
     instagramUsername: chat.instagram_username,
+    executiveInstagramUsername: chat.executive_instagram_username,
     profession: chat.profession,
     product: chat.product,
     gender: chat.gender,
@@ -38,7 +39,7 @@ const sanitizeChat = (chat) => {
 
 const createChat = catchAsync(async (req, res) => {
   const chatData = pick(req.body, [
-    'name', 'user_id', 'instagram_username', 'profession', 'product', 'gender',
+    'name', 'user_id', 'instagram_username', 'executive_instagram_username', 'profession', 'product', 'gender',
   ]);
   const { data: chat, error } = await supabaseAdmin
     .from('chats')

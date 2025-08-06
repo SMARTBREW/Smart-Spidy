@@ -7,7 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "jest",
-    "generate-notifications": "node -e \"const { generateAllNotifications } = require('./services/notificationService'); generateAllNotifications().then(() => console.log('✅ Notifications generated')).catch(console.error)\""
+    "generate-notifications": "node -e \"const { generateAllNotifications } = require('./services/notificationService'); generateAllNotifications().then(() => console.log('✅ Notifications generated')).catch(console.error)\"",
+    "migrate": "node scripts/run_migration.js"
   },
   "keywords": [],
   "author": "",

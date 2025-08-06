@@ -157,6 +157,36 @@ class AuthService {
     return logoutFn();
   }
 
+  async sessionTimeout(): Promise<void> {
+    const timeoutFn = async () => {
+      try {
+        const tokens = await this.getTokens();
+        if (tokens) {
+          await fetch(`${this.baseURL}/users/session-timeout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${tokens.access.token}`,
+            },
+            body: JSON.stringify({
+              session_id: localStorage.getItem('sessionId'),
+              reason: 'inactivity'
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Session timeout error:', error);
+      } finally {
+        this.clearTokens();
+      }
+    };
+
+    if (this.withLoading) {
+      return this.withLoading('auth-timeout', timeoutFn)();
+    }
+    return timeoutFn();
+  }
+
   getCurrentUser() {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
@@ -165,6 +195,36 @@ class AuthService {
   async isAuthenticated(): Promise<boolean> {
     const tokens = await this.getTokens();
     return tokens !== null;
+  }
+
+  async validateSession(): Promise<boolean> {
+    try {
+      const tokens = await this.getTokens();
+      if (!tokens) {
+        return false;
+      }
+
+      // Make a simple authenticated request to check if session is still valid
+      const response = await fetch(`${this.baseURL}/users/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401) {
+        console.log('Session validation failed: 401 Unauthorized');
+        this.logout();
+        return false;
+      }
+
+      return response.ok;
+    } catch (error) {
+      console.error('Session validation error:', error);
+      this.logout();
+      return false;
+    }
   }
 
   async getAccessToken(): Promise<string | null> {
@@ -223,11 +283,12 @@ class AuthService {
     });
 
     if (response.status === 401) {
+      console.log('401 Unauthorized - session may have been invalidated');
       const refreshed = await this.refreshToken();
       if (refreshed) {
         const newAccessToken = await this.getAccessToken();
         if (newAccessToken) {
-          return fetch(url, {
+          const retryResponse = await fetch(url, {
             ...options,
             headers: {
               ...options.headers,
@@ -235,10 +296,20 @@ class AuthService {
               'Content-Type': 'application/json',
             },
           });
+          
+          if (retryResponse.status === 401) {
+            console.log('Session still invalid after token refresh - logging out');
+            this.logout();
+            throw new Error('Session expired. Please login again.');
+          }
+          
+          return retryResponse;
         }
       }
+      
+      // If refresh failed or still getting 401, logout
       this.logout();
-      throw new Error('Authentication expired. Please login again.');
+      throw new Error('Session expired. Please login again.');
     }
 
     return response;
