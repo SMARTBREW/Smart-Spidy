@@ -88,6 +88,12 @@ const searchChats = {
   }),
 };
 
+const getAllChatsForUser = {
+  query: Joi.object().keys({
+    user_id: Joi.string().custom(objectId), // For admin to specify which user to get chats for
+  }),
+};
+
 module.exports = {
   createChat,
   getChats,
@@ -97,4 +103,5 @@ module.exports = {
   updateChatStatus,
   pinChat,
   searchChats,
+  getAllChatsForUser,
 }; 

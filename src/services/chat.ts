@@ -62,6 +62,23 @@ export const chatApi = {
     return handleResponse(response);
   },
 
+  async getAllChats(params?: {
+    user_id?: string;
+  }): Promise<{ chats: Chat[]; total: number }> {
+    const getAllChatsFn = async () => {
+      const searchParams = new URLSearchParams();
+      if (params?.user_id) searchParams.append('user_id', params.user_id);
+      const url = `${API_BASE_URL}/chats/all?${searchParams}`;
+      const response = await authService.authenticatedRequest(url, { method: 'GET' });
+      return handleResponse(response);
+    };
+
+    if (withLoading) {
+      return withLoading('chat-get-all-chats', getAllChatsFn)();
+    }
+    return getAllChatsFn();
+  },
+
   async createChat(chatData: Partial<Chat>): Promise<Chat> {
     const createChatFn = async () => {
       const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats`, {

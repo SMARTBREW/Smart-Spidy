@@ -362,6 +362,30 @@ const searchChats = catchAsync(async (req, res) => {
   });
 });
 
+// New function to get all chats for a user (unlimited) - for sidebar use
+const getAllChatsForUser = catchAsync(async (req, res) => {
+  const { user_id } = req.query;
+  let query = supabaseAdmin
+    .from('chats')
+    .select('*, users(id, name, email)');
+  
+  if (req.user.role !== 'admin') {
+    query = query.eq('user_id', req.user.id);
+  } else if (user_id) {
+    query = query.eq('user_id', user_id);
+  }
+  
+  query = query.order('created_at', { ascending: false });
+  const { data: chats, error } = await query;
+  
+  if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  
+  res.send({
+    chats: chats.map(sanitizeChat),
+    total: chats.length
+  });
+});
+
 module.exports = {
   createChat,
   getChats,
@@ -372,4 +396,5 @@ module.exports = {
   updateChatStatus,
   pinChat,
   searchChats,
+  getAllChatsForUser,
 };

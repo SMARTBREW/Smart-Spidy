@@ -40,7 +40,7 @@ export const useChat = () => {
         return;
       }
       // Only fetch chats created by the current user, even for admins
-      const { chats } = await chatApi.getChats({ user_id: currentUser.id });
+      const { chats } = await chatApi.getAllChats({ user_id: currentUser.id });
       
       // Fetch messages for each chat
       const chatsWithMessages = await Promise.all(
