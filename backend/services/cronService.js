@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { generateAllNotifications } = require('./notificationService');
+const { processDueRemindersCron } = require('../controllers/reminderController');
 
 console.log('📅 Setting up cron jobs...');
 
@@ -53,6 +54,21 @@ cron.schedule('0 */6 * * *', async () => {
     console.log('📊 Results:', result);
   } catch (error) {
     console.error('❌ Test notification generation failed:', error);
+  }
+}, {
+  timezone: "Asia/Kolkata"
+});
+
+// Process due reminders every 1 minute for more precise timing
+cron.schedule('* * * * *', async () => {
+  console.log('🕐 Running reminder processing...');
+  try {
+    const result = await processDueRemindersCron();
+    if (result.count > 0) {
+      console.log(`✅ Reminder processing completed - ${result.count} reminders processed`);
+    }
+  } catch (error) {
+    console.error('❌ Reminder processing failed:', error);
   }
 }, {
   timezone: "Asia/Kolkata"
@@ -118,5 +134,6 @@ cron.schedule('*/5 * * * *', async () => {
 console.log('✅ Cron jobs scheduled:');
 console.log('   - Daily notification generation at 9:00 AM');
 console.log('   - Test notification generation every 6 hours');
+console.log('   - Reminder processing every 1 minute (notifications 5 min before due)');
 console.log('   - Session cleanup every 5 minutes');
 console.log('   - Timezone: Asia/Kolkata'); 

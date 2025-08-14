@@ -284,3 +284,27 @@ export interface NotificationStats {
   read: number;
 }
 
+export interface Reminder {
+  id: string;
+  userId: string;
+  chatId?: string;
+  title: string;
+  message: string;
+  reminderTime: string;
+  isRecurring: boolean;
+  recurrencePattern?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  isActive: boolean;
+  isSent: boolean;
+  sentAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  chatName?: string;
+}
+
+export interface ReminderStats {
+  total: number;
+  active: number;
+  inactive: number;
+  due: number;
+}
+

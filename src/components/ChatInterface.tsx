@@ -4,7 +4,7 @@ import { Chat, User } from '../types';
 import { Sidebar } from './Sidebar';
 import { ChatArea } from './ChatArea';
 import { SearchModal } from './SearchModal';
-import { Bell, Star, X, Clock, MessageCircle, CheckCircle } from 'lucide-react';
+import { Bell, Star, X, Clock, MessageCircle, CheckCircle, AlarmClock } from 'lucide-react';
 import { CreateChatModal } from './CreateChatModal';
 import { ChatInput } from './ChatInput';
 import { 
@@ -13,6 +13,7 @@ import {
   markNotificationAsRead
 } from '../services/notification';
 import { Notification, NotificationStats } from '../types';
+import { RemindersList } from './RemindersList';
 
 interface ChatInterfaceProps {
   user: User;
@@ -74,6 +75,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationStats, setNotificationStats] = useState<NotificationStats>({ total: 0, unread: 0, read: 0 });
   const [loading, setLoading] = useState(false);
@@ -219,8 +221,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       transition={{ duration: 0.3 }}
       className="flex h-screen bg-white relative pt-4 lg:pt-0"
     >
-      {/* Notification Bell - Always in top-right position */}
-      <div className={`fixed top-6 right-4 sm:right-6 md:right-8 z-50 ${!isMobileSidebarCollapsed ? 'hidden' : ''}`}>
+      {/* Notification and Reminder Buttons - Always in top-right position */}
+      <div className={`fixed top-6 right-4 sm:right-6 md:right-8 z-50 flex space-x-2 ${!isMobileSidebarCollapsed ? 'hidden' : ''}`}>
+        {/* Reminders Button */}
+        <button
+          className="relative p-2 rounded-full hover:bg-gray-100 transition"
+          onClick={() => setShowReminders(v => !v)}
+          aria-label="Show reminders"
+        >
+          <AlarmClock className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+        </button>
+        
+        {/* Notifications Button */}
         <button
           className="relative p-2 rounded-full hover:bg-gray-100 transition"
           onClick={() => setShowNotifications(v => !v)}
@@ -373,6 +385,55 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </div>
                   </>
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Right-side reminders panel - Responsive width */}
+      <AnimatePresence>
+        {showReminders && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              onClick={() => setShowReminders(false)}
+            />
+            
+            {/* Side panel - Responsive width */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
+              className="fixed right-0 top-0 h-full w-full sm:w-96 md:w-96 lg:w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+            >
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">Reminders</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowReminders(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <RemindersList 
+                  chats={chats}
+                  onReminderClick={(reminder) => {
+                    if (reminder.chatId) {
+                      selectChat(reminder.chatId);
+                    }
+                    setShowReminders(false);
+                  }}
+                />
               </div>
             </motion.div>
           </>

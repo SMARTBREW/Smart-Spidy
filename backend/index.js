@@ -13,6 +13,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const fundraiserRoutes = require('./routes/fundraiserRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const reminderRoutes = require('./routes/reminderRoutes');
 
 require('./services/cronService');
 
@@ -76,6 +77,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/fundraisers', fundraiserRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reminders', reminderRoutes);
 
 
 
