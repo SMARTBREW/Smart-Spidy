@@ -239,6 +239,7 @@ export const PROFESSION_LIST = [
   'Music Director',
   'NRI',
   'Nutritionist',
+  'Others',
   'Pageant Winner',
   'Philanthropist',
   'Politician',
