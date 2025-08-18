@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock, MessageCircle, Repeat, Calendar, AlertCircle } from 'lucide-react';
 import { Reminder, Chat } from '../types';
 import { createReminder, updateReminder } from '../services/reminder';
+import { istLocalInputToUTCISOString, utcToISTLocalInputValue } from '../utils/time';
 
 interface ReminderModalProps {
   isOpen: boolean;
@@ -38,7 +39,8 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
       setFormData({
         title: reminder.title,
         message: reminder.message,
-        reminderTime: new Date(reminder.reminderTime).toISOString().slice(0, 16),
+        // Convert stored UTC time to IST-friendly datetime-local value
+        reminderTime: utcToISTLocalInputValue(reminder.reminderTime),
         chatId: reminder.chatId || '',
         isRecurring: reminder.isRecurring,
         recurrencePattern: reminder.recurrencePattern || 'daily',
@@ -98,6 +100,8 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
     try {
       const reminderData = {
         ...formData,
+        // Convert IST input to UTC ISO for backend storage/processing
+        reminderTime: istLocalInputToUTCISOString(formData.reminderTime),
         chatId: formData.chatId || undefined
       };
 

@@ -1,4 +1,5 @@
 import { Reminder, ReminderStats } from '../types';
+import { istLocalInputToUTCISOString } from '../utils/time';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -29,7 +30,8 @@ export const createReminder = async (reminderData: {
       chat_id: reminderData.chatId,
       title: reminderData.title,
       message: reminderData.message,
-      reminder_time: reminderData.reminderTime,
+      // Normalize to UTC ISO. UI should send IST-local value (YYYY-MM-DDTHH:mm)
+      reminder_time: istLocalInputToUTCISOString(reminderData.reminderTime),
       is_recurring: reminderData.isRecurring,
       recurrence_pattern: reminderData.recurrencePattern,
       is_active: reminderData.isActive
@@ -123,7 +125,7 @@ export const updateReminder = async (
     const backendData: any = {};
     if (updateData.title !== undefined) backendData.title = updateData.title;
     if (updateData.message !== undefined) backendData.message = updateData.message;
-    if (updateData.reminderTime !== undefined) backendData.reminder_time = updateData.reminderTime;
+    if (updateData.reminderTime !== undefined) backendData.reminder_time = istLocalInputToUTCISOString(updateData.reminderTime);
     if (updateData.isRecurring !== undefined) backendData.is_recurring = updateData.isRecurring;
     if (updateData.recurrencePattern !== undefined) backendData.recurrence_pattern = updateData.recurrencePattern;
     if (updateData.isActive !== undefined) backendData.is_active = updateData.isActive;
