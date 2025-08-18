@@ -616,7 +616,7 @@ const getAllMessages = catchAsync(async (req, res) => {
   if (req.user.role !== 'admin') {
     throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
   }
-  const { page = 1, limit = 50, user_id, time_filter, start_date, end_date } = req.query;
+  const { page = 1, limit = 50, user_id, time_filter, start_date, end_date, feedback } = req.query;
   const offset = (page - 1) * limit;
   
   let query = supabaseAdmin
@@ -626,6 +626,11 @@ const getAllMessages = catchAsync(async (req, res) => {
   // Apply user filter if provided
   if (user_id) {
     query = query.eq('user_id', user_id);
+  }
+  
+  // Apply feedback filter if provided
+  if (feedback) {
+    query = query.eq('feedback', feedback);
   }
   
   // Apply time filtering
@@ -678,6 +683,11 @@ const getAllMessages = catchAsync(async (req, res) => {
   if (user_id) {
     userQuery = userQuery.eq('user_id', user_id);
     assistantQuery = assistantQuery.eq('user_id', user_id);
+  }
+  
+  if (feedback) {
+    userQuery = userQuery.eq('feedback', feedback);
+    assistantQuery = assistantQuery.eq('feedback', feedback);
   }
   
   // Apply same time filtering to analytics

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -10,8 +10,7 @@ import {
   Activity,
   ArrowLeft
 } from 'lucide-react';
-import { AdminStats } from '../../types';
-import { adminApi } from '../../services/admin';
+import { AdminProvider, useAdminContext } from '../../contexts/AdminContext';
 import { UsersTable } from './UsersTable';
 import { ChatsTable } from './ChatsTable';
 import { MessagesTable } from './MessagesTable';
@@ -24,27 +23,9 @@ interface AdminDashboardProps {
 
 type AdminView = 'users' | 'fundraisers' | 'chats' | 'messages' | 'sessions' | 'notifications';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
+const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ userRole }) => {
   const [currentView, setCurrentView] = useState<AdminView>('users');
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setIsLoading(true);
-        const stats = await adminApi.getAdminStats();
-        setStats(stats);
-      } catch (error) {
-        console.error('Error fetching admin stats:', error);
-        // You might want to show a toast notification here
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const { stats, isStatsLoading } = useAdminContext();
 
   const navigationItems = [
     { id: 'users', label: 'Users', icon: Users, color: 'text-green-600' },
@@ -58,17 +39,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
   const renderContent = () => {
     switch (currentView) {
       case 'users':
-        return <UsersTable stats={stats} isLoading={isLoading} />;
+        return <UsersTable stats={stats} isLoading={isStatsLoading} />;
       case 'fundraisers':
         return <FundraisersTable />;
       case 'chats':
-        return <ChatsTable stats={stats} isLoading={isLoading} />;
+        return <ChatsTable stats={stats} isLoading={isStatsLoading} />;
       case 'messages':
-        return <MessagesTable stats={stats}  />;
+        return <MessagesTable stats={stats} />;
       case 'sessions':
-        return <UserSessionsTable stats={stats} isLoading={isLoading} />;
+        return <UserSessionsTable stats={stats} isLoading={isStatsLoading} />;
       case 'notifications':
-        return <NotificationTable stats={stats} isLoading={isLoading} />;
+        return <NotificationTable stats={stats} isLoading={isStatsLoading} />;
       default:
         return null;
     }
@@ -118,5 +99,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ userRole }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
+  return (
+    <AdminProvider>
+      <AdminDashboardContent {...props} />
+    </AdminProvider>
   );
 }; 

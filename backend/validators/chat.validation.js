@@ -19,7 +19,7 @@ const getChats = {
     limit: Joi.number().integer().min(1).max(100),
     name: Joi.string(),
     status: Joi.string().valid('green', 'yellow', 'red', 'gold'),
-    pinned: Joi.boolean(),
+    pinned: Joi.string().valid('true', 'false'),
     user_id: Joi.string().custom(objectId),
     profession: Joi.string(),
     product: Joi.string(),

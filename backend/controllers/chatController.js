@@ -96,7 +96,9 @@ const getChats = catchAsync(async (req, res) => {
   
   if (filter.status) query = query.eq('status', filter.status);
   if (filter.is_gold !== undefined) query = query.eq('is_gold', filter.is_gold === 'true');
-  if (filter.pinned !== undefined) query = query.eq('pinned', filter.pinned === 'true');
+  if (filter.pinned !== undefined) {
+    query = query.eq('pinned', filter.pinned === 'true');
+  }
   if (filter.profession) query = query.eq('profession', filter.profession);
   if (filter.product) query = query.ilike('product', `%${filter.product}%`);
   if (filter.gender) query = query.eq('gender', filter.gender);

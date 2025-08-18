@@ -73,16 +73,31 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
         if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
           setIsLoading(true);
         }
+        console.log('=== CHATS DEBUG ===');
+        console.log('Fetching with filters:', {
+          page,
+          status: statusFilter,
+          pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned' ? 'true' : 'false') : undefined,
+          user_id: selectedUserId,
+          time_filter: timeFilter
+        });
         const response = await chatApi.getChats({ 
           page, 
           limit: CHATS_PER_PAGE,
           name: debouncedSearchTerm || undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
-          pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned') : undefined,
+          pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned' ? 'true' : 'false') : undefined,
           user_id: selectedUserId || undefined,
           time_filter: timeFilter !== 'all' ? timeFilter : undefined,
           start_date: customStartDate || undefined,
           end_date: customEndDate || undefined,
+        });
+        console.log('Response received:', {
+          chatsCount: response.chats.length,
+          totalChats: response.pagination.total,
+          totalPinned: response.totalPinnedChats,
+          totalGold: response.totalGoldChats,
+          firstChatPinned: response.chats[0]?.pinned
         });
         setChats(response.chats);
         setTotalPages(response.pagination.pages || 1);
@@ -120,7 +135,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
         limit: CHATS_PER_PAGE,
         name: debouncedSearchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned') : undefined,
+        pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned' ? 'true' : 'false') : undefined,
         user_id: selectedUserId || undefined,
         time_filter: timeFilter !== 'all' ? timeFilter : undefined,
         start_date: customStartDate || undefined,

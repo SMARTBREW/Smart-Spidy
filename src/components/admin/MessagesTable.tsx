@@ -31,6 +31,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [senderFilter, setSenderFilter] = useState<'all' | 'user' | 'assistant'>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
@@ -50,7 +51,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     const fetchAll = async () => {
       try {
         setIsLoading(true);
-        // Fetch messages with user and time filtering
+        // Fetch messages with user, time, and feedback filtering
         const [{ messages: allMsgs, totalUserMessages, totalAssistantMessages, pagination }, usersResponse, chatsResponse] = await Promise.all([
           messageApi.getAllMessages({ 
             page: 1, 
@@ -59,10 +60,21 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             time_filter: timeFilter !== 'all' ? timeFilter : undefined,
             start_date: customStartDate || undefined,
             end_date: customEndDate || undefined,
+            feedback: senderFilter === 'user' ? 'thumbs_up' : senderFilter === 'assistant' ? 'thumbs_down' : undefined,
           }),
           adminApi.getUsers({ page: 1, limit: 100 }),
           chatApi.getChats({ page: 1, limit: 100 }),
         ]);
+        console.log('=== MESSAGES API RESPONSE ===');
+        console.log('Sender filter:', senderFilter);
+        console.log('Feedback being sent:', senderFilter === 'user' ? 'thumbs_up' : senderFilter === 'assistant' ? 'thumbs_down' : 'undefined');
+        console.log('Response received:', {
+          messagesCount: allMsgs.length,
+          totalMessages: pagination.total,
+          totalUserMessages: totalUserMessages,
+          totalAssistantMessages: totalAssistantMessages,
+          firstMessageFeedback: allMsgs[0]?.feedback
+        });
         setAllMessages(allMsgs);
         setUsers(usersResponse.users);
         setChats(chatsResponse.chats);
@@ -77,7 +89,16 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
       }
     };
     fetchAll();
-  }, [selectedUserId, timeFilter, customStartDate, customEndDate]);
+  }, [selectedUserId, timeFilter, customStartDate, customEndDate, senderFilter]);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms debounce for client-side filtering
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Helper: Map userId to user name
   const userIdToName: Record<string, string> = {};
@@ -91,38 +112,82 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     chatIdToName[chat.id] = chat.name;
   });
 
-  // Apply search and feedback filter to allMessages
+  // Apply search filter to allMessages (feedback filtering now handled by backend)
   const filteredMessages = allMessages.filter(msg => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    const matchesSearch = !debouncedSearchTerm || 
       msg.content.toLowerCase().includes(searchLower) ||
       (msg.chatId && chatIdToName[msg.chatId]?.toLowerCase().includes(searchLower)) ||
       (msg.userId && userIdToName[msg.userId]?.toLowerCase().includes(searchLower));
-    let matchesFeedback = true;
-    if (senderFilter === 'user') matchesFeedback = msg.feedback === 'up';
-    if (senderFilter === 'assistant') matchesFeedback = msg.feedback === 'down';
-    return matchesSearch && matchesFeedback;
+    return matchesSearch;
   });
 
   // Paginate filteredMessages
   const paginatedMessages = filteredMessages.slice((page - 1) * MESSAGES_PER_PAGE, page * MESSAGES_PER_PAGE);
   const totalPagesFiltered = Math.ceil(filteredMessages.length / MESSAGES_PER_PAGE) || 1;
-  useEffect(() => { setPage(1); }, [searchTerm, senderFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearchTerm, senderFilter]);
 
   // Group messages into QAPairs (newest-first order)
   const qaPairs: QAPair[] = [];
   const assistantMap: Record<string, Message> = {};
+  const userMap: Record<string, Message> = {};
+  
+  // First pass: collect all assistant and user messages
   paginatedMessages.forEach(msg => {
-    if (msg.sender === 'assistant' && msg.chatId && typeof msg.messageOrder === 'number') {
-      assistantMap[`${msg.chatId}_${msg.messageOrder}`] = msg;
+    if (msg.chatId && typeof msg.messageOrder === 'number') {
+      if (msg.sender === 'assistant') {
+        assistantMap[`${msg.chatId}_${msg.messageOrder}`] = msg;
+      } else if (msg.sender === 'user') {
+        userMap[`${msg.chatId}_${msg.messageOrder}`] = msg;
+      }
     }
   });
+  
+  // Second pass: create QAPairs - Use same logic for all cases
+  const processedPairs = new Set<string>(); // Track processed pairs to avoid duplicates
+  
   paginatedMessages.forEach(msg => {
-    if (msg.sender === 'user' && msg.chatId && typeof msg.messageOrder === 'number') {
-      const answer = assistantMap[`${msg.chatId}_${msg.messageOrder + 1}`];
-      qaPairs.push({ query: msg, answer });
+    if (msg.chatId && typeof msg.messageOrder === 'number') {
+      if (msg.sender === 'user') {
+        // User message as query, find corresponding assistant answer
+        const answer = assistantMap[`${msg.chatId}_${msg.messageOrder + 1}`];
+        const pairKey = `${msg.chatId}_${msg.messageOrder}`;
+        if (!processedPairs.has(pairKey)) {
+          qaPairs.push({ query: msg, answer });
+          processedPairs.add(pairKey);
+        }
+      } else if (msg.sender === 'assistant') {
+        // Assistant message as query, find corresponding user question
+        const question = userMap[`${msg.chatId}_${msg.messageOrder - 1}`];
+        if (question) {
+          const pairKey = `${msg.chatId}_${msg.messageOrder - 1}`;
+          if (!processedPairs.has(pairKey)) {
+            qaPairs.push({ query: question, answer: msg });
+            processedPairs.add(pairKey);
+          }
+        } else {
+          // Only show standalone assistant messages when not filtering by feedback
+          // When filtering by feedback, we want to show proper Q&A pairs
+          if (senderFilter === 'all') {
+            const pairKey = `${msg.chatId}_${msg.messageOrder}_standalone`;
+            if (!processedPairs.has(pairKey)) {
+              qaPairs.push({ query: msg, answer: null });
+              processedPairs.add(pairKey);
+            }
+          }
+        }
+      }
     }
   });
+
+  console.log('=== MESSAGES DEBUG ===');
+  console.log('Messages loaded:', allMessages.length);
+  console.log('Filtered messages:', filteredMessages.length);
+  console.log('Sender filter:', senderFilter);
+  console.log('First few messages feedback:', allMessages.slice(0, 3).map(m => ({ id: m.id, feedback: m.feedback })));
+  console.log('QAPairs created:', qaPairs.length);
+  console.log('First QAPair:', qaPairs[0]);
+  console.log('=====================');
 
   // Build rows: each QAPair
   const rows: Array<{
@@ -381,25 +446,31 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row, idx) => (
-                  <tr key={row.query.query.id}>
+                                 displayRows.map((row, idx) => (
+                   <tr key={`${row.query.query.id}-${idx}`}>
                     <td className="py-5 px-3 align-top">
                       <div className="max-w-md">
-                        <p
-                          className="text-gray-900 truncate font-medium mt-1"
-                          title={row.query.query.content}
-                        >
-                          {truncateWords(row.query.query.content, 5)}
-                        </p>
+                                                 <p
+                           className="text-gray-900 truncate font-medium mt-1"
+                           title={row.query.query.content}
+                         >
+                           {truncateWords(row.query.query.content, 5)}
+                         </p>
                       </div>
                     </td>
                     <td className="py-5 px-3 align-top">
                       <div className="max-w-md">
                         <p
                           className="text-gray-900 truncate font-medium mt-1"
-                          title={row.query.answer ? row.query.answer.content : ''}
+                          title={row.query.answer ? row.query.answer.content : row.query.query.content}
                         >
-                          {row.query.answer ? truncateWords(row.query.answer.content, 12) : <span className='text-gray-400'>No answer</span>}
+                          {row.query.answer ? 
+                            truncateWords(row.query.answer.content, 12) : 
+                            (row.query.query.sender === 'assistant' ? 
+                              truncateWords(row.query.query.content, 12) : 
+                              <span className='text-gray-400'>No answer</span>
+                            )
+                          }
                         </p>
                       </div>
                     </td>

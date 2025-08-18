@@ -27,7 +27,7 @@ export const chatApi = {
     limit?: number;
     name?: string;
     status?: string;
-    pinned?: boolean;
+    pinned?: string;
     user_id?: string;
     profession?: string;
     product?: string;
@@ -43,7 +43,7 @@ export const chatApi = {
       if (params?.limit) searchParams.append('limit', params.limit.toString());
       if (params?.name) searchParams.append('name', params.name);
       if (params?.status) searchParams.append('status', params.status);
-      if (params?.pinned !== undefined) searchParams.append('pinned', params.pinned.toString());
+      if (params?.pinned !== undefined) searchParams.append('pinned', params.pinned);
       if (params?.user_id) searchParams.append('user_id', params.user_id);
       if (params?.profession) searchParams.append('profession', params.profession);
       if (params?.product) searchParams.append('product', params.product);

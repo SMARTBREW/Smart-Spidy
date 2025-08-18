@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -6,14 +6,10 @@ import {
   Filter, 
   Edit, 
   Trash2, 
-  Eye, 
   UserCheck, 
   UserX,
-  MoreHorizontal,
   Calendar,
-  MessageSquare,
   Users,
-  Activity,
   X,
   Mail,
   User as UserIcon,
@@ -23,6 +19,7 @@ import {
 } from 'lucide-react';
 import { User, AdminStats } from '../../types';
 import { adminApi, CreateUserData, UpdateUserData } from '../../services/admin';
+import { useAdminContext } from '../../contexts/AdminContext';
 
 interface UsersTableProps {
   stats: AdminStats | null;
@@ -30,10 +27,8 @@ interface UsersTableProps {
 }
 
 export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading: _statsLoading }) => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { users, isUsersLoading, usersPagination, fetchUsers } = useAdminContext();
   const [isSearching, setIsSearching] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -49,11 +44,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const USERS_PER_PAGE = 10;
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [totalActiveUsers, setTotalActiveUsers] = useState(0);
-  const [totalInactiveUsers, setTotalInactiveUsers] = useState(0);
 
   // Debounce search term to avoid excessive API calls
   useEffect(() => {
@@ -73,36 +64,13 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   }, [searchTerm]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        // Show main loader only for initial load and when not searching
-        if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
-          setIsLoading(true);
-        }
-        const response = await adminApi.getUsers({
-          page,
-          limit: USERS_PER_PAGE,
-          name: debouncedSearchTerm || undefined,
-          role: statusFilter !== 'all' ? statusFilter : undefined,
-        });
-        setUsers(response.users);
-        setTotalPages(response.pagination.pages || 1);
-        setTotalUsers(response.pagination.total || 0);
-        setTotalActiveUsers(response.totalActiveUsers || 0);
-        setTotalInactiveUsers(response.totalInactiveUsers || 0);
-        setIsInitialLoad(false);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        // You might want to show a toast notification here
-      } finally {
-        if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchUsers();
-  }, [page, debouncedSearchTerm, statusFilter]);
+    fetchUsers({
+      page,
+      limit: USERS_PER_PAGE,
+      name: debouncedSearchTerm || undefined,
+      role: statusFilter !== 'all' ? statusFilter : undefined,
+    });
+  }, [page, debouncedSearchTerm, statusFilter, fetchUsers]);
 
   // Reset to page 1 when search or filters change
   useEffect(() => {
@@ -131,6 +99,10 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   }, [selectedUser]);
 
   const filteredUsers = users; // No need for frontend filtering since backend handles it
+  const totalPages = usersPagination?.pages || 1;
+  const totalUsers = usersPagination?.total || 0;
+  const totalActiveUsers = usersPagination?.totalActiveUsers || 0;
+  const totalInactiveUsers = usersPagination?.totalInactiveUsers || 0;
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -200,11 +172,10 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
       
       handleCloseModal();
       // Refresh users list
-      const response = await adminApi.getUsers({
+      fetchUsers({
         page: 1,
         limit: USERS_PER_PAGE,
       });
-      setUsers(response.users);
     } catch (error) {
       console.error('Error saving user:', error);
       // You might want to show a toast notification here
@@ -218,11 +189,10 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
       try {
         await adminApi.deleteUser(userId);
         // Refresh users list
-        const response = await adminApi.getUsers({
+        fetchUsers({
           page: 1,
           limit: USERS_PER_PAGE,
         });
-        setUsers(response.users);
       } catch (error) {
         console.error('Error deleting user:', error);
         // You might want to show a toast notification here
@@ -231,14 +201,13 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   };
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
-    try {
-      await adminApi.updateUserStatus(userId, !currentStatus);
-      // Refresh users list
-      const response = await adminApi.getUsers({
-        page: 1,
-        limit: USERS_PER_PAGE,
-      });
-      setUsers(response.users);
+          try {
+        await adminApi.updateUserStatus(userId, !currentStatus);
+        // Refresh users list
+        fetchUsers({
+          page: 1,
+          limit: USERS_PER_PAGE,
+        });
     } catch (error) {
       console.error('Error toggling user status:', error);
       // You might want to show a toast notification here
@@ -335,7 +304,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
     );
   };
 
-  if (isLoading) {
+  if (isUsersLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

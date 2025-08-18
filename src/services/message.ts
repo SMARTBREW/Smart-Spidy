@@ -246,6 +246,7 @@ export const messageApi = {
     time_filter?: string;
     start_date?: string;
     end_date?: string;
+    feedback?: string;
   }): Promise<MessagesResponse> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
@@ -254,6 +255,7 @@ export const messageApi = {
     if (params?.time_filter) searchParams.append('time_filter', params.time_filter);
     if (params?.start_date) searchParams.append('start_date', params.start_date);
     if (params?.end_date) searchParams.append('end_date', params.end_date);
+    if (params?.feedback) searchParams.append('feedback', params.feedback);
     const url = `${API_BASE_URL}/messages${searchParams.toString() ? `?${searchParams}` : ''}`;
     const response = await authService.authenticatedRequest(url, { method: 'GET' });
     return handleResponse(response);
