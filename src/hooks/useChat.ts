@@ -4,6 +4,7 @@ import { User, Chat, Message, AppState, ProfessionType } from '../types';
 import authService from '../services/auth';
 import { chatApi } from '../services/chat';
 import { messageApi } from '../services/message';
+import { saveLastChoices } from '../utils/lastChoices';
 
 // Helper function to extract Instagram username from message content
 const extractInstagramUsername = (content: string): {username: string, forceLive?: boolean} | null => {
@@ -154,6 +155,15 @@ export const useChat = () => {
         product,
         gender,
       };
+      
+      // Save the choices for next time
+      if (product || executiveInstagramUsername) {
+        saveLastChoices({
+          product: product || '',
+          executiveInstagramUsername: executiveInstagramUsername || '',
+        });
+      }
+      
       const newChat = await chatApi.createChat(chatData);
       await fetchChats();
       if (typeof newChat?.id === 'string') {

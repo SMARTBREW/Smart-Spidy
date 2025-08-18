@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { PROFESSION_LIST } from '../types';
+import { getLastChoices, saveLastChoices, clearLastChoices } from '../utils/lastChoices';
 
 interface CreateChatModalProps {
   isOpen: boolean;
@@ -28,8 +29,17 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
     profession: '',
   });
 
+  // Load last choices when modal opens
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      const lastChoices = getLastChoices();
+      setFields(prev => ({
+        ...prev,
+        product: lastChoices.product,
+        executiveInstagramUsername: lastChoices.executiveInstagramUsername,
+      }));
+    } else {
+      // Reset fields when modal closes
       setFields({ name: '', instagramUsername: '', executiveInstagramUsername: '', occupation: '', product: '', gender: '', profession: '' });
     }
   }, [isOpen]);
@@ -37,6 +47,13 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!fields.name) return;
+    
+    // Save the current choices for next time
+    saveLastChoices({
+      product: fields.product,
+      executiveInstagramUsername: fields.executiveInstagramUsername,
+    });
+    
     onCreateChat(fields);
     onClose();
   };
@@ -70,7 +87,30 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
           >
             <X className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold mb-4 text-black">Start New Conversation</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-black">Start New Conversation</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Product and Instagram username will be pre-filled with your last choices.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                clearLastChoices();
+                const lastChoices = getLastChoices();
+                setFields(prev => ({
+                  ...prev,
+                  product: lastChoices.product,
+                  executiveInstagramUsername: lastChoices.executiveInstagramUsername,
+                }));
+              }}
+              className="text-xs text-gray-500 hover:text-gray-700 underline"
+              title="Reset to default values"
+            >
+              Reset defaults
+            </button>
+          </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               type="text"
@@ -90,14 +130,21 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
               className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
               maxLength={50}
             />
-            <input
-              type="text"
-              value={fields.executiveInstagramUsername}
-              onChange={e => setFields(f => ({ ...f, executiveInstagramUsername: e.target.value }))}
-              placeholder="Your Instagram username"
-              className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              maxLength={50}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={fields.executiveInstagramUsername}
+                onChange={e => setFields(f => ({ ...f, executiveInstagramUsername: e.target.value }))}
+                placeholder="Your Instagram username"
+                className="w-full p-3 border border-gray-300 rounded-xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                maxLength={50}
+              />
+              {fields.executiveInstagramUsername && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
+                  Last used
+                </div>
+              )}
+            </div>
              <select
               value={fields.profession}
               onChange={e => setFields(f => ({ ...f, profession: e.target.value }))}
@@ -109,17 +156,24 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
                 <option key={prof} value={prof}>{prof}</option>
               ))}
             </select>
-            <select
-              value={fields.product}
-              onChange={e => setFields(f => ({ ...f, product: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
-              required
-            >
-              <option value="" disabled>Select product</option>
-              <option value="Pads For Freedom">Pads For Freedom</option>
-              <option value="Bowls Of Hope">Bowls Of Hope</option>
-              <option value="Wings Of Hope">Wings Of Hope</option>
-            </select>
+            <div className="relative">
+              <select
+                value={fields.product}
+                onChange={e => setFields(f => ({ ...f, product: e.target.value }))}
+                className="w-full p-3 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-gray-500"
+                required
+              >
+                <option value="" disabled>Select product</option>
+                <option value="Pads For Freedom">Pads For Freedom</option>
+                <option value="Bowls Of Hope">Bowls Of Hope</option>
+                <option value="Wings Of Hope">Wings Of Hope</option>
+              </select>
+              {fields.product && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
+                  Last used
+                </div>
+              )}
+            </div>
             <select
               value={fields.gender}
               onChange={e => setFields(f => ({ ...f, gender: e.target.value }))}
