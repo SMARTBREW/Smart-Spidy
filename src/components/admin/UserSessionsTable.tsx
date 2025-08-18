@@ -27,7 +27,9 @@ interface UserSessionsTableProps {
 export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) => {
   const [sessions, setSessions] = useState<ApiUserSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
   const [selectedSession, setSelectedSession] = useState<ApiUserSession | null>(null);
   const [page, setPage] = useState(1);
@@ -37,12 +39,32 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
   const [totalEndedSessions, setTotalEndedSessions] = useState(0);
   const SESSIONS_PER_PAGE = 10;
 
+  // Debounce search term
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const fetchSessions = async (pageNum = page) => {
     try {
-      setIsLoading(true);
+      if (!isSearching) {
+        setIsLoading(true);
+      }
       const response = await adminApi.getSessions({
         page: pageNum,
         limit: SESSIONS_PER_PAGE,
+        isActive: statusFilter !== 'all' ? (statusFilter === 'active') : undefined,
+        search: debouncedSearchTerm || undefined,
       });
       setSessions(response.sessions);
       setTotalPages(response.pagination.pages || 1);
@@ -52,13 +74,20 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
     } catch (error) {
       console.error('Error fetching sessions:', error);
     } finally {
-      setIsLoading(false);
+      if (!isSearching) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchSessions(page);
-  }, [page]);
+  }, [page, debouncedSearchTerm, statusFilter]);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm, statusFilter]);
 
   // Auto-refresh active sessions every 30 seconds
   useEffect(() => {
@@ -76,16 +105,34 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
   const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
   const handlePageClick = (p: number) => setPage(p);
 
-  const filteredSessions = sessions.filter(session => {
-    const matchesSearch = session.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         session.user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         session.ipAddress?.includes(searchTerm) ||
-                         session.userAgent?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'active' && session.isActive) ||
-                         (statusFilter === 'ended' && !session.isActive);
-    return matchesSearch && matchesStatus;
-  });
+  // Better pagination logic
+  const getVisiblePages = () => {
+    const delta = 2; // Number of pages to show on each side of current page
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+
+    if (page - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (page + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
+  const filteredSessions = sessions; // No need for frontend filtering since backend handles it
 
   const localStats = {
     total: sessions.length,
@@ -297,6 +344,11 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             />
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-3">
             <Filter className="w-5 h-5 text-gray-400" />
@@ -426,17 +478,40 @@ export const UserSessionsTable: React.FC<UserSessionsTableProps> = ({ stats }) =
       </div>
       {/* Pagination UI */}
       <div className="flex justify-center items-center space-x-2 my-4">
-        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i + 1}
-            onClick={() => handlePageClick(i + 1)}
-            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            {i + 1}
-          </button>
+        <button 
+          onClick={handlePrevPage} 
+          disabled={page === 1} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Prev
+        </button>
+        
+        {getVisiblePages().map((pageNum, index) => (
+          <React.Fragment key={index}>
+            {pageNum === '...' ? (
+              <span className="px-3 py-1 text-gray-500">...</span>
+            ) : (
+              <button
+                onClick={() => handlePageClick(pageNum as number)}
+                className={`px-3 py-1 rounded transition-colors ${
+                  page === pageNum 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {pageNum}
+              </button>
+            )}
+          </React.Fragment>
         ))}
-        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
+        
+        <button 
+          onClick={handleNextPage} 
+          disabled={page === totalPages} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Next
+        </button>
       </div>
     </div>
   );

@@ -232,12 +232,14 @@ export const adminApi = {
     limit?: number;
     userId?: string;
     isActive?: boolean;
+    search?: string;
   }): Promise<SessionsResponse> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.userId) searchParams.append('user_id', params.userId);
     if (params?.isActive !== undefined) searchParams.append('is_active', params.isActive.toString());
+    if (params?.search) searchParams.append('search', params.search);
 
     const response = await authService.authenticatedRequest(`${API_BASE_URL}/users/sessions?${searchParams}`, {
       method: 'GET',

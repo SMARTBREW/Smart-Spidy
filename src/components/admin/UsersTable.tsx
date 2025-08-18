@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -32,7 +32,10 @@ interface UsersTableProps {
 export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading: _statsLoading }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -52,29 +55,59 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   const [totalActiveUsers, setTotalActiveUsers] = useState(0);
   const [totalInactiveUsers, setTotalInactiveUsers] = useState(0);
 
+  // Debounce search term to avoid excessive API calls
+  useEffect(() => {
+    // Set searching state when user starts typing
+    if (searchTerm.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        setIsLoading(true);
+        // Show main loader only for initial load and when not searching
+        if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
+          setIsLoading(true);
+        }
         const response = await adminApi.getUsers({
           page,
           limit: USERS_PER_PAGE,
+          name: debouncedSearchTerm || undefined,
+          role: statusFilter !== 'all' ? statusFilter : undefined,
         });
         setUsers(response.users);
         setTotalPages(response.pagination.pages || 1);
         setTotalUsers(response.pagination.total || 0);
         setTotalActiveUsers(response.totalActiveUsers || 0);
         setTotalInactiveUsers(response.totalInactiveUsers || 0);
+        setIsInitialLoad(false);
       } catch (error) {
         console.error('Error fetching users:', error);
         // You might want to show a toast notification here
       } finally {
-        setIsLoading(false);
+        if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchUsers();
-  }, [page]);
+  }, [page, debouncedSearchTerm, statusFilter]);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm, statusFilter]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -97,14 +130,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
     setFormErrors({});
   }, [selectedUser]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'active' && user.isActive) ||
-                         (statusFilter === 'inactive' && !user.isActive);
-    return matchesSearch && matchesStatus;
-  });
+  const filteredUsers = users; // No need for frontend filtering since backend handles it
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -223,6 +249,33 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
   const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
   const handlePageClick = (p: number) => setPage(p);
+
+  // Better pagination logic
+  const getVisiblePages = () => {
+    const delta = 2; // Number of pages to show on each side of current page
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+
+    if (page - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (page + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
 
   // StatCard component for analytics
   const StatCard: React.FC<{ 
@@ -351,13 +404,20 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
         <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search users by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            />
+                         <div className="relative w-full">
+               <input
+                 type="text"
+                 placeholder="Search users by name or email..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+               />
+               {isSearching && (
+                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                   <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                 </div>
+               )}
+             </div>
           </div>
           <div className="flex items-center space-x-3">
             <Filter className="w-5 h-5 text-gray-400" />
@@ -480,17 +540,40 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
 
       {/* Pagination UI */}
       <div className="flex justify-center items-center space-x-2 my-4">
-        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i + 1}
-            onClick={() => handlePageClick(i + 1)}
-            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            {i + 1}
-          </button>
+        <button 
+          onClick={handlePrevPage} 
+          disabled={page === 1} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Prev
+        </button>
+        
+        {getVisiblePages().map((pageNum, index) => (
+          <React.Fragment key={index}>
+            {pageNum === '...' ? (
+              <span className="px-3 py-1 text-gray-500">...</span>
+            ) : (
+              <button
+                onClick={() => handlePageClick(pageNum as number)}
+                className={`px-3 py-1 rounded transition-colors ${
+                  page === pageNum 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {pageNum}
+              </button>
+            )}
+          </React.Fragment>
         ))}
-        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
+        
+        <button 
+          onClick={handleNextPage} 
+          disabled={page === totalPages} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Next
+        </button>
       </div>
 
       {/* User Form Modal */}

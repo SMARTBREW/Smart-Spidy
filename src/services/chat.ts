@@ -33,6 +33,9 @@ export const chatApi = {
     product?: string;
     gender?: string;
     is_gold?: boolean;
+    time_filter?: string;
+    start_date?: string;
+    end_date?: string;
   }): Promise<{ chats: Chat[]; pagination: any; totalPinnedChats?: number; totalGoldChats?: number }> {
     const getChatsFn = async () => {
       const searchParams = new URLSearchParams();
@@ -46,6 +49,9 @@ export const chatApi = {
       if (params?.product) searchParams.append('product', params.product);
       if (params?.gender) searchParams.append('gender', params.gender);
       if (params?.is_gold !== undefined) searchParams.append('is_gold', params.is_gold.toString());
+      if (params?.time_filter) searchParams.append('time_filter', params.time_filter);
+      if (params?.start_date) searchParams.append('start_date', params.start_date);
+      if (params?.end_date) searchParams.append('end_date', params.end_date);
       const url = `${API_BASE_URL}/chats?${searchParams}`;
       const response = await authService.authenticatedRequest(url, { method: 'GET' });
       return handleResponse(response);

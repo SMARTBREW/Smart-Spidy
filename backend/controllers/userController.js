@@ -75,7 +75,7 @@ const getUsers = catchAsync(async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
   let query = supabaseAdmin.from('users').select('*', { count: 'exact' });
-  if (filter.name) query = query.ilike('name', `%${filter.name}%`);
+  if (filter.name) query = query.or(`name.ilike.%${filter.name}%,email.ilike.%${filter.name}%`);
   if (filter.role) query = query.eq('role', filter.role);
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: users, count, error } = await query;
@@ -214,11 +214,40 @@ const getUserSessionStats = catchAsync(async (_req, res) => {
 const getUserSessions = catchAsync(async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
-  const { user_id, is_active } = req.query;
+  const { user_id, is_active, search } = req.query;
   const offset = (page - 1) * limit;
   let query = supabaseAdmin
     .from('user_sessions')
     .select('*, users(id, name, email)', { count: 'exact' });
+  
+  // Enhanced search: search by user name, email, IP address, device
+  if (search) {
+    // First, get user IDs that match the search term
+    const { data: matchingUsers, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    
+    if (userError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, userError.message);
+    }
+    
+    const matchingUserIds = matchingUsers?.map(user => user.id) || [];
+    
+    // Then search in session fields and user IDs
+    const searchConditions = [
+      `ip_address.ilike.%${search}%`,
+      `device_info.ilike.%${search}%`,
+      `timeout_reason.ilike.%${search}%`
+    ];
+    
+    if (matchingUserIds.length > 0) {
+      searchConditions.push(`user_id.in.(${matchingUserIds.join(',')})`);
+    }
+    
+    query = query.or(searchConditions.join(','));
+  }
+  
   if (user_id) query = query.eq('user_id', user_id);
   if (is_active !== undefined) query = query.eq('is_active', is_active === 'true');
   query = query.order('updated_at', { ascending: false }).range(offset, offset + limit - 1);

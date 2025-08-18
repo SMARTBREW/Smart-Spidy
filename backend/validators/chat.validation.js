@@ -24,6 +24,9 @@ const getChats = {
     profession: Joi.string(),
     product: Joi.string(),
     gender: Joi.string(),
+    time_filter: Joi.string().valid('all', 'today', 'last_week', 'last_month', 'custom'),
+    start_date: Joi.string().isoDate(),
+    end_date: Joi.string().isoDate(),
   }),
 };
 

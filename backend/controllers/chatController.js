@@ -61,7 +61,7 @@ const getChats = catchAsync(async (req, res) => {
     'product',
     'gender',
   ]);
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, time_filter, start_date, end_date } = req.query;
   const offset = (page - 1) * limit;
   let query = supabaseAdmin
     .from('chats')
@@ -71,24 +71,119 @@ const getChats = catchAsync(async (req, res) => {
   } else if (filter.user_id) {
     query = query.eq('user_id', filter.user_id);
   }
-  if (filter.name) query = query.ilike('name', `%${filter.name}%`);
+  
+  // Enhanced search: search by chat name, user name, or user email
+  if (filter.name) {
+    // First, get user IDs that match the search term
+    const { data: matchingUsers, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .or(`name.ilike.%${filter.name}%,email.ilike.%${filter.name}%`);
+    
+    if (userError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, userError.message);
+    }
+    
+    const matchingUserIds = matchingUsers?.map(user => user.id) || [];
+    
+    // Then search in chat names and user IDs
+    if (matchingUserIds.length > 0) {
+      query = query.or(`name.ilike.%${filter.name}%,user_id.in.(${matchingUserIds.join(',')})`);
+    } else {
+      query = query.ilike('name', `%${filter.name}%`);
+    }
+  }
+  
   if (filter.status) query = query.eq('status', filter.status);
   if (filter.is_gold !== undefined) query = query.eq('is_gold', filter.is_gold === 'true');
   if (filter.pinned !== undefined) query = query.eq('pinned', filter.pinned === 'true');
   if (filter.profession) query = query.eq('profession', filter.profession);
   if (filter.product) query = query.ilike('product', `%${filter.product}%`);
   if (filter.gender) query = query.eq('gender', filter.gender);
+  
+  // Apply time filtering
+  const now = new Date();
+  if (time_filter === 'today') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    query = query.gte('created_at', todayStart).lt('created_at', todayEnd);
+  } else if (time_filter === 'last_week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', weekAgo);
+  } else if (time_filter === 'last_month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', monthAgo);
+  } else if (time_filter === 'custom' && start_date && end_date) {
+    const startDateTime = new Date(start_date).toISOString();
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', startDateTime).lt('created_at', endDateTime);
+  } else if (start_date && !end_date) {
+    query = query.gte('created_at', new Date(start_date).toISOString());
+  } else if (end_date && !start_date) {
+    query = query.lt('created_at', new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString());
+  }
+  
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: chats, count, error } = await query;
-  if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-  const { count: pinnedCount, error: pinnedError } = await supabaseAdmin
-    .from('chats')
-    .select('id', { count: 'exact', head: true })
-    .eq('pinned', true);
-  const { count: goldCount, error: goldError } = await supabaseAdmin
-    .from('chats')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_gold', true);
+  if (error) {
+    // Handle range error gracefully - return empty result if offset is beyond data
+    if (error.message.includes('range not satisfiable') || error.message.includes('Requested range not satisfiable')) {
+      return res.send({
+        chats: [],
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: 0,
+          pages: 0,
+        },
+        totalPinnedChats: 0,
+        totalGoldChats: 0,
+      });
+    }
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  }
+  // Create separate queries for analytics (same filters as main query)
+  let pinnedQuery = supabaseAdmin.from('chats').select('id', { count: 'exact', head: true }).eq('pinned', true);
+  let goldQuery = supabaseAdmin.from('chats').select('id', { count: 'exact', head: true }).eq('is_gold', true);
+  
+  if (req.user.role !== 'admin') {
+    pinnedQuery = pinnedQuery.eq('user_id', req.user.id);
+    goldQuery = goldQuery.eq('user_id', req.user.id);
+  } else if (filter.user_id) {
+    pinnedQuery = pinnedQuery.eq('user_id', filter.user_id);
+    goldQuery = goldQuery.eq('user_id', filter.user_id);
+  }
+  
+  // Apply same time filtering to analytics
+  if (time_filter === 'today') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    pinnedQuery = pinnedQuery.gte('created_at', todayStart).lt('created_at', todayEnd);
+    goldQuery = goldQuery.gte('created_at', todayStart).lt('created_at', todayEnd);
+  } else if (time_filter === 'last_week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    pinnedQuery = pinnedQuery.gte('created_at', weekAgo);
+    goldQuery = goldQuery.gte('created_at', weekAgo);
+  } else if (time_filter === 'last_month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    pinnedQuery = pinnedQuery.gte('created_at', monthAgo);
+    goldQuery = goldQuery.gte('created_at', monthAgo);
+  } else if (time_filter === 'custom' && start_date && end_date) {
+    const startDateTime = new Date(start_date).toISOString();
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    pinnedQuery = pinnedQuery.gte('created_at', startDateTime).lt('created_at', endDateTime);
+    goldQuery = goldQuery.gte('created_at', startDateTime).lt('created_at', endDateTime);
+  } else if (start_date && !end_date) {
+    pinnedQuery = pinnedQuery.gte('created_at', new Date(start_date).toISOString());
+    goldQuery = goldQuery.gte('created_at', new Date(start_date).toISOString());
+  } else if (end_date && !start_date) {
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    pinnedQuery = pinnedQuery.lt('created_at', endDateTime);
+    goldQuery = goldQuery.lt('created_at', endDateTime);
+  }
+  
+  const { count: pinnedCount, error: pinnedError } = await pinnedQuery;
+  const { count: goldCount, error: goldError } = await goldQuery;
   if (pinnedError || goldError) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count pinned/gold chats');
   }
@@ -285,7 +380,25 @@ const searchChats = catchAsync(async (req, res) => {
     const status = query.toLowerCase();
     chatQuery = chatQuery.eq('status', status).eq('is_gold', false);
   } else {
-    chatQuery = chatQuery.or(`name.ilike.%${query}%`);
+    // Enhanced search: search by chat name, user name, or user email
+    // First, get user IDs that match the search term
+    const { data: matchingUsers, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%`);
+    
+    if (userError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, userError.message);
+    }
+    
+    const matchingUserIds = matchingUsers?.map(user => user.id) || [];
+    
+    // Then search in chat names and user IDs
+    if (matchingUserIds.length > 0) {
+      chatQuery = chatQuery.or(`name.ilike.%${query}%,user_id.in.(${matchingUserIds.join(',')})`);
+    } else {
+      chatQuery = chatQuery.ilike('name', `%${query}%`);
+    }
   }
   const { data: chats, count: chatCount, error: chatError } = await chatQuery
     .order('created_at', { ascending: false })

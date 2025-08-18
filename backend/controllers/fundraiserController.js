@@ -65,43 +65,170 @@ const createFundraiser = catchAsync(async (req, res) => {
 });
 
 const getFundraisers = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ['name', 'created_by', 'chat_id']);
-  const { page = 1, limit = 10, last_week, start_date, end_date } = req.query;
+  const filter = pick(req.query, ['name', 'created_by', 'chat_id', 'user_id']);
+  const { page = 1, limit = 10, last_week, start_date, end_date, search, time_filter } = req.query;
   const offset = (page - 1) * limit;
   let query = supabaseAdmin
     .from('fundraisers')
     .select('*, users(id, name, email), chats(id, name, is_gold, status)', { count: 'exact' });
+  
+  // Enhanced search: search by fundraiser name, user name, user email, and chat name
+  if (search) {
+    // First, get user IDs that match the search term
+    const { data: matchingUsers, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    
+    // Get chat IDs that match the search term
+    const { data: matchingChats, error: chatError } = await supabaseAdmin
+      .from('chats')
+      .select('id')
+      .ilike('name', `%${search}%`);
+    
+    if (userError || chatError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Search query failed');
+    }
+    
+    const matchingUserIds = matchingUsers?.map(user => user.id) || [];
+    const matchingChatIds = matchingChats?.map(chat => chat.id) || [];
+    
+    // Build search conditions
+    const searchConditions = [`name.ilike.%${search}%`];
+    
+    if (matchingUserIds.length > 0) {
+      searchConditions.push(`created_by.in.(${matchingUserIds.join(',')})`);
+    }
+    
+    if (matchingChatIds.length > 0) {
+      searchConditions.push(`chat_id.in.(${matchingChatIds.join(',')})`);
+    }
+    
+    query = query.or(searchConditions.join(','));
+  }
+  
+  // Handle user_id filtering by getting chats for that user first
+  if (filter.user_id) {
+    const { data: userChats, error: chatError } = await supabaseAdmin
+      .from('chats')
+      .select('id')
+      .eq('user_id', filter.user_id);
+    
+    if (chatError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get user chats');
+    }
+    
+    const chatIds = userChats?.map(chat => chat.id) || [];
+    if (chatIds.length > 0) {
+      query = query.in('chat_id', chatIds);
+    } else {
+      // No chats for this user, return empty result
+      return res.send({
+        fundraisers: [],
+        pagination: { page: Number(page), limit: Number(limit), total: 0, pages: 0 },
+        totalFundraisersMonth: 0,
+        totalFundraisersWeek: 0,
+      });
+    }
+  }
+  
   if (filter.name) query = query.ilike('name', `%${filter.name}%`);
   if (filter.created_by) query = query.eq('created_by', filter.created_by);
   if (filter.chat_id) query = query.eq('chat_id', filter.chat_id);
-  if (last_week === 'true') {
-    const now = new Date();
-    const lastWeek = new Date();
-    lastWeek.setDate(now.getDate() - 7);
-    query = query.gte('created_at', lastWeek.toISOString());
-  }
-  if (start_date && end_date) {
+  
+  // Apply time filtering (prioritize time_filter over legacy last_week)
+  const now = new Date();
+  if (time_filter === 'today') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    query = query.gte('created_at', todayStart).lt('created_at', todayEnd);
+  } else if (time_filter === 'last_week' || last_week === 'true') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', weekAgo);
+  } else if (time_filter === 'last_month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', monthAgo);
+  } else if (time_filter === 'custom' && start_date && end_date) {
+    const startDateTime = new Date(start_date).toISOString();
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', startDateTime).lt('created_at', endDateTime);
+  } else if (start_date && end_date) {
     query = query.gte('created_at', new Date(start_date).toISOString())
                  .lte('created_at', new Date(end_date).toISOString());
-  } else if (start_date) {
+  } else if (start_date && !end_date) {
     query = query.gte('created_at', new Date(start_date).toISOString());
-  } else if (end_date) {
-    query = query.lte('created_at', new Date(end_date).toISOString());
+  } else if (end_date && !start_date) {
+    query = query.lt('created_at', new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString());
   }
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: fundraisers, count, error } = await query;
-  if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
-  const now = new Date();
+  if (error) {
+    // Handle range error gracefully - return empty result if offset is beyond data
+    if (error.message.includes('range not satisfiable') || error.message.includes('Requested range not satisfiable')) {
+      return res.send({
+        fundraisers: [],
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: 0,
+          pages: 0,
+        },
+        totalFundraisersMonth: 0,
+        totalFundraisersWeek: 0,
+      });
+    }
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
+  }
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
-  const { count: monthCount, error: monthError } = await supabaseAdmin
-    .from('fundraisers')
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', monthStart);
-  const { count: weekCount, error: weekError } = await supabaseAdmin
-    .from('fundraisers')
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', weekStart);
+  
+  // Create separate queries for analytics (same filters as main query)
+  let monthQuery = supabaseAdmin.from('fundraisers').select('id', { count: 'exact', head: true }).gte('created_at', monthStart);
+  let weekQuery = supabaseAdmin.from('fundraisers').select('id', { count: 'exact', head: true }).gte('created_at', weekStart);
+  
+  if (filter.user_id) {
+    const { data: userChats } = await supabaseAdmin
+      .from('chats')
+      .select('id')
+      .eq('user_id', filter.user_id);
+    const chatIds = userChats?.map(chat => chat.id) || [];
+    if (chatIds.length > 0) {
+      monthQuery = monthQuery.in('chat_id', chatIds);
+      weekQuery = weekQuery.in('chat_id', chatIds);
+    }
+  }
+  if (filter.created_by) {
+    monthQuery = monthQuery.eq('created_by', filter.created_by);
+    weekQuery = weekQuery.eq('created_by', filter.created_by);
+  }
+  if (filter.chat_id) {
+    monthQuery = monthQuery.eq('chat_id', filter.chat_id);
+    weekQuery = weekQuery.eq('chat_id', filter.chat_id);
+  }
+  
+  // Apply same time filtering to analytics if needed
+  if (time_filter === 'today') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    monthQuery = monthQuery.gte('created_at', todayStart).lt('created_at', todayEnd);
+    weekQuery = weekQuery.gte('created_at', todayStart).lt('created_at', todayEnd);
+  } else if (time_filter === 'last_week' || last_week === 'true') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    monthQuery = monthQuery.gte('created_at', weekAgo);
+    weekQuery = weekQuery.gte('created_at', weekAgo);
+  } else if (time_filter === 'last_month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    monthQuery = monthQuery.gte('created_at', monthAgo);
+    weekQuery = weekQuery.gte('created_at', monthAgo);
+  } else if (time_filter === 'custom' && start_date && end_date) {
+    const startDateTime = new Date(start_date).toISOString();
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    monthQuery = monthQuery.gte('created_at', startDateTime).lt('created_at', endDateTime);
+    weekQuery = weekQuery.gte('created_at', startDateTime).lt('created_at', endDateTime);
+  }
+  
+  const { count: monthCount, error: monthError } = await monthQuery;
+  const { count: weekCount, error: weekError } = await weekQuery;
   if (monthError || weekError) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count fundraisers for month/week');
   }

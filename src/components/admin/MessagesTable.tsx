@@ -18,6 +18,8 @@ import { Message, AdminStats, Chat, TrainingData, QAPair } from '../../types';
 import { messageApi } from '../../services/message';
 import { adminApi } from '../../services/admin';
 import { chatApi } from '../../services/chat';
+import { UserSelector } from './UserSelector';
+import { TimeFilter, TimeFilterType } from './TimeFilter';
 
 interface MessagesTableProps {
   stats: AdminStats | null;
@@ -30,6 +32,10 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [senderFilter, setSenderFilter] = useState<'all' | 'user' | 'assistant'>('all');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [page, setPage] = useState(1);
@@ -44,9 +50,16 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     const fetchAll = async () => {
       try {
         setIsLoading(true);
-        // Fetch all messages for frontend filtering
+        // Fetch messages with user and time filtering
         const [{ messages: allMsgs, totalUserMessages, totalAssistantMessages, pagination }, usersResponse, chatsResponse] = await Promise.all([
-          messageApi.getAllMessages({ page: 1, limit: 1000 }),
+          messageApi.getAllMessages({ 
+            page: 1, 
+            limit: 1000, 
+            user_id: selectedUserId || undefined,
+            time_filter: timeFilter !== 'all' ? timeFilter : undefined,
+            start_date: customStartDate || undefined,
+            end_date: customEndDate || undefined,
+          }),
           adminApi.getUsers({ page: 1, limit: 100 }),
           chatApi.getChats({ page: 1, limit: 100 }),
         ]);
@@ -64,21 +77,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
       }
     };
     fetchAll();
-  }, []);
-
-  // Apply search and feedback filter to allMessages
-  const filteredMessages = allMessages.filter(msg => {
-    const matchesSearch = !searchTerm || msg.content.toLowerCase().includes(searchTerm.toLowerCase());
-    let matchesFeedback = true;
-    if (senderFilter === 'user') matchesFeedback = msg.feedback === 'up';
-    if (senderFilter === 'assistant') matchesFeedback = msg.feedback === 'down';
-    return matchesSearch && matchesFeedback;
-  });
-
-  // Paginate filteredMessages
-  const paginatedMessages = filteredMessages.slice((page - 1) * MESSAGES_PER_PAGE, page * MESSAGES_PER_PAGE);
-  const totalPagesFiltered = Math.ceil(filteredMessages.length / MESSAGES_PER_PAGE) || 1;
-  useEffect(() => { setPage(1); }, [searchTerm, senderFilter]);
+  }, [selectedUserId, timeFilter, customStartDate, customEndDate]);
 
   // Helper: Map userId to user name
   const userIdToName: Record<string, string> = {};
@@ -91,6 +90,24 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   chats.forEach(chat => {
     chatIdToName[chat.id] = chat.name;
   });
+
+  // Apply search and feedback filter to allMessages
+  const filteredMessages = allMessages.filter(msg => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      msg.content.toLowerCase().includes(searchLower) ||
+      (msg.chatId && chatIdToName[msg.chatId]?.toLowerCase().includes(searchLower)) ||
+      (msg.userId && userIdToName[msg.userId]?.toLowerCase().includes(searchLower));
+    let matchesFeedback = true;
+    if (senderFilter === 'user') matchesFeedback = msg.feedback === 'up';
+    if (senderFilter === 'assistant') matchesFeedback = msg.feedback === 'down';
+    return matchesSearch && matchesFeedback;
+  });
+
+  // Paginate filteredMessages
+  const paginatedMessages = filteredMessages.slice((page - 1) * MESSAGES_PER_PAGE, page * MESSAGES_PER_PAGE);
+  const totalPagesFiltered = Math.ceil(filteredMessages.length / MESSAGES_PER_PAGE) || 1;
+  useEffect(() => { setPage(1); }, [searchTerm, senderFilter]);
 
   // Group messages into QAPairs (newest-first order)
   const qaPairs: QAPair[] = [];
@@ -138,6 +155,33 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
   const handleNextPage = () => setPage((p) => Math.min(totalPagesFiltered, p + 1));
   const handlePageClick = (p: number) => setPage(p);
+
+  // Better pagination logic
+  const getVisiblePages = () => {
+    const delta = 2; // Number of pages to show on each side of current page
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPagesFiltered - 1, page + delta); i++) {
+      range.push(i);
+    }
+
+    if (page - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (page + delta < totalPagesFiltered - 1) {
+      rangeWithDots.push('...', totalPagesFiltered);
+    } else if (totalPagesFiltered > 1) {
+      rangeWithDots.push(totalPagesFiltered);
+    }
+
+    return rangeWithDots;
+  };
 
   const handleViewMessage = (message: Message) => {
     setSelectedMessage(message);
@@ -280,6 +324,12 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             />
           </div>
           <div className="flex items-center space-x-3">
+            <UserSelector
+              selectedUserId={selectedUserId}
+              onUserChange={setSelectedUserId}
+              placeholder="All Users"
+              className="min-w-[200px]"
+            />
             <Filter className="w-5 h-5 text-gray-400" />
             <select
               value={senderFilter}
@@ -292,6 +342,15 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             </select>
           </div>
         </div>
+        <TimeFilter
+          selectedFilter={timeFilter}
+          onFilterChange={setTimeFilter}
+          customStartDate={customStartDate}
+          customEndDate={customEndDate}
+          onCustomStartDateChange={setCustomStartDate}
+          onCustomEndDateChange={setCustomEndDate}
+          className="mt-4"
+        />
       </div>
 
       {/* Messages Table */}
@@ -371,17 +430,40 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
 
       {/* Pagination UI */}
       <div className="flex justify-center items-center space-x-2 my-4">
-        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
-        {Array.from({ length: totalPagesFiltered }, (_, i) => (
-          <button
-            key={i + 1}
-            onClick={() => handlePageClick(i + 1)}
-            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            {i + 1}
-          </button>
+        <button 
+          onClick={handlePrevPage} 
+          disabled={page === 1} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Prev
+        </button>
+        
+        {getVisiblePages().map((pageNum, index) => (
+          <React.Fragment key={index}>
+            {pageNum === '...' ? (
+              <span className="px-3 py-1 text-gray-500">...</span>
+            ) : (
+              <button
+                onClick={() => handlePageClick(pageNum as number)}
+                className={`px-3 py-1 rounded transition-colors ${
+                  page === pageNum 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {pageNum}
+              </button>
+            )}
+          </React.Fragment>
         ))}
-        <button onClick={handleNextPage} disabled={page === totalPagesFiltered} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
+        
+        <button 
+          onClick={handleNextPage} 
+          disabled={page === totalPagesFiltered} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Next
+        </button>
       </div>
 
       {/* Message Detail Modal */}

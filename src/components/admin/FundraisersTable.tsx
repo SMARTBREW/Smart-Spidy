@@ -3,14 +3,20 @@ import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Calendar, User as UserIcon, Search, Filter } from 'lucide-react';
 import { Fundraiser } from '../../types';
 import { fundraiserApi } from '../../services/fundraiser';
+import { UserSelector } from './UserSelector';
+import { TimeFilter, TimeFilterType } from './TimeFilter';
 
 export const FundraisersTable: React.FC = () => {
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'month' | 'last_week' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const FUNDRAISERS_PER_PAGE = 10;
@@ -24,19 +30,37 @@ export const FundraisersTable: React.FC = () => {
     return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
   }).length;
 
-  const fetchFundraisers = async (filterValue = filter, startDate = customStartDate, endDate = customEndDate, pageNum = page) => {
+  // Debounce search term
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const fetchFundraisers = async (filterValue = filter, startDate = customStartDate, endDate = customEndDate) => {
     try {
-      setIsLoading(true);
-      let params: any = { page: pageNum, limit: FUNDRAISERS_PER_PAGE };
-      if (filterValue === 'month') {
-        // No backend filter, filter on frontend
-      } else if (filterValue === 'last_week') {
-        params.last_week = true;
-      } else if (filterValue === 'custom') {
-        if (startDate) params.start_date = startDate;
-        if (endDate) params.end_date = endDate;
+      if (!isSearching) {
+        setIsLoading(true);
       }
-      const response = await fundraiserApi.getFundraisers(params);
+      const response = await fundraiserApi.getFundraisers({
+        page,
+        limit: FUNDRAISERS_PER_PAGE,
+        filter: filterValue,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        search: debouncedSearchTerm || undefined,
+        user_id: selectedUserId || undefined,
+        time_filter: timeFilter !== 'all' ? timeFilter : undefined,
+      });
       setFundraisers(response.fundraisers);
       setTotalPages(response.pagination.pages || 1);
       setTotalFundraisers(response.pagination.total || 0);
@@ -45,33 +69,26 @@ export const FundraisersTable: React.FC = () => {
     } catch (error) {
       console.error('Error fetching fundraisers:', error);
     } finally {
-      setIsLoading(false);
+      if (!isSearching) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchFundraisers(filter, customStartDate, customEndDate, page);
-    // eslint-disable-next-line
-  }, [page]);
+    fetchFundraisers();
+  }, [page, filter, customStartDate, customEndDate, debouncedSearchTerm, selectedUserId, timeFilter]);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm, filter, customStartDate, customEndDate, selectedUserId, timeFilter]);
 
   const refreshFundraisers = async () => {
     await fetchFundraisers();
   };
 
-  const handleFilterChange = (value: 'all' | 'month' | 'last_week' | 'custom') => {
-    setFilter(value);
-    if (value !== 'custom') {
-      setCustomStartDate('');
-      setCustomEndDate('');
-      fetchFundraisers(value);
-    }
-  };
 
-  const handleCustomDateSearch = () => {
-    if (customStartDate || customEndDate) {
-      fetchFundraisers('custom', customStartDate, customEndDate);
-    }
-  };
 
   const handleDeleteFundraiser = async (fundraiserId: string) => {
     if (window.confirm('Are you sure you want to delete this fundraiser?')) {
@@ -88,6 +105,33 @@ export const FundraisersTable: React.FC = () => {
   const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
   const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
   const handlePageClick = (p: number) => setPage(p);
+
+  // Better pagination logic
+  const getVisiblePages = () => {
+    const delta = 2; // Number of pages to show on each side of current page
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+
+    if (page - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (page + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
 
   const StatCard: React.FC<{ title: string; value: number; icon: React.ElementType; color: string; bgColor: string }> = ({ title, value, icon: Icon, color, bgColor }) => (
     <motion.div
@@ -107,15 +151,7 @@ export const FundraisersTable: React.FC = () => {
     </motion.div>
   );
 
-  const filteredFundraisers = fundraisers.filter(f => {
-    const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const created = new Date(f.createdAt);
-    let matchesFilter = true;
-    if (filter === 'month') {
-      matchesFilter = created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
-    }
-    return matchesSearch && matchesFilter;
-  });
+  const filteredFundraisers = fundraisers; // No need for frontend filtering since backend handles it
 
   if (isLoading) {
     return (
@@ -180,44 +216,27 @@ export const FundraisersTable: React.FC = () => {
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             />
-          </div>
-          <div className="flex items-center space-x-3">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <select
-              value={filter}
-              onChange={e => handleFilterChange(e.target.value as 'all' | 'month' | 'last_week' | 'custom')}
-              className="border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-            >
-              <option value="all">All</option>
-              <option value="month">This Month</option>
-              <option value="last_week">Last Week</option>
-              <option value="custom">Custom Date</option>
-            </select>
-            {filter === 'custom' && (
-              <div className="flex items-center space-x-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={e => setCustomStartDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-2 py-2"
-                  placeholder="Start Date"
-                />
-                <span>-</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={e => setCustomEndDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-2 py-2"
-                  placeholder="End Date"
-                />
-                <button
-                  onClick={handleCustomDateSearch}
-                  className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Search
-                </button>
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
+          </div>
+          <div className="flex items-center space-x-3">
+            <UserSelector
+              selectedUserId={selectedUserId}
+              onUserChange={setSelectedUserId}
+              placeholder="All Users"
+              className="min-w-[200px]"
+            />
+            <TimeFilter
+              selectedFilter={timeFilter}
+              onFilterChange={setTimeFilter}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+            />
           </div>
         </div>
       </div>
@@ -285,17 +304,40 @@ export const FundraisersTable: React.FC = () => {
       </div>
       {/* Pagination UI */}
       <div className="flex justify-center items-center space-x-2 my-4">
-        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i + 1}
-            onClick={() => handlePageClick(i + 1)}
-            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            {i + 1}
-          </button>
+        <button 
+          onClick={handlePrevPage} 
+          disabled={page === 1} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Prev
+        </button>
+        
+        {getVisiblePages().map((pageNum, index) => (
+          <React.Fragment key={index}>
+            {pageNum === '...' ? (
+              <span className="px-3 py-1 text-gray-500">...</span>
+            ) : (
+              <button
+                onClick={() => handlePageClick(pageNum as number)}
+                className={`px-3 py-1 rounded transition-colors ${
+                  page === pageNum 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {pageNum}
+              </button>
+            )}
+          </React.Fragment>
         ))}
-        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
+        
+        <button 
+          onClick={handleNextPage} 
+          disabled={page === totalPages} 
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors"
+        >
+          Next
+        </button>
       </div>
     </div>
   );

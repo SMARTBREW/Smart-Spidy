@@ -19,9 +19,27 @@ export const AdminUsersTable: React.FC = () => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null);
+
+  // Debounce search term
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     // TODO: Fetch admin users from API
@@ -40,8 +58,8 @@ export const AdminUsersTable: React.FC = () => {
   }, []);
 
   const filteredAdmins = adminUsers.filter(admin => {
-    const matchesSearch = admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         admin.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = admin.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                         admin.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || admin.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -136,8 +154,13 @@ export const AdminUsersTable: React.FC = () => {
             placeholder="Search admin users by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-gray-400" />

@@ -239,10 +239,21 @@ export const messageApi = {
   },
 
   // Get all messages (admin only)
-  async getAllMessages(params?: { page?: number; limit?: number }): Promise<MessagesResponse> {
+  async getAllMessages(params?: { 
+    page?: number; 
+    limit?: number; 
+    user_id?: string;
+    time_filter?: string;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<MessagesResponse> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.user_id) searchParams.append('user_id', params.user_id);
+    if (params?.time_filter) searchParams.append('time_filter', params.time_filter);
+    if (params?.start_date) searchParams.append('start_date', params.start_date);
+    if (params?.end_date) searchParams.append('end_date', params.end_date);
     const url = `${API_BASE_URL}/messages${searchParams.toString() ? `?${searchParams}` : ''}`;
     const response = await authService.authenticatedRequest(url, { method: 'GET' });
     return handleResponse(response);

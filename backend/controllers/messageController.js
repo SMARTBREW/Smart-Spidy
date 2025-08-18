@@ -616,27 +616,105 @@ const getAllMessages = catchAsync(async (req, res) => {
   if (req.user.role !== 'admin') {
     throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
   }
-  const { page = 1, limit = 50 } = req.query;
+  const { page = 1, limit = 50, user_id, time_filter, start_date, end_date } = req.query;
   const offset = (page - 1) * limit;
-  const { data: messages, count, error } = await supabaseAdmin
+  
+  let query = supabaseAdmin
     .from('messages')
-    .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false }) 
-    .range(offset, offset + limit - 1);
+    .select('*', { count: 'exact' });
+  
+  // Apply user filter if provided
+  if (user_id) {
+    query = query.eq('user_id', user_id);
+  }
+  
+  // Apply time filtering
+  const now = new Date();
+  if (time_filter === 'today') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    query = query.gte('created_at', todayStart).lt('created_at', todayEnd);
+  } else if (time_filter === 'last_week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', weekAgo);
+  } else if (time_filter === 'last_month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', monthAgo);
+  } else if (time_filter === 'custom' && start_date && end_date) {
+    const startDateTime = new Date(start_date).toISOString();
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte('created_at', startDateTime).lt('created_at', endDateTime);
+  } else if (start_date && !end_date) {
+    query = query.gte('created_at', new Date(start_date).toISOString());
+  } else if (end_date && !start_date) {
+    query = query.lt('created_at', new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString());
+  }
+  
+  query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  const { data: messages, count, error } = await query;
+  
   if (error) {
+    // Handle range error gracefully - return empty result if offset is beyond data
+    if (error.message.includes('range not satisfiable') || error.message.includes('Requested range not satisfiable')) {
+      return res.send({
+        messages: [],
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: 0,
+          pages: 0,
+        },
+        totalUserMessages: 0,
+        totalAssistantMessages: 0,
+      });
+    }
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
   }
-  const { count: userCount, error: userCountError } = await supabaseAdmin
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('sender', 'user');
-  const { count: assistantCount, error: assistantCountError } = await supabaseAdmin
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('sender', 'assistant');
+  
+  // Create separate queries for analytics (same filters as main query)
+  let userQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'user');
+  let assistantQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'assistant');
+  
+  if (user_id) {
+    userQuery = userQuery.eq('user_id', user_id);
+    assistantQuery = assistantQuery.eq('user_id', user_id);
+  }
+  
+  // Apply same time filtering to analytics
+  if (time_filter === 'today') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    userQuery = userQuery.gte('created_at', todayStart).lt('created_at', todayEnd);
+    assistantQuery = assistantQuery.gte('created_at', todayStart).lt('created_at', todayEnd);
+  } else if (time_filter === 'last_week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    userQuery = userQuery.gte('created_at', weekAgo);
+    assistantQuery = assistantQuery.gte('created_at', weekAgo);
+  } else if (time_filter === 'last_month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    userQuery = userQuery.gte('created_at', monthAgo);
+    assistantQuery = assistantQuery.gte('created_at', monthAgo);
+  } else if (time_filter === 'custom' && start_date && end_date) {
+    const startDateTime = new Date(start_date).toISOString();
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    userQuery = userQuery.gte('created_at', startDateTime).lt('created_at', endDateTime);
+    assistantQuery = assistantQuery.gte('created_at', startDateTime).lt('created_at', endDateTime);
+  } else if (start_date && !end_date) {
+    userQuery = userQuery.gte('created_at', new Date(start_date).toISOString());
+    assistantQuery = assistantQuery.gte('created_at', new Date(start_date).toISOString());
+  } else if (end_date && !start_date) {
+    const endDateTime = new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    userQuery = userQuery.lt('created_at', endDateTime);
+    assistantQuery = assistantQuery.lt('created_at', endDateTime);
+  }
+  
+  const { count: userCount, error: userCountError } = await userQuery;
+  const { count: assistantCount, error: assistantCountError } = await assistantQuery;
+    
   if (userCountError || assistantCountError) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to count user/assistant messages');
   }
+  
   res.send({
     messages: messages.map(sanitizeMessage),
     pagination: {

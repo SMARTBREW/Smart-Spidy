@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { Chat, AdminStats } from '../../types';
 import { chatApi } from '../../services/chat';
+import { Pagination } from './Pagination';
+import { UserSelector } from './UserSelector';
+import { TimeFilter, TimeFilterType } from './TimeFilter';
 
 interface ChatsTableProps {
   stats: AdminStats | null;
@@ -26,9 +29,16 @@ interface ChatsTableProps {
 export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading: _statsLoading }) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'green' | 'yellow' | 'red' | 'gold'>('all');
   const [pinnedFilter, setPinnedFilter] = useState<'all' | 'pinned' | 'unpinned'>('all');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const [editChat, setEditChat] = useState<Chat | null>(null);
   const [editForm, setEditForm] = useState<{ name: string; status: Chat['status'] }>({ name: '', status: null });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
@@ -39,24 +49,62 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
   const [totalPinnedChats, setTotalPinnedChats] = useState(0);
   const [totalGoldChats, setTotalGoldChats] = useState(0);
 
+  // Debounce search term to avoid excessive API calls
+  useEffect(() => {
+    // Set searching state when user starts typing
+    if (searchTerm.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     const fetchChats = async () => {
       try {
-        setIsLoading(true);
-        const response = await chatApi.getChats({ page, limit: CHATS_PER_PAGE });
+        // Show main loader only for initial load and when not searching
+        if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
+          setIsLoading(true);
+        }
+        const response = await chatApi.getChats({ 
+          page, 
+          limit: CHATS_PER_PAGE,
+          name: debouncedSearchTerm || undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned') : undefined,
+          user_id: selectedUserId || undefined,
+          time_filter: timeFilter !== 'all' ? timeFilter : undefined,
+          start_date: customStartDate || undefined,
+          end_date: customEndDate || undefined,
+        });
         setChats(response.chats);
         setTotalPages(response.pagination.pages || 1);
         setTotalChats(response.pagination.total || 0);
         setTotalPinnedChats(response.totalPinnedChats || 0);
         setTotalGoldChats(response.totalGoldChats || 0);
+        setIsInitialLoad(false);
       } catch (error) {
         console.error('Error fetching chats:', error);
       } finally {
-        setIsLoading(false);
+        if (isInitialLoad || (!debouncedSearchTerm && !isSearching)) {
+          setIsLoading(false);
+        }
       }
     };
     fetchChats();
-  }, [page]);
+  }, [page, debouncedSearchTerm, statusFilter, pinnedFilter, selectedUserId, timeFilter, customStartDate, customEndDate]);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm, statusFilter, pinnedFilter, selectedUserId, timeFilter, customStartDate, customEndDate]);
 
   useEffect(() => {
     if (editChat) {
@@ -64,11 +112,25 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
     }
   }, [editChat]);
 
-  const refreshChats = async () => {
+  const refreshChatsWithCurrentFilters = async () => {
     setIsLoading(true);
     try {
-      const response = await chatApi.getChats({ page: 1, limit: 100 });
+      const response = await chatApi.getChats({ 
+        page: 1, 
+        limit: CHATS_PER_PAGE,
+        name: debouncedSearchTerm || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        pinned: pinnedFilter !== 'all' ? (pinnedFilter === 'pinned') : undefined,
+        user_id: selectedUserId || undefined,
+        time_filter: timeFilter !== 'all' ? timeFilter : undefined,
+        start_date: customStartDate || undefined,
+        end_date: customEndDate || undefined,
+      });
       setChats(response.chats);
+      setTotalPages(response.pagination.pages || 1);
+      setTotalChats(response.pagination.total || 0);
+      setTotalPinnedChats(response.totalPinnedChats || 0);
+      setTotalGoldChats(response.totalGoldChats || 0);
     } catch (error) {
       console.error('Error refreshing chats:', error);
     } finally {
@@ -76,22 +138,13 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
     }
   };
 
-  const filteredChats = chats.filter(chat => {
-    const matchesSearch = chat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         chat.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         chat.user?.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || (statusFilter === 'gold' ? chat.is_gold : chat.status === statusFilter);
-    const matchesPinned = pinnedFilter === 'all' || 
-                         (pinnedFilter === 'pinned' && chat.pinned) ||
-                         (pinnedFilter === 'unpinned' && !chat.pinned);
-    return matchesSearch && matchesStatus && matchesPinned;
-  });
+  const filteredChats = chats; // No need for frontend filtering since backend handles it
 
   const handleDeleteChat = async (chatId: string) => {
     if (window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
       try {
         await chatApi.deleteChat(chatId);
-        await refreshChats();
+        await refreshChatsWithCurrentFilters();
       } catch (error) {
         console.error('Error deleting chat:', error);
       }
@@ -117,7 +170,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
     try {
       await chatApi.updateChat(editChat.id, { name: editForm.name, status: editForm.status });
       setEditChat(null);
-      await refreshChats();
+      await refreshChatsWithCurrentFilters();
     } catch (error) {
       console.error('Error updating chat:', error);
     } finally {
@@ -128,7 +181,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
   const handleTogglePin = async (chatId: string, isPinned: boolean) => {
     try {
       await chatApi.pinChat(chatId, !isPinned);
-      await refreshChats();
+      await refreshChatsWithCurrentFilters();
     } catch (error) {
       console.error('Error toggling pin:', error);
     }
@@ -285,7 +338,7 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
           <Clock className="w-4 h-4" />
           <span>Last updated: {new Date().toLocaleString()}</span>
           <button
-            onClick={refreshChats}
+            onClick={refreshChatsWithCurrentFilters}
             className="ml-4 px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-gray-700"
           >
             Refresh
@@ -298,15 +351,28 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
         <div className="flex flex-col xl:flex-row space-y-4 xl:space-y-0 xl:space-x-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search chats by name or user..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            />
+                         <div className="relative w-full">
+               <input
+                 type="text"
+                 placeholder="Search by chat name, username, or email..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+               />
+               {isSearching && (
+                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                   <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                 </div>
+               )}
+             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <UserSelector
+              selectedUserId={selectedUserId}
+              onUserChange={setSelectedUserId}
+              placeholder="All Users"
+              className="min-w-[200px]"
+            />
             <div className="flex items-center space-x-2">
               <Filter className="w-5 h-5 text-gray-400" />
               <select
@@ -331,6 +397,15 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
               <option value="unpinned">Unpinned</option>
             </select>
           </div>
+          <TimeFilter
+            selectedFilter={timeFilter}
+            onFilterChange={setTimeFilter}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            className="ml-4"
+          />
         </div>
       </div>
 
@@ -451,19 +526,13 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
       </div>
 
       {/* Pagination UI */}
-      <div className="flex justify-center items-center space-x-2 my-4">
-        <button onClick={handlePrevPage} disabled={page === 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Prev</button>
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i + 1}
-            onClick={() => handlePageClick(i + 1)}
-            className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
-          >
-            {i + 1}
-          </button>
-        ))}
-        <button onClick={handleNextPage} disabled={page === totalPages} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next</button>
-      </div>
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={handlePageClick}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+      />
 
       {/* Edit Chat Modal */}
       {editChat && (
