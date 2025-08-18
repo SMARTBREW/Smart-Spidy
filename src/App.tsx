@@ -12,6 +12,7 @@ import { InactivityWarningModal } from './components/InactivityWarningModal';
 import { useLoadingSetup } from './hooks/useLoadingSetup';
 import authService from './services/auth';
 import ActivityTracker from './services/activityTracker';
+import { TIMEOUT_CONFIG } from './config/timeouts';
 
 const App: React.FC = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -56,9 +57,9 @@ const App: React.FC = () => {
           setShowInactivityWarning(true);
         },
         {
-          timeoutMinutes: 20, // Auto logout after 20 minutes
-          warningMinutes: 15, // Show warning after 15 minutes
-          checkIntervalSeconds: 30 // Check every 30 seconds
+          timeoutMinutes: TIMEOUT_CONFIG.ACTIVITY.TIMEOUT_MINUTES,
+          warningMinutes: TIMEOUT_CONFIG.ACTIVITY.WARNING_MINUTES,
+          checkIntervalSeconds: TIMEOUT_CONFIG.ACTIVITY.CHECK_INTERVAL_SECONDS
         }
       );
       
@@ -116,7 +117,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Validate session every 2 minutes
+    // Validate session every configured interval
     const sessionValidationInterval = setInterval(async () => {
       try {
         const isValid = await authService.validateSession();
@@ -128,7 +129,7 @@ const App: React.FC = () => {
         console.error('Session validation error:', error);
         logout();
       }
-    }, 2 * 60 * 1000); // Check every 2 minutes
+    }, TIMEOUT_CONFIG.SESSION.VALIDATION_INTERVAL_MINUTES * 60 * 1000);
 
     return () => {
       clearInterval(sessionValidationInterval);
@@ -197,7 +198,7 @@ const App: React.FC = () => {
         isOpen={showInactivityWarning}
         onExtend={handleExtendSession}
         onLogout={handleLogoutNow}
-        timeRemaining={300} // 5 minutes warning countdown
+        timeRemaining={TIMEOUT_CONFIG.WARNING.COUNTDOWN_SECONDS}
       />
     </motion.div>
   );

@@ -1,5 +1,6 @@
 // NOTE: This service now integrates with the global loading context
 // All API calls are automatically wrapped with loading states
+import { TIMEOUT_CONFIG } from '../config/timeouts';
 
 interface LoginResponse {
   user: {
@@ -59,14 +60,17 @@ class AuthService {
     if (tokenExpires) {
       const expirationTime = new Date(tokenExpires);
       const currentTime = new Date();
-      const bufferTime = new Date(Date.now() + 5 * 60 * 1000);
+      const bufferTime = new Date(Date.now() + TIMEOUT_CONFIG.TOKEN.BUFFER_MINUTES * 60 * 1000);
       
       if (expirationTime < bufferTime) {
+        console.log('Token expiring soon, attempting refresh...');
         const refreshed = await this.refreshToken();
         if (!refreshed) {
+          console.log('Token refresh failed, logging out user');
           this.logout();
           return null;
         }
+        console.log('Token refreshed successfully');
         const newAccessToken = localStorage.getItem('accessToken');
         const newRefreshToken = localStorage.getItem('refreshToken');
         const newTokenExpires = localStorage.getItem('tokenExpires');
@@ -236,9 +240,11 @@ class AuthService {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
+        console.log('No refresh token found');
         return false;
       }
 
+      console.log('Attempting to refresh token...');
       const response = await fetch(`${this.baseURL}/users/refresh-token`, {
         method: 'POST',
         headers: {
@@ -248,12 +254,16 @@ class AuthService {
       });
 
       if (!response.ok) {
+        console.log('Token refresh failed with status:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.log('Token refresh error details:', errorData);
         this.logout();
         return false;
       }
 
       const data = await response.json();
       this.setTokens(data.tokens);
+      console.log('Token refreshed successfully');
       return true;
     } catch (error) {
       console.error('Token refresh error:', error);
