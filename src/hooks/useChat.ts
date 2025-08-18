@@ -25,6 +25,13 @@ export const useChat = () => {
   // Use useState for isTyping to trigger re-renders when typing state changes
   const [isTyping, setIsTyping] = useState(false);
 
+  // Function to trigger activity when messages are received
+  const triggerActivity = useCallback(() => {
+    if ((window as any).activityTracker && (window as any).activityTracker.triggerActivity) {
+      (window as any).activityTracker.triggerActivity();
+    }
+  }, []);
+
   // Memoized current chat to avoid unnecessary computations
   const currentChat = useMemo(() => {
     return state.chats.find(chat => chat.id === state.currentChatId) || null;
@@ -168,6 +175,10 @@ export const useChat = () => {
       await fetchChats();
       if (typeof newChat?.id === 'string') {
         setState(prev => ({ ...prev, currentChatId: newChat.id }));
+        
+        // Trigger activity when user creates a new chat
+        triggerActivity();
+        
         return newChat.id;
       } else {
         setState(prev => ({ ...prev, currentChatId: null }));
@@ -177,12 +188,15 @@ export const useChat = () => {
       console.error('Error creating chat:', error);
       throw error;
     }
-  }, [fetchChats]);
+  }, [fetchChats, triggerActivity]);
 
   const selectChat = useCallback(async (chatId: string) => {
     if (!chatId) return;
     
     setState(prev => ({ ...prev, currentChatId: chatId }));
+    
+    // Trigger activity when user selects a chat
+    triggerActivity();
     
     // Load messages for the selected chat if not already loaded
     const currentChat = state.chats.find(chat => chat.id === chatId);
@@ -252,7 +266,7 @@ export const useChat = () => {
         console.error(`Error loading messages for chat ${chatId}:`, error);
       }
     }
-  }, [state.chats]);
+  }, [state.chats, triggerActivity]);
 
   const deleteChat = useCallback(async (chatId: string) => {
     try {
@@ -365,13 +379,16 @@ export const useChat = () => {
             : chat
         ),
       }));
+
+      // Trigger activity when messages are received
+      triggerActivity();
       // Optionally handle Instagram account info (response.instagramAccount)
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsTyping(false);
     }
-  }, [state.currentChatId, state.chats, createChat]);
+  }, [state.currentChatId, state.chats, createChat, triggerActivity]);
 
   return {
     ...state,

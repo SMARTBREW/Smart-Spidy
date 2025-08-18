@@ -21,8 +21,8 @@ class ActivityTracker {
     this.onLogout = onLogout;
     this.onWarning = onWarning;
     this.config = {
-      timeoutMinutes: 20, // Auto logout after 20 minutes of inactivity
-      warningMinutes: 15, // Show warning after 15 minutes of inactivity
+      timeoutMinutes: 60, // Auto logout after 60 minutes of inactivity
+      warningMinutes: 45, // Show warning after 45 minutes of inactivity
       checkIntervalSeconds: 30, // Check every 30 seconds
       ...config
     };
@@ -36,6 +36,10 @@ class ActivityTracker {
     this.resetTimers();
     this.setupActivityListeners();
     this.startPeriodicCheck();
+    
+    // Make activity tracker globally accessible for network tracking
+    (window as any).activityTracker = this;
+    
     console.log('ActivityTracker started successfully');
   }
 
@@ -43,9 +47,21 @@ class ActivityTracker {
     this.isActive = false;
     this.clearTimers();
     this.removeActivityListeners();
+    
+    // Remove global reference
+    if ((window as any).activityTracker === this) {
+      delete (window as any).activityTracker;
+    }
   }
 
   reset(): void {
+    this.lastActivity = Date.now();
+    this.resetTimers();
+  }
+
+  // Public method to manually trigger activity (for chat messages, etc.)
+  triggerActivity(): void {
+    console.log('Manual activity triggered');
     this.lastActivity = Date.now();
     this.resetTimers();
   }
@@ -89,7 +105,8 @@ class ActivityTracker {
   private setupActivityListeners(): void {
     const events = [
       'mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart',
-      'click', 'keydown', 'wheel', 'focus', 'blur'
+      'click', 'keydown', 'wheel', 'focus', 'blur', 'input', 'change',
+      'submit', 'paste', 'cut', 'copy', 'select', 'selectstart'
     ];
 
     events.forEach(event => {
@@ -98,12 +115,19 @@ class ActivityTracker {
 
     // Also track visibility changes
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Track iframe activity if any
+    window.addEventListener('message', this.handleActivity, { passive: true });
+    
+    // Track network activity (API calls)
+    this.setupNetworkActivityTracking();
   }
 
   private removeActivityListeners(): void {
     const events = [
       'mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart',
-      'click', 'keydown', 'wheel', 'focus', 'blur'
+      'click', 'keydown', 'wheel', 'focus', 'blur', 'input', 'change',
+      'submit', 'paste', 'cut', 'copy', 'select', 'selectstart'
     ];
 
     events.forEach(event => {
@@ -111,6 +135,7 @@ class ActivityTracker {
     });
 
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('message', this.handleActivity);
   }
 
   private handleActivity = (): void => {
@@ -126,6 +151,55 @@ class ActivityTracker {
       this.resetTimers();
     }
   };
+
+  private setupNetworkActivityTracking(): void {
+    // Track fetch requests - only for user-initiated actions
+    const originalFetch = window.fetch;
+    window.fetch = (...args) => {
+      const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : '';
+      const method = args[1]?.method || 'GET';
+      
+      // Only track POST requests and specific GET requests that indicate user activity
+      if (method === 'POST' || 
+          (method === 'GET' && url && (
+            url.includes('/messages') || 
+            url.includes('/chats') || 
+            url.includes('/users/profile') ||
+            url.includes('/notifications')
+          ))) {
+        this.handleActivity();
+      }
+      
+      return originalFetch.apply(window, args);
+    };
+
+    // Track XMLHttpRequest - only for user-initiated requests
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(...args) {
+      this.addEventListener('loadstart', () => {
+        // Only track user-initiated requests, not background polling
+        if (this.readyState === 1) { // OPENED
+          // Check if this is a user action (like sending a message)
+          const url = args[1];
+          const method = args[0];
+          
+          if (method === 'POST' || 
+              (method === 'GET' && url && (
+                url.includes('/messages') || 
+                url.includes('/chats') || 
+                url.includes('/users/profile') ||
+                url.includes('/notifications')
+              ))) {
+            // This is likely a user action, reset activity
+            if ((window as any).activityTracker) {
+              (window as any).activityTracker.handleActivity();
+            }
+          }
+        }
+      });
+      return originalXHROpen.apply(this, args);
+    };
+  }
 
   private startPeriodicCheck(): void {
     const checkInterval = setInterval(() => {

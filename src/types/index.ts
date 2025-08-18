@@ -44,6 +44,11 @@ export interface Message {
   createdAt?: Date;
   feedback?: string | null;
   instagramAccount?: InstagramAccount;
+  chat?: {
+    id: string;
+    name: string;
+    user_id: string;
+  };
 }
 
 export interface InstagramAccount {

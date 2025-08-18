@@ -13,9 +13,10 @@ interface ChatAreaProps {
   onToggleSidebar?: () => void;
   isCreatingChat?: boolean;
   isMobileSidebarExpanded?: boolean;
+  activityTracker?: any;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false, isMobileSidebarExpanded = false }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTyping = false, isSidebarOpen = true, onToggleSidebar, isCreatingChat = false, isMobileSidebarExpanded = false, activityTracker }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,7 +107,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
                 </p>
                 <div className="mb-6 sm:mb-8">
                   <button
-                    onClick={() => onSendMessage('First DM')}
+                    onClick={() => {
+                      // Trigger activity when user clicks First DM button
+                      if (activityTracker && activityTracker.triggerActivity) {
+                        activityTracker.triggerActivity();
+                      }
+                      onSendMessage('First DM');
+                    }}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-colors duration-200 shadow-sm hover:shadow-md text-sm sm:text-base"
                   >
                     First DM
@@ -125,6 +132,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
                   message={message}
                   isLast={index === chat.messages.length - 1}
                   type={message.sender as 'user' | 'assistant'}
+                  activityTracker={activityTracker}
                 />
               ))}
               {isTyping && (
@@ -153,7 +161,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
           )}
         </div>
         {/* Only show input at the bottom when there are messages or always if you want persistent input */}
-        {!isCreatingChat && <ChatInput onSendMessage={onSendMessage} />}
+        {!isCreatingChat && <ChatInput onSendMessage={onSendMessage} activityTracker={activityTracker} />}
       </div>
     </div>
   );

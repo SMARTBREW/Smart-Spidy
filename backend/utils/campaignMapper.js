@@ -6,21 +6,24 @@
 const PRODUCT_TO_CAMPAIGN = {
   'Pads For Freedom': 'Pads For Freedom',
   'Bowls Of Hope': 'Bowls Of Hope',
-  'Wings Of Hope': 'Wings Of Hope'
+  'Wings Of Hope': 'Wings Of Hope',
+  'Pawsitive Protector': 'Pawsitive Protector'
 };
 
 // Reverse mapping from campaign names to product names
 const CAMPAIGN_TO_PRODUCT = {
   'Pads For Freedom': 'Pads For Freedom',
   'Bowls Of Hope': 'Bowls Of Hope',
-  'Wings Of Hope': 'Wings Of Hope'
+  'Wings Of Hope': 'Wings Of Hope',
+  'Pawsitive Protector': 'Pawsitive Protector'
 };
 
 // Valid campaign names for validation
 const VALID_CAMPAIGNS = [
   'Pads For Freedom',
   'Bowls Of Hope',
-  'Wings Of Hope'
+  'Wings Of Hope',
+  'Pawsitive Protector'
 ];
 
 /**

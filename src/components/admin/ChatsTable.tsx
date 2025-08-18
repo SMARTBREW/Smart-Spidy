@@ -399,7 +399,6 @@ export const ChatsTable: React.FC<ChatsTableProps> = ({ stats: _stats, isLoading
                 <option value="green">Green</option>
                 <option value="yellow">Yellow</option>
                 <option value="red">Red</option>
-                <option value="gold">Gold</option>
               </select>
             </div>
             <select

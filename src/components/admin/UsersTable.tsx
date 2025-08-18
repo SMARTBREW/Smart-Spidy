@@ -27,7 +27,7 @@ interface UsersTableProps {
 }
 
 export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading: _statsLoading }) => {
-  const { users, isUsersLoading, usersPagination, fetchUsers } = useAdminContext();
+  const { users, isUsersLoading, usersPagination, usersAnalytics, fetchUsers } = useAdminContext();
   const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -101,8 +101,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({ stats: _stats, isLoading
   const filteredUsers = users; // No need for frontend filtering since backend handles it
   const totalPages = usersPagination?.pages || 1;
   const totalUsers = usersPagination?.total || 0;
-  const totalActiveUsers = usersPagination?.totalActiveUsers || 0;
-  const totalInactiveUsers = usersPagination?.totalInactiveUsers || 0;
+  const totalActiveUsers = usersAnalytics?.totalActiveUsers || 0;
+  const totalInactiveUsers = usersAnalytics?.totalInactiveUsers || 0;
 
   const validateForm = () => {
     const errors: Record<string, string> = {};

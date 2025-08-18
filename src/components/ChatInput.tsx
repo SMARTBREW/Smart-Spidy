@@ -5,9 +5,10 @@ import { Send, Paperclip, Mic } from 'lucide-react';
 interface ChatInputProps {
   onSendMessage: (message: string) => Promise<void> | void;
   disabled?: boolean;
+  activityTracker?: any;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, activityTracker }) => {
   const [message, setMessage] = useState('');
   const [listening, setListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -165,6 +166,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled })
     if (message.trim() && !disabled) {
       const messageToSend = message.trim();
       setMessage('');
+      
+      // Trigger activity when sending a message
+      if (activityTracker && activityTracker.triggerActivity) {
+        activityTracker.triggerActivity();
+      }
+      
       await onSendMessage(messageToSend);
     }
   };

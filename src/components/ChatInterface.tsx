@@ -526,6 +526,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onSendMessage={sendMessage} 
             isTyping={isTyping}
             isMobileSidebarExpanded={!isMobileSidebarCollapsed}
+            activityTracker={activityTracker}
           />
         </div>
       </div>

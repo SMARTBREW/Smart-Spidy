@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Bot, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Message } from '../types';
@@ -8,15 +8,27 @@ interface ChatMessageProps {
   message: Message;
   isLast: boolean;
   type: 'user' | 'assistant';
+  activityTracker?: any;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type, activityTracker }) => {
   console.log('ChatMessage rendered with:', { 
     messageId: message.id, 
     type, 
     hasInstagramAccount: !!message.instagramAccount,
     instagramUsername: message.instagramAccount?.username 
   });
+
+  // Trigger activity when a message is displayed (especially for assistant messages)
+  useEffect(() => {
+    if (type === 'assistant' && activityTracker && activityTracker.triggerActivity) {
+      // Small delay to ensure the message is fully rendered
+      const timer = setTimeout(() => {
+        activityTracker.triggerActivity();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [type, activityTracker]);
 
   const [copied, setCopied] = React.useState(false);
   const [feedback, setFeedback] = React.useState<null | 'thumbs_up' | 'thumbs_down'>(message.feedback as 'thumbs_up' | 'thumbs_down' | null);
@@ -25,6 +37,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
     navigator.clipboard.writeText(textToShow);
     setCopied(true);
     setTimeout(() => setCopied(false), 1000);
+    
+    // Trigger activity when user copies text
+    if (activityTracker && activityTracker.triggerActivity) {
+      activityTracker.triggerActivity();
+    }
   };
   const formattedContent = type === 'assistant' ? textToShow : textToShow;
   const timestamp = message.createdAt ? new Date(message.createdAt).toLocaleTimeString() : '';
@@ -32,6 +49,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type 
   const handleFeedback = async (value: 'thumbs_up' | 'thumbs_down') => {
     if (feedback !== null) return; // Prevent changing feedback once set
     setFeedback(value);
+    
+    // Trigger activity when user gives feedback
+    if (activityTracker && activityTracker.triggerActivity) {
+      activityTracker.triggerActivity();
+    }
+    
     try {
       await messageApi.updateMessage(message.id, { feedback: value });
     } catch (err) {

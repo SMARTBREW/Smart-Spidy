@@ -33,6 +33,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [senderFilter, setSenderFilter] = useState<'all' | 'user' | 'assistant'>('all');
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'thumbs_up' | 'thumbs_down'>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -51,7 +52,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     const fetchAll = async () => {
       try {
         setIsLoading(true);
-        // Fetch messages with user, time, and feedback filtering
+        // Fetch messages with proper feedback filtering
         const [{ messages: allMsgs, totalUserMessages, totalAssistantMessages, pagination }, usersResponse, chatsResponse] = await Promise.all([
           messageApi.getAllMessages({ 
             page: 1, 
@@ -60,14 +61,14 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             time_filter: timeFilter !== 'all' ? timeFilter : undefined,
             start_date: customStartDate || undefined,
             end_date: customEndDate || undefined,
-            feedback: senderFilter === 'user' ? 'thumbs_up' : senderFilter === 'assistant' ? 'thumbs_down' : undefined,
+            feedback: feedbackFilter !== 'all' ? feedbackFilter : undefined,
           }),
           adminApi.getUsers({ page: 1, limit: 100 }),
           chatApi.getChats({ page: 1, limit: 100 }),
         ]);
         console.log('=== MESSAGES API RESPONSE ===');
-        console.log('Sender filter:', senderFilter);
-        console.log('Feedback being sent:', senderFilter === 'user' ? 'thumbs_up' : senderFilter === 'assistant' ? 'thumbs_down' : 'undefined');
+        console.log('Feedback filter:', feedbackFilter);
+        console.log('Feedback being sent:', feedbackFilter !== 'all' ? feedbackFilter : 'undefined');
         console.log('Response received:', {
           messagesCount: allMsgs.length,
           totalMessages: pagination.total,
@@ -89,7 +90,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
       }
     };
     fetchAll();
-  }, [selectedUserId, timeFilter, customStartDate, customEndDate, senderFilter]);
+  }, [selectedUserId, timeFilter, customStartDate, customEndDate, feedbackFilter]);
 
   // Debounce search term
   useEffect(() => {
@@ -106,26 +107,38 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     userIdToName[user.id] = user.name;
   });
 
-  // Helper: Map chatId to chat name
+  // Helper: Map chatId to chat name (use chat info from messages if available, fallback to fetched chats)
   const chatIdToName: Record<string, string> = {};
+  
+  // First, populate from fetched chats
   chats.forEach(chat => {
     chatIdToName[chat.id] = chat.name;
   });
+  
+  // Then, override with chat info from messages (more accurate for filtered results)
+  allMessages.forEach(msg => {
+    if (msg.chat && msg.chat.name) {
+      chatIdToName[msg.chat.id] = msg.chat.name;
+    }
+  });
 
-  // Apply search filter to allMessages (feedback filtering now handled by backend)
+  // Apply search and sender filters to allMessages (feedback filtering now handled by backend)
   const filteredMessages = allMessages.filter(msg => {
     const searchLower = debouncedSearchTerm.toLowerCase();
     const matchesSearch = !debouncedSearchTerm || 
       msg.content.toLowerCase().includes(searchLower) ||
       (msg.chatId && chatIdToName[msg.chatId]?.toLowerCase().includes(searchLower)) ||
       (msg.userId && userIdToName[msg.userId]?.toLowerCase().includes(searchLower));
-    return matchesSearch;
+    
+    const matchesSender = senderFilter === 'all' || msg.sender === senderFilter;
+    
+    return matchesSearch && matchesSender;
   });
 
   // Paginate filteredMessages
   const paginatedMessages = filteredMessages.slice((page - 1) * MESSAGES_PER_PAGE, page * MESSAGES_PER_PAGE);
   const totalPagesFiltered = Math.ceil(filteredMessages.length / MESSAGES_PER_PAGE) || 1;
-  useEffect(() => { setPage(1); }, [debouncedSearchTerm, senderFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearchTerm, senderFilter, feedbackFilter]);
 
   // Group messages into QAPairs (newest-first order)
   const qaPairs: QAPair[] = [];
@@ -166,12 +179,11 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
             processedPairs.add(pairKey);
           }
         } else {
-          // Only show standalone assistant messages when not filtering by feedback
-          // When filtering by feedback, we want to show proper Q&A pairs
-          if (senderFilter === 'all') {
+          // Only show standalone assistant messages when not filtering by feedback or sender
+          if (senderFilter === 'all' && feedbackFilter === 'all') {
             const pairKey = `${msg.chatId}_${msg.messageOrder}_standalone`;
             if (!processedPairs.has(pairKey)) {
-              qaPairs.push({ query: msg, answer: null });
+              qaPairs.push({ query: msg, answer: undefined });
               processedPairs.add(pairKey);
             }
           }
@@ -184,6 +196,7 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
   console.log('Messages loaded:', allMessages.length);
   console.log('Filtered messages:', filteredMessages.length);
   console.log('Sender filter:', senderFilter);
+  console.log('Feedback filter:', feedbackFilter);
   console.log('First few messages feedback:', allMessages.slice(0, 3).map(m => ({ id: m.id, feedback: m.feedback })));
   console.log('QAPairs created:', qaPairs.length);
   console.log('First QAPair:', qaPairs[0]);
@@ -204,6 +217,18 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
     const users = userIdToName[pair.query.userId || ''] || 'User';
     rows.push({ query: pair, users, chats, feedbacks, timestamp: pair.query.createdAt ? new Date(pair.query.createdAt).toLocaleString() : '' });
   });
+
+  // Debug feedback values
+  console.log('=== FEEDBACK DEBUG ===');
+  console.log('All messages feedback values:', allMessages.map(m => ({ id: m.id, feedback: m.feedback, chatId: m.chatId })));
+  console.log('QAPairs feedback values:', qaPairs.map(pair => ({ 
+    queryId: pair.query.id, 
+    queryFeedback: pair.query.feedback, 
+    answerId: pair.answer?.id, 
+    answerFeedback: pair.answer?.feedback 
+  })));
+  console.log('Rows feedback values:', rows.map(row => ({ feedback: row.feedbacks })));
+  console.log('=====================');
 
   // Helper to truncate text to N words
   const truncateWords = (text: string, numWords: number) => {
@@ -396,14 +421,23 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
               className="min-w-[200px]"
             />
             <Filter className="w-5 h-5 text-gray-400" />
-            <select
+            {/* <select
               value={senderFilter}
               onChange={(e) => setSenderFilter(e.target.value as 'all' | 'user' | 'assistant')}
               className="border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
             >
+              <option value="all">All Senders</option>
+              <option value="user">User Only</option>
+              <option value="assistant">Assistant Only</option>
+            </select> */}
+            <select
+              value={feedbackFilter}
+              onChange={(e) => setFeedbackFilter(e.target.value as 'all' | 'thumbs_up' | 'thumbs_down')}
+              className="border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
               <option value="all">All Feedbacks</option>
-              <option value="user">Thumbs Up</option>
-              <option value="assistant">Thumbs Down</option>
+              <option value="thumbs_up">Thumbs Up</option>
+              <option value="thumbs_down">Thumbs Down</option>
             </select>
           </div>
         </div>
@@ -571,16 +605,6 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                   </div>
                 </div>
                 
-                {/* The following block was removed as per the edit hint to remove usage of query/answer fields */}
-                {/*
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Assistant Answer</label>
-                  <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.answer}</p>
-                  </div>
-                </div>
-                */}
-                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Chat ID</label>
@@ -598,7 +622,9 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Timestamp</label>
-                 
+                  <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
+                    {selectedMessage.createdAt ? new Date(selectedMessage.createdAt).toLocaleString() : 'N/A'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -607,4 +633,4 @@ export const MessagesTable: React.FC<MessagesTableProps> = ({ stats }) => {
       )}
     </div>
   );
-}; 
+};

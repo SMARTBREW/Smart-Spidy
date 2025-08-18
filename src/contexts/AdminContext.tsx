@@ -11,6 +11,10 @@ interface AdminContextType {
   users: User[];
   isUsersLoading: boolean;
   usersPagination: any;
+  usersAnalytics: {
+    totalActiveUsers: number;
+    totalInactiveUsers: number;
+  } | null;
   
   // Shared data
   allUsers: User[];
@@ -55,6 +59,10 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [usersPagination, setUsersPagination] = useState<any>(null);
+  const [usersAnalytics, setUsersAnalytics] = useState<{
+    totalActiveUsers: number;
+    totalInactiveUsers: number;
+  } | null>(null);
   
   // All users for selectors
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -105,6 +113,10 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       const response = await adminApi.getUsers(params);
       setUsers(response.users);
       setUsersPagination(response.pagination);
+      setUsersAnalytics({
+        totalActiveUsers: response.totalActiveUsers || 0,
+        totalInactiveUsers: response.totalInactiveUsers || 0,
+      });
       setLastFetch(prev => ({ ...prev, users: Date.now() }));
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -141,6 +153,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     setStats(null);
     setUsers([]);
     setAllUsers([]);
+    setUsersAnalytics(null);
   }, []);
 
   // Auto-fetch stats on mount
@@ -157,6 +170,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     users,
     isUsersLoading,
     usersPagination,
+    usersAnalytics,
     
     // Shared data
     allUsers,

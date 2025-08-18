@@ -24,6 +24,11 @@ const sanitizeMessage = (message) => {
     messageOrder: message.message_order,
     feedback: message.feedback ?? null,
     createdAt: message.created_at,
+    chat: message.chats ? {
+      id: message.chats.id,
+      name: message.chats.name,
+      user_id: message.chats.user_id,
+    } : undefined,
   };
 };
 
@@ -621,16 +626,110 @@ const getAllMessages = catchAsync(async (req, res) => {
   
   let query = supabaseAdmin
     .from('messages')
-    .select('*', { count: 'exact' });
+    .select('*, chats(id, name, user_id)', { count: 'exact' });
+  
+  // Build chat ID filters for main query
+  let mainChatIdFilters = [];
   
   // Apply user filter if provided
   if (user_id) {
-    query = query.eq('user_id', user_id);
+    // Get chat IDs for the specific user
+    const { data: userChatIds, error: userChatIdsError } = await supabaseAdmin
+      .from('chats')
+      .select('id')
+      .eq('user_id', user_id);
+    
+    if (userChatIdsError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get user chat IDs');
+    }
+    
+    if (userChatIds && userChatIds.length > 0) {
+      mainChatIdFilters.push(userChatIds.map(chat => chat.id));
+    } else {
+      // If user has no chats, return empty result
+      return res.send({
+        messages: [],
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: 0,
+          pages: 0,
+        },
+        totalUserMessages: 0,
+        totalAssistantMessages: 0,
+      });
+    }
   }
   
   // Apply feedback filter if provided
   if (feedback) {
-    query = query.eq('feedback', feedback);
+    console.log('=== FEEDBACK FILTER DEBUG ===');
+    console.log('Filtering by feedback:', feedback);
+    
+    // Get chat IDs that contain messages with the specified feedback
+    const { data: chatIdsWithFeedback, error: chatIdsError } = await supabaseAdmin
+      .from('messages')
+      .select('chat_id, feedback')
+      .eq('feedback', feedback);
+    
+    console.log('Chat IDs with feedback query result:', { chatIdsWithFeedback, chatIdsError });
+    
+    if (chatIdsError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get chat IDs with feedback');
+    }
+    
+    if (chatIdsWithFeedback && chatIdsWithFeedback.length > 0) {
+      console.log('Found chat IDs with feedback:', chatIdsWithFeedback.map(msg => msg.chat_id));
+      mainChatIdFilters.push(chatIdsWithFeedback.map(msg => msg.chat_id));
+    } else {
+      console.log('No chats found with feedback:', feedback);
+      // If no chats have the specified feedback, return empty result
+      return res.send({
+        messages: [],
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: 0,
+          pages: 0,
+        },
+        totalUserMessages: 0,
+        totalAssistantMessages: 0,
+      });
+    }
+  }
+  
+  // Apply chat ID filters to main query
+  if (mainChatIdFilters.length > 0) {
+    // If we have multiple filters, find the intersection
+    const allChatIds = mainChatIdFilters.flat();
+    const uniqueChatIds = [...new Set(allChatIds)];
+    
+    // If we have both user_id and feedback filters, find intersection
+    if (user_id && feedback && mainChatIdFilters.length === 2) {
+      const userChatIds = mainChatIdFilters[0];
+      const feedbackChatIds = mainChatIdFilters[1];
+      const intersectionChatIds = userChatIds.filter(id => feedbackChatIds.includes(id));
+      
+      if (intersectionChatIds.length > 0) {
+        query = query.in('chat_id', intersectionChatIds);
+      } else {
+        // No intersection, return empty result
+        return res.send({
+          messages: [],
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total: 0,
+            pages: 0,
+          },
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+        });
+      }
+    } else {
+      // Single filter or no intersection needed
+      query = query.in('chat_id', uniqueChatIds);
+    }
   }
   
   // Apply time filtering
@@ -658,6 +757,18 @@ const getAllMessages = catchAsync(async (req, res) => {
   query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: messages, count, error } = await query;
   
+  // Debug: Log feedback values in messages
+  if (messages && messages.length > 0) {
+    console.log('=== MESSAGES DEBUG ===');
+    console.log('First few messages feedback values:', messages.slice(0, 5).map(m => ({ 
+      id: m.id, 
+      feedback: m.feedback, 
+      chat_id: m.chat_id,
+      sender: m.sender 
+    })));
+    console.log('=====================');
+  }
+  
   if (error) {
     // Handle range error gracefully - return empty result if offset is beyond data
     if (error.message.includes('range not satisfiable') || error.message.includes('Requested range not satisfiable')) {
@@ -680,14 +791,74 @@ const getAllMessages = catchAsync(async (req, res) => {
   let userQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'user');
   let assistantQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'assistant');
   
+  // Build chat ID filters for analytics
+  let chatIdFilters = [];
+  
   if (user_id) {
-    userQuery = userQuery.eq('user_id', user_id);
-    assistantQuery = assistantQuery.eq('user_id', user_id);
+    // Get chat IDs for the specific user
+    const { data: userChatIds, error: userChatIdsError } = await supabaseAdmin
+      .from('chats')
+      .select('id')
+      .eq('user_id', user_id);
+    
+    if (userChatIdsError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get user chat IDs for analytics');
+    }
+    
+    if (userChatIds && userChatIds.length > 0) {
+      chatIdFilters.push(userChatIds.map(chat => chat.id));
+    } else {
+      // If user has no chats, set counts to 0
+      userQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'user').eq('chat_id', 'non-existent-id');
+      assistantQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'assistant').eq('chat_id', 'non-existent-id');
+    }
   }
   
   if (feedback) {
-    userQuery = userQuery.eq('feedback', feedback);
-    assistantQuery = assistantQuery.eq('feedback', feedback);
+    // Get chat IDs that contain messages with the specified feedback
+    const { data: chatIdsWithFeedback, error: chatIdsError } = await supabaseAdmin
+      .from('messages')
+      .select('chat_id')
+      .eq('feedback', feedback);
+    
+    if (chatIdsError) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get chat IDs with feedback for analytics');
+    }
+    
+    if (chatIdsWithFeedback && chatIdsWithFeedback.length > 0) {
+      chatIdFilters.push(chatIdsWithFeedback.map(msg => msg.chat_id));
+    } else {
+      // If no chats have the specified feedback, set counts to 0
+      userQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'user').eq('chat_id', 'non-existent-id');
+      assistantQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'assistant').eq('chat_id', 'non-existent-id');
+    }
+  }
+  
+  // Apply chat ID filters to analytics queries
+  if (chatIdFilters.length > 0) {
+    // If we have multiple filters, find the intersection
+    const allChatIds = chatIdFilters.flat();
+    const uniqueChatIds = [...new Set(allChatIds)];
+    
+    // If we have both user_id and feedback filters, find intersection
+    if (user_id && feedback && chatIdFilters.length === 2) {
+      const userChatIds = chatIdFilters[0];
+      const feedbackChatIds = chatIdFilters[1];
+      const intersectionChatIds = userChatIds.filter(id => feedbackChatIds.includes(id));
+      
+      if (intersectionChatIds.length > 0) {
+        userQuery = userQuery.in('chat_id', intersectionChatIds);
+        assistantQuery = assistantQuery.in('chat_id', intersectionChatIds);
+      } else {
+        // No intersection, set counts to 0
+        userQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'user').eq('chat_id', 'non-existent-id');
+        assistantQuery = supabaseAdmin.from('messages').select('id', { count: 'exact', head: true }).eq('sender', 'assistant').eq('chat_id', 'non-existent-id');
+      }
+    } else {
+      // Single filter or no intersection needed
+      userQuery = userQuery.in('chat_id', uniqueChatIds);
+      assistantQuery = assistantQuery.in('chat_id', uniqueChatIds);
+    }
   }
   
   // Apply same time filtering to analytics

@@ -167,6 +167,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({ isOpen, onClos
                 <option value="Pads For Freedom">Pads For Freedom</option>
                 <option value="Bowls Of Hope">Bowls Of Hope</option>
                 <option value="Wings Of Hope">Wings Of Hope</option>
+                <option value="Pawsitive Protector">Pawsitive Protector</option>
               </select>
               {fields.product && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
