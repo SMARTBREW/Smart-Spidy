@@ -13,6 +13,7 @@ import {
   Plus
 } from 'lucide-react';
 import { Reminder, Chat } from '../types';
+import { formatAsIST } from '../utils/time';
 import { 
   getUserReminders, 
   deleteReminder, 
@@ -102,8 +103,8 @@ export const RemindersList: React.FC<RemindersListProps> = ({
   };
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+    // Display in IST regardless of browser timezone
+    return formatAsIST(dateString, true);
   };
 
   const getTimeUntilReminder = (dateString: string) => {
