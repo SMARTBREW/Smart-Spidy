@@ -244,7 +244,6 @@ export const PROFESSION_LIST = [
   'Music Director',
   'NRI',
   'Nutritionist',
-  'Others',
   'Pageant Winner',
   'Philanthropist',
   'Politician',
@@ -259,7 +258,8 @@ export const PROFESSION_LIST = [
   'Vlogger',
   'Women Chamber of Commerce',
   'Writer',
-  'Youtuber'
+  'Youtuber',
+  'Others'
 ] as const;
 
 export type ProfessionType = typeof PROFESSION_LIST[number];
