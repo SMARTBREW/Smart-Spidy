@@ -1,18 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { LoginForm } from './components/LoginForm';
-import { ChatInterface } from './components/ChatInterface';
-import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingProvider } from './contexts/LoadingContext';
 import LoadingOverlay from './components/LoadingOverlay';
+import { LoadingSpinner } from './components/LoadingSpinner';
 import { InactivityWarningModal } from './components/InactivityWarningModal';
 import { useLoadingSetup } from './hooks/useLoadingSetup';
 import authService from './services/auth';
 import ActivityTracker from './services/activityTracker';
 import { TIMEOUT_CONFIG } from './config/timeouts';
+
+// Lazy load components
+const ChatInterface = React.lazy(() => 
+  import('./components/ChatInterface').then(module => ({ 
+    default: module.ChatInterface 
+  }))
+);
+const AdminDashboard = React.lazy(() => 
+  import('./components/admin/AdminDashboard').then(module => ({ 
+    default: module.AdminDashboard 
+  }))
+);
 
 const App: React.FC = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -165,29 +176,33 @@ const App: React.FC = () => {
           } />
           <Route path="/chat" element={
             <ProtectedRoute user={user}>
-              <ChatInterface
-                user={user!}
-                chats={chats}
-                currentChat={currentChat}
-                currentChatId={currentChatId}
-                isTyping={isTyping}
-                createChat={(name, instagramUsername, executiveInstagramUsername, occupation, product, gender, profession) => {
-                  createChat(name, instagramUsername, executiveInstagramUsername, occupation, product, gender, profession);
-                  return '';
-                }}
-                selectChat={selectChat}
-                sendMessage={sendMessage}
-                deleteChat={deleteChat}
-                logout={logout}
-                pinChat={pinChat}
-                setChatStatus={setChatStatus}
-                activityTracker={activityTracker}
-              />
+              <Suspense fallback={<LoadingSpinner size="lg" text="Loading Chat Interface..." className="h-64" />}>
+                <ChatInterface
+                  user={user!}
+                  chats={chats}
+                  currentChat={currentChat}
+                  currentChatId={currentChatId}
+                  isTyping={isTyping}
+                  createChat={(name, instagramUsername, executiveInstagramUsername, occupation, product, gender, profession) => {
+                    createChat(name, instagramUsername, executiveInstagramUsername, occupation, product, gender, profession);
+                    return '';
+                  }}
+                  selectChat={selectChat}
+                  sendMessage={sendMessage}
+                  deleteChat={deleteChat}
+                  logout={logout}
+                  pinChat={pinChat}
+                  setChatStatus={setChatStatus}
+                  activityTracker={activityTracker}
+                />
+              </Suspense>
             </ProtectedRoute>
           } />
           <Route path="/admin" element={
             <ProtectedRoute user={user}>
-              <AdminDashboard userRole="admin" />
+              <Suspense fallback={<LoadingSpinner size="lg" text="Loading Admin Dashboard..." className="h-64" />}>
+                <AdminDashboard userRole="admin" />
+              </Suspense>
             </ProtectedRoute>
           } />
         </Routes>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -11,12 +11,16 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { AdminProvider, useAdminContext } from '../../contexts/AdminContext';
-import { UsersTable } from './UsersTable';
-import { ChatsTable } from './ChatsTable';
-import { MessagesTable } from './MessagesTable';
-import { UserSessionsTable } from './UserSessionsTable';
-import { FundraisersTable } from './FundraisersTable';
-import { NotificationTable } from './NotificationTable';
+import { LoadingSpinner } from '../LoadingSpinner';
+
+// Lazy load admin table components
+const UsersTable = React.lazy(() => import('./UsersTable').then(module => ({ default: module.UsersTable })));
+const ChatsTable = React.lazy(() => import('./ChatsTable').then(module => ({ default: module.ChatsTable })));
+const MessagesTable = React.lazy(() => import('./MessagesTable').then(module => ({ default: module.MessagesTable })));
+const UserSessionsTable = React.lazy(() => import('./UserSessionsTable').then(module => ({ default: module.UserSessionsTable })));
+const FundraisersTable = React.lazy(() => import('./FundraisersTable').then(module => ({ default: module.FundraisersTable })));
+const NotificationTable = React.lazy(() => import('./NotificationTable').then(module => ({ default: module.NotificationTable })));
+
 interface AdminDashboardProps {
   userRole: 'admin';
 }
@@ -37,19 +41,47 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ userRole }) => {
   ];
 
   const renderContent = () => {
+    const LoadingFallback = () => (
+      <LoadingSpinner size="lg" text="Loading..." className="h-64" />
+    );
+
     switch (currentView) {
       case 'users':
-        return <UsersTable stats={stats} isLoading={isStatsLoading} />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <UsersTable stats={stats} isLoading={isStatsLoading} />
+          </Suspense>
+        );
       case 'fundraisers':
-        return <FundraisersTable />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <FundraisersTable />
+          </Suspense>
+        );
       case 'chats':
-        return <ChatsTable stats={stats} isLoading={isStatsLoading} />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <ChatsTable stats={stats} isLoading={isStatsLoading} />
+          </Suspense>
+        );
       case 'messages':
-        return <MessagesTable stats={stats} />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <MessagesTable stats={stats} />
+          </Suspense>
+        );
       case 'sessions':
-        return <UserSessionsTable stats={stats} isLoading={isStatsLoading} />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <UserSessionsTable stats={stats} isLoading={isStatsLoading} />
+          </Suspense>
+        );
       case 'notifications':
-        return <NotificationTable stats={stats} isLoading={isStatsLoading} />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <NotificationTable stats={stats} isLoading={isStatsLoading} />
+          </Suspense>
+        );
       default:
         return null;
     }
