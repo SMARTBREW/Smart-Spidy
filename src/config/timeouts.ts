@@ -15,7 +15,7 @@ export const TIMEOUT_CONFIG = {
   
   // Session validation (in minutes)
   SESSION: {
-    VALIDATION_INTERVAL_MINUTES: 2, // Validate session every 2 minutes
+    VALIDATION_INTERVAL_MINUTES: 10, // Validate session every 10 minutes (less aggressive)
   },
   
   // Inactivity warning modal

@@ -126,15 +126,23 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ chat, onSendMessage, isTypin
             </div>
           ) : (
             <div className="max-w-4xl mx-auto px-2 sm:px-4">
-              {chat.messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isLast={index === chat.messages.length - 1}
-                  type={message.sender as 'user' | 'assistant'}
-                  activityTracker={activityTracker}
-                />
-              ))}
+              {(() => {
+                // Find the index of the first assistant message
+                const firstAssistantMessageIndex = chat.messages.findIndex(msg => msg.sender === 'assistant');
+                
+                return chat.messages.map((message, index) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    isLast={index === chat.messages.length - 1}
+                    type={message.sender as 'user' | 'assistant'}
+                    activityTracker={activityTracker}
+                    messageIndex={index}
+                    totalMessages={chat.messages.length}
+                    isFirstAssistantMessage={message.sender === 'assistant' && index === firstAssistantMessageIndex}
+                  />
+                ));
+              })()}
               {isTyping && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}

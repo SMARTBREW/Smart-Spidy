@@ -74,8 +74,8 @@ cron.schedule('* * * * *', async () => {
   timezone: "Asia/Kolkata"
 });
 
-// Clean up inactive sessions every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
+// Clean up inactive sessions every 15 minutes (less aggressive)
+cron.schedule('*/15 * * * *', async () => {
   console.log('🕐 Running session cleanup...');
   try {
     const supabaseAdmin = getSupabaseClient();
@@ -84,14 +84,15 @@ cron.schedule('*/5 * * * *', async () => {
       return;
     }
     
-    const twentyMinutesAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    // Use 90 minutes instead of 20 minutes to match frontend timeout
+    const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000).toISOString();
     
-    // Find active sessions that haven't been updated in the last 20 minutes
+    // Find active sessions that haven't been updated in the last 90 minutes
     const { data: inactiveSessions, error: fetchError } = await supabaseAdmin
       .from('user_sessions')
       .select('*')
       .eq('is_active', true)
-      .lt('updated_at', twentyMinutesAgo);
+      .lt('updated_at', ninetyMinutesAgo);
 
     if (fetchError) {
       console.error('❌ Error fetching inactive sessions:', fetchError);
@@ -104,23 +105,23 @@ cron.schedule('*/5 * * * *', async () => {
       const sessionIds = inactiveSessions.map(session => session.id);
       const currentTime = new Date().toISOString();
       
-      // Update sessions to mark them as inactive
-      const { error: updateError } = await supabaseAdmin
-        .from('user_sessions')
-        .update({
-          is_active: false,
-          logout_time: currentTime,
-          session_duration: 1200, // 20 minutes in seconds
-          timeout_reason: 'server_cleanup',
-          updated_at: currentTime
-        })
-        .in('id', sessionIds);
-
-      if (updateError) {
-        console.error('❌ Error updating inactive sessions:', updateError);
-      } else {
-        console.log(`✅ Successfully cleaned up ${inactiveSessions.length} inactive sessions`);
+      // Update sessions to mark them as inactive with correct duration calculation
+      for (const session of inactiveSessions) {
+        const sessionDuration = Math.floor((new Date(currentTime) - new Date(session.login_time)) / 1000);
+        
+        await supabaseAdmin
+          .from('user_sessions')
+          .update({
+            is_active: false,
+            logout_time: currentTime,
+            session_duration: sessionDuration, // Calculate actual duration
+            timeout_reason: 'server_cleanup',
+            updated_at: currentTime
+          })
+          .eq('id', session.id);
       }
+
+      console.log(`✅ Successfully cleaned up ${inactiveSessions.length} inactive sessions`);
     } else {
       console.log('✅ No inactive sessions found');
     }
@@ -135,5 +136,5 @@ console.log('✅ Cron jobs scheduled:');
 console.log('   - Daily notification generation at 9:00 AM');
 console.log('   - Test notification generation every 6 hours');
 console.log('   - Reminder processing every 1 minute (notifications 5 min before due)');
-console.log('   - Session cleanup every 5 minutes');
+console.log('   - Session cleanup every 15 minutes (90 min inactivity threshold)');
 console.log('   - Timezone: Asia/Kolkata'); 

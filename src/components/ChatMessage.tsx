@@ -10,9 +10,12 @@ interface ChatMessageProps {
   isLast: boolean;
   type: 'user' | 'assistant';
   activityTracker?: any;
+  messageIndex: number;
+  totalMessages: number;
+  isFirstAssistantMessage: boolean;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type, activityTracker }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type, activityTracker, messageIndex, totalMessages, isFirstAssistantMessage }) => {
   console.log('ChatMessage rendered with:', { 
     messageId: message.id, 
     type, 
@@ -383,11 +386,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type,
             </p>
           </div>
           
-          {/* DM Enhancement Buttons - only show for assistant messages */}
-          <DMEnhancementButtons 
-            messageId={message.id}
-            activityTracker={activityTracker}
-          />
+          {/* DM Enhancement Buttons - only show for the first assistant message */}
+          {isFirstAssistantMessage && (
+            <DMEnhancementButtons 
+              messageId={message.id}
+              activityTracker={activityTracker}
+            />
+          )}
           
           <div className="flex gap-2 mt-2 items-center">
             <button

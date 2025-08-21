@@ -191,6 +191,35 @@ class AuthService {
     return timeoutFn();
   }
 
+  /**
+   * Send heartbeat to keep session alive
+   * This updates the session's updated_at timestamp
+   */
+  async heartbeat(): Promise<void> {
+    const heartbeatFn = async () => {
+      try {
+        const tokens = await this.getTokens();
+        if (tokens) {
+          await fetch(`${this.baseURL}/users/heartbeat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${tokens.access.token}`,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Heartbeat error:', error);
+        // Don't clear tokens on heartbeat failure
+      }
+    };
+
+    if (this.withLoading) {
+      return this.withLoading('auth-heartbeat', heartbeatFn)();
+    }
+    return heartbeatFn();
+  }
+
   getCurrentUser() {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;

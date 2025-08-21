@@ -1,3 +1,5 @@
+import { authService } from './auth';
+
 interface ActivityTrackerConfig {
   timeoutMinutes: number;
   warningMinutes: number;
@@ -12,6 +14,9 @@ class ActivityTracker {
   private config: ActivityTrackerConfig;
   private onLogout: () => void;
   private onWarning?: () => void;
+  private lastHeartbeat: number = 0;
+  private heartbeatThrottleMs: number = 300000; // Send heartbeat at most once every 5 minutes
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(
     onLogout: () => void,
@@ -36,6 +41,7 @@ class ActivityTracker {
     this.resetTimers();
     this.setupActivityListeners();
     this.startPeriodicCheck();
+    this.startHeartbeatInterval();
     
     // Make activity tracker globally accessible for network tracking
     (window as any).activityTracker = this;
@@ -46,6 +52,7 @@ class ActivityTracker {
   stop(): void {
     this.isActive = false;
     this.clearTimers();
+    this.clearHeartbeatInterval();
     this.removeActivityListeners();
     
     // Remove global reference
@@ -64,6 +71,9 @@ class ActivityTracker {
     console.log('Manual activity triggered');
     this.lastActivity = Date.now();
     this.resetTimers();
+    
+    // Send heartbeat only for significant actions like sending messages
+    this.sendHeartbeat();
   }
 
   private resetTimers(): void {
@@ -142,6 +152,9 @@ class ActivityTracker {
     console.log('Activity detected, resetting timers');
     this.lastActivity = Date.now();
     this.resetTimers();
+    
+    // Only send heartbeat on significant user actions, not every mouse move
+    // Heartbeats will be sent via triggerActivity() for important actions
   };
 
   private handleVisibilityChange = (): void => {
@@ -149,6 +162,9 @@ class ActivityTracker {
       // User came back to the tab, reset activity
       this.lastActivity = Date.now();
       this.resetTimers();
+      
+      // Send heartbeat when user returns to tab
+      this.sendHeartbeat();
     }
   };
 
@@ -159,9 +175,14 @@ class ActivityTracker {
       const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : '';
       const method = args[1]?.method || 'GET';
       
+      // Exclude heartbeat requests to prevent infinite loops
+      if (typeof url === 'string' && url.includes('/heartbeat')) {
+        return originalFetch.apply(window, args);
+      }
+      
       // Only track POST requests and specific GET requests that indicate user activity
       if (method === 'POST' || 
-          (method === 'GET' && url && (
+          (method === 'GET' && typeof url === 'string' && (
             url.includes('/messages') || 
             url.includes('/chats') || 
             url.includes('/users/profile') ||
@@ -175,20 +196,25 @@ class ActivityTracker {
 
     // Track XMLHttpRequest - only for user-initiated requests
     const originalXHROpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(...args) {
+    XMLHttpRequest.prototype.open = function(method: string, url: string | URL, async: boolean = true, username?: string | null, password?: string | null) {
       this.addEventListener('loadstart', () => {
         // Only track user-initiated requests, not background polling
         if (this.readyState === 1) { // OPENED
           // Check if this is a user action (like sending a message)
-          const url = args[1];
-          const method = args[0];
+          const urlString = typeof url === 'string' ? url : url.toString();
+          const methodString = method;
           
-          if (method === 'POST' || 
-              (method === 'GET' && url && (
-                url.includes('/messages') || 
-                url.includes('/chats') || 
-                url.includes('/users/profile') ||
-                url.includes('/notifications')
+          // Exclude heartbeat requests to prevent infinite loops
+          if (urlString && urlString.includes('/heartbeat')) {
+            return;
+          }
+          
+          if (methodString === 'POST' || 
+              (methodString === 'GET' && urlString && (
+                urlString.includes('/messages') || 
+                urlString.includes('/chats') || 
+                urlString.includes('/users/profile') ||
+                urlString.includes('/notifications')
               ))) {
             // This is likely a user action, reset activity
             if ((window as any).activityTracker) {
@@ -197,7 +223,7 @@ class ActivityTracker {
           }
         }
       });
-      return originalXHROpen.apply(this, args);
+      return originalXHROpen.call(this, method, url, async, username, password);
     };
   }
 
@@ -218,6 +244,32 @@ class ActivityTracker {
         clearInterval(checkInterval);
       }
     }, this.config.checkIntervalSeconds * 1000);
+  }
+
+  private startHeartbeatInterval(): void {
+    // Send heartbeat every 5 minutes to keep session alive
+    this.heartbeatInterval = setInterval(() => {
+      if (!this.isActive) {
+        this.clearHeartbeatInterval();
+        return;
+      }
+      
+      // Only send heartbeat if user has been active recently (within last 10 minutes)
+      const now = Date.now();
+      const timeSinceLastActivity = now - this.lastActivity;
+      const tenMinutesMs = 10 * 60 * 1000;
+      
+      if (timeSinceLastActivity < tenMinutesMs) {
+        this.sendHeartbeat();
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+  }
+
+  private clearHeartbeatInterval(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 
   getTimeUntilLogout(): number {
@@ -251,6 +303,28 @@ class ActivityTracker {
       timeSinceLastActivity,
       timeUntilLogout
     };
+  }
+
+  /**
+   * Send heartbeat to keep session alive
+   * This updates the session's updated_at timestamp on the server
+   */
+  private async sendHeartbeat(): Promise<void> {
+    const now = Date.now();
+    
+    // Throttle heartbeats to prevent spam
+    if (now - this.lastHeartbeat < this.heartbeatThrottleMs) {
+      return;
+    }
+    
+    try {
+      await authService.heartbeat();
+      this.lastHeartbeat = now;
+      console.log('Heartbeat sent successfully');
+    } catch (error) {
+      console.error('Failed to send heartbeat:', error);
+      // Don't fail on heartbeat errors - just log them
+    }
   }
 }
 

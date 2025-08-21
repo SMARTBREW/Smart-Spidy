@@ -233,6 +233,43 @@ const sessionTimeout = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * Heartbeat endpoint to update session activity
+ * This keeps the session alive and updates the updated_at timestamp
+ */
+const heartbeat = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const currentTime = new Date().toISOString();
+  
+  try {
+    // Update the session's updated_at timestamp
+    const { error } = await supabaseAdmin
+      .from('user_sessions')
+      .update({ 
+        updated_at: currentTime 
+      })
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Failed to update session activity:', error);
+      // Don't fail the request, just log the error
+    }
+
+    res.status(httpStatus.OK).send({ 
+      message: 'Session activity updated',
+      timestamp: currentTime
+    });
+  } catch (error) {
+    console.error('Heartbeat error:', error);
+    // Still return success to prevent client-side issues
+    res.status(httpStatus.OK).send({ 
+      message: 'Session activity updated',
+      timestamp: currentTime
+    });
+  }
+});
+
 module.exports = {
   register,
   login,
@@ -240,4 +277,5 @@ module.exports = {
   refreshToken,
   getProfile,
   sessionTimeout,
+  heartbeat,
 }; 

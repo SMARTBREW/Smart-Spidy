@@ -15,6 +15,7 @@ const messageRoutes = require('./routes/messageRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 
+
 require('./services/cronService');
 
 const ApiError = require('./utils/ApiError');
@@ -56,6 +57,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(passport.initialize());
+
+
 
 if (config.env === 'development') {
   app.use((req, res, next) => {
