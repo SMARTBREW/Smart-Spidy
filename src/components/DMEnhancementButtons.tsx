@@ -101,12 +101,12 @@ export const DMEnhancementButtons: React.FC<DMEnhancementButtonsProps> = ({
           {variations && (
             <div className="space-y-3">
               {/* Small (150 words) */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="bg-white border border-gray-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-green-800">Small (150 words)</h4>
+                  <h4 className="text-sm font-semibold text-gray-800">Small (150 words)</h4>
                   <button
                     onClick={() => handleCopyVariation(variations.small, 'small')}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-green-700 bg-green-100 rounded hover:bg-green-200 transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                   >
                     {copiedVariation === 'small' ? (
                       <>
@@ -121,18 +121,18 @@ export const DMEnhancementButtons: React.FC<DMEnhancementButtonsProps> = ({
                     )}
                   </button>
                 </div>
-                <div className="text-sm text-green-900 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                <div className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                   {variations.small}
                 </div>
               </div>
 
               {/* Medium (200 words) */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="bg-white border border-gray-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-yellow-800">Medium (200 words)</h4>
+                  <h4 className="text-sm font-semibold text-gray-800">Medium (200 words)</h4>
                   <button
                     onClick={() => handleCopyVariation(variations.medium, 'medium')}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-yellow-700 bg-yellow-100 rounded hover:bg-yellow-200 transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                   >
                     {copiedVariation === 'medium' ? (
                       <>
@@ -147,18 +147,18 @@ export const DMEnhancementButtons: React.FC<DMEnhancementButtonsProps> = ({
                     )}
                   </button>
                 </div>
-                <div className="text-sm text-yellow-900 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                <div className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                   {variations.medium}
                 </div>
               </div>
 
               {/* Large (250 words) */}
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <div className="bg-white border border-gray-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-purple-800">Large (250 words)</h4>
+                  <h4 className="text-sm font-semibold text-gray-800">Large (250 words)</h4>
                   <button
                     onClick={() => handleCopyVariation(variations.large, 'large')}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-purple-700 bg-purple-100 rounded hover:bg-purple-200 transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                   >
                     {copiedVariation === 'large' ? (
                       <>
@@ -173,7 +173,7 @@ export const DMEnhancementButtons: React.FC<DMEnhancementButtonsProps> = ({
                     )}
                   </button>
                 </div>
-                <div className="text-sm text-purple-900 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                <div className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                   {variations.large}
                 </div>
               </div>
