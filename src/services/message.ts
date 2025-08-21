@@ -1,7 +1,7 @@
 import authService from './auth';
 import { Message } from '../types';
 
-const API_BASE_URL = 'http://localhost:3000/api'; // Temporarily use localhost for testing
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Global loading wrapper for message API calls
 let withLoading: any = null;
