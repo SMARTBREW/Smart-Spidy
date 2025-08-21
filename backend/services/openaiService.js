@@ -532,6 +532,43 @@ IMPORTANT: Respond with ONLY the JSON object, no markdown formatting, no code bl
 }
 
 /**
+ * Extract potential slogans or taglines from DM content
+ * @param {string} dmContent - Original DM content
+ * @returns {string|null} - Extracted slogan or null if none found
+ */
+function extractSloganFromDM(dmContent) {
+  // Common slogan patterns (quotes, hashtags, campaign names in quotes, etc.)
+  const sloganPatterns = [
+    /"([^"]+)"/g,                        // Text in quotes
+    /#([A-Za-z0-9_]+)/g,                 // Hashtags
+    /['']([^'']+)['']/g,                 // Text in smart quotes
+    /campaign\s*[-:]\s*["']?([^"'\n.!?]+)["']?/gi, // Campaign: "slogan"
+    /slogan\s*[-:]\s*["']?([^"'\n.!?]+)["']?/gi,   // Slogan: "text"
+  ];
+  
+  const potentialSlogans = [];
+  
+  for (const pattern of sloganPatterns) {
+    let match;
+    while ((match = pattern.exec(dmContent)) !== null) {
+      const slogan = match[1]?.trim();
+      if (slogan && slogan.length > 5 && slogan.length < 100) {
+        potentialSlogans.push(slogan);
+      }
+    }
+  }
+  
+  // Return the longest meaningful slogan found
+  if (potentialSlogans.length > 0) {
+    return potentialSlogans.reduce((longest, current) => 
+      current.length > longest.length ? current : longest
+    );
+  }
+  
+  return null;
+}
+
+/**
  * Generate enhanced DM variations with different word lengths
  * @param {string} originalDM - Original DM content
  * @param {string} profession - Target profession
@@ -547,6 +584,20 @@ async function generateEnhancedDMVariations(originalDM, profession, campaign, ch
     console.log('Profession:', profession);
     console.log('Campaign:', campaign);
     
+    // Extract slogan from original DM
+    const extractedSlogan = extractSloganFromDM(originalDM);
+    console.log('Extracted slogan:', extractedSlogan);
+    
+    const sloganInstructions = extractedSlogan 
+      ? `IMPORTANT SLOGAN REQUIREMENT:
+- The original DM contains this slogan/tagline: "${extractedSlogan}"
+- You MUST include this exact slogan in each enhanced variation
+- Place the slogan strategically where it fits naturally in the message
+- The slogan should be emphasized using 𝐛𝐨𝐥𝐝 text formatting
+
+`
+      : '';
+    
     const systemPrompt = `You are an expert copywriter specializing in professional social impact campaigns. Your task is to enhance and create variations of a Direct Message (DM) for Instagram outreach campaigns.
 
 ORIGINAL DM:
@@ -558,7 +609,7 @@ TARGET INFORMATION:
 - Target Name: ${chatName}
 - Volunteer Name: ${volunteerName}
 
-INSTRUCTIONS:
+${sloganInstructions}INSTRUCTIONS:
 1. Create THREE enhanced versions of this DM with different word counts
 2. Each version should be MORE FORMAL, CLEAN, and EFFECTIVE than the original
 3. Use proper paragraph structure - NOT single paragraphs
@@ -567,6 +618,7 @@ INSTRUCTIONS:
 6. Do NOT use markdown formatting
 7. Make each version feel professional and business-like
 8. Use proper greeting and closing formats
+9. ${extractedSlogan ? 'PRESERVE the original slogan exactly as provided above' : 'Maintain any campaign messaging or taglines from the original'}
 
 FORMATTING REQUIREMENTS:
 - Use proper paragraph breaks with double line spacing
@@ -574,6 +626,7 @@ FORMATTING REQUIREMENTS:
 - Include clear introduction, body, and conclusion
 - End with a professional closing and call-to-action
 - Use 𝐛𝐨𝐥𝐝 𝐭𝐞𝐱𝐭 for emphasis on important words
+${extractedSlogan ? '- Include the slogan prominently in each variation' : ''}
 
 WORD COUNT REQUIREMENTS:
 - Small (150 words): 2-3 paragraphs, concise but professional
