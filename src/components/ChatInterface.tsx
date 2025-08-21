@@ -21,6 +21,7 @@ interface ChatInterfaceProps {
   currentChat: Chat | null;
   currentChatId: string | null;
   isTyping: boolean;
+  messagesLoading: string | null;
   createChat: (name: string, instagramUsername?: string, executiveInstagramUsername?: string, occupation?: string, product?: string, gender?: string, profession?: string) => string;
   selectChat: (chatId: string) => void;
   sendMessage: (query: string) => Promise<void>;
@@ -37,6 +38,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   currentChat,
   currentChatId,
   isTyping,
+  messagesLoading,
   createChat,
   selectChat,
   sendMessage,

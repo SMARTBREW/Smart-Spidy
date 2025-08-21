@@ -24,6 +24,9 @@ export const useChat = () => {
   
   // Use useState for isTyping to trigger re-renders when typing state changes
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Add loading state for messages
+  const [messagesLoading, setMessagesLoading] = useState<string | null>(null);
 
   // Function to trigger activity when messages are received
   const triggerActivity = useCallback(() => {
@@ -50,61 +53,18 @@ export const useChat = () => {
       // Only fetch chats created by the current user, even for admins
       const { chats } = await chatApi.getAllChats({ user_id: currentUser.id });
       
-      // Fetch messages for each chat
-      const chatsWithMessages = await Promise.all(
-        chats.map(async (chat) => {
-          try {
-            const response = await messageApi.getMessages(chat.id, { limit: 100 });
-            const { messages, instagramTriggers } = response;
-            console.log(`Chat ${chat.id} - Instagram Accounts:`, instagramTriggers?.length || 0, 'found');
-            
-            let messagesWithInstagram = messages || [];
-            if (instagramTriggers && instagramTriggers.length > 0) {
-              let finalMessages: Message[] = [];
-              for (let i = 0; i < messagesWithInstagram.length; i++) {
-                const message = messagesWithInstagram[i];
-                finalMessages.push(message);
-                // For each trigger, if it matches this message, insert the card
-                instagramTriggers.forEach((trigger, idx) => {
-                  if (trigger.messageId === message.id) {
-                    finalMessages.push({
-                      id: `${chat.id}-ig-${trigger.username}-${Date.now()}-${i}-${idx}`,
-                      content: '',
-                      sender: 'assistant' as 'assistant',
-                      createdAt: new Date(message.createdAt || new Date()),
-                      instagramAccount: {
-                        ...trigger.account,
-                        followersCount: Number(trigger.account.followersCount),
-                        mediaCount: Number(trigger.account.mediaCount)
-                      }
-                    } as Message);
-                  }
-                });
-              }
-              messagesWithInstagram = finalMessages;
-            }
-            
-            return {
-              ...chat,
-              messages: messagesWithInstagram,
-              is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
-            };
-          } catch (error) {
-            console.error(`Error fetching messages for chat ${chat.id}:`, error);
-            return {
-              ...chat,
-              messages: [],
-              is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
-            };
-          }
-        })
-      );
+      // Load only chat metadata initially - NO messages loaded here
+      const chatsWithoutMessages = chats.map((chat) => ({
+        ...chat,
+        messages: [], // Empty initially - messages will be loaded on demand
+        is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
+      }));
 
       setState(prev => ({
         ...prev,
         user: currentUser,
-        chats: chatsWithMessages,
-        currentChatId: chatsWithMessages.length > 0 ? chatsWithMessages[0].id : null,
+        chats: chatsWithoutMessages,
+        currentChatId: chatsWithoutMessages.length > 0 ? chatsWithoutMessages[0].id : null,
       }));
     } catch (error: any) {
       console.error('Error fetching chats:', error);
@@ -202,6 +162,8 @@ export const useChat = () => {
     const currentChat = state.chats.find(chat => chat.id === chatId);
     if (currentChat && (!currentChat.messages || currentChat.messages.length === 0)) {
       try {
+        setMessagesLoading(chatId); // Set loading state
+        console.log(`Loading messages for chat ${chatId}...`);
         const response = await messageApi.getMessages(chatId, { limit: 100 });
         console.log('API Response:', response);
         const { messages, instagramAccounts } = response;
@@ -262,8 +224,21 @@ export const useChat = () => {
               : chat
           ),
         }));
+        
+        console.log(`Successfully loaded ${messagesWithInstagram.length} messages for chat ${chatId}`);
       } catch (error) {
         console.error(`Error loading messages for chat ${chatId}:`, error);
+        // Set empty messages array to prevent repeated loading attempts
+        setState(prev => ({
+          ...prev,
+          chats: prev.chats.map(chat =>
+            chat.id === chatId
+              ? { ...chat, messages: [] }
+              : chat
+          ),
+        }));
+      } finally {
+        setMessagesLoading(null); // Clear loading state
       }
     }
   }, [state.chats, triggerActivity]);
@@ -394,6 +369,7 @@ export const useChat = () => {
     ...state,
     currentChat,
     isTyping,
+    messagesLoading,
     login,
     logout,
     createChat,

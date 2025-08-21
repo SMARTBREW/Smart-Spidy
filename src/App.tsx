@@ -39,6 +39,7 @@ const App: React.FC = () => {
     currentChat,
     currentChatId,
     isTyping,
+    messagesLoading,
     login,
     logout,
     createChat,
@@ -183,6 +184,7 @@ const App: React.FC = () => {
                   currentChat={currentChat}
                   currentChatId={currentChatId}
                   isTyping={isTyping}
+                  messagesLoading={messagesLoading}
                   createChat={(name, instagramUsername, executiveInstagramUsername, occupation, product, gender, profession) => {
                     createChat(name, instagramUsername, executiveInstagramUsername, occupation, product, gender, profession);
                     return '';
