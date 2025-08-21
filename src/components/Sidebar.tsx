@@ -505,15 +505,16 @@ const SidebarComponent: React.FC<SidebarProps> = ({
               <AnimatePresence>
                 {/* Pinned Chats */}
                 {pinnedChats.length > 0 && (
-                  <div className="mb-4">
+                  <div key="pinned-section" className="mb-4">
                     <div className="flex items-center gap-1 text-xs text-gray-500 font-medium mb-1 px-1">
                       <Pin className="w-2.5 h-2.5" />
                       PINNED
                     </div>
                     {pinnedChats
+                      .filter(chat => chat && (chat.id || chat.name)) // Filter out invalid chats
                       .map((chat, index) => (
                         <motion.div
-                          key={`pinned-${chat.id || chat.name || `chat-${index}`}`}
+                          key={`pinned-${chat.id || `pinned-chat-${index}`}`}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -588,16 +589,17 @@ const SidebarComponent: React.FC<SidebarProps> = ({
 
                 {/* Other Chats */}
                 {unpinnedChats.length > 0 && (
-                  <div>
+                  <div key="unpinned-section">
                     {pinnedChats.length > 0 && (
                       <div className="text-xs text-gray-500 font-medium mb-1 px-1">
                         RECENT
                       </div>
                     )}
                     {unpinnedChats
+                      .filter(chat => chat && (chat.id || chat.name)) // Filter out invalid chats
                       .map((chat, index) => (
                         <motion.div
-                          key={`unpinned-${chat.id || chat.name || `chat-${index}`}`}
+                          key={`unpinned-${chat.id || `unpinned-chat-${index}`}`}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -670,6 +672,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
                 {/* Empty State */}
                 {chats.length === 0 && (
                   <motion.div
+                    key="empty-state"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={contentTransition}

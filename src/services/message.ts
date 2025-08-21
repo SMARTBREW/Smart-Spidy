@@ -1,7 +1,7 @@
 import authService from './auth';
 import { Message } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ;
+const API_BASE_URL = 'http://localhost:3000/api'; // Temporarily use localhost for testing
 
 // Global loading wrapper for message API calls
 let withLoading: any = null;
@@ -130,6 +130,16 @@ interface CreateMessagesResponse {
   }>;
 }
 
+interface EnhancedDMResponse {
+  success: boolean;
+  variations: {
+    small: string;
+    medium: string;
+    large: string;
+  };
+  originalMessage: Message;
+}
+
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
@@ -161,6 +171,17 @@ export const messageApi = {
     
     // Don't use loading wrapper for regular messages - we want to show typing indicator instead
     return createMessageFn();
+  },
+
+  // Generate enhanced DM variations
+  async generateEnhancedDM(messageId: string): Promise<EnhancedDMResponse> {
+    const response = await authService.authenticatedRequest(
+      `${API_BASE_URL}/messages/${messageId}/enhance`,
+      {
+        method: 'POST',
+      }
+    );
+    return handleResponse(response);
   },
 
   // Get messages for a specific chat

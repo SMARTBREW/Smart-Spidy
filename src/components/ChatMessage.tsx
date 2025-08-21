@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { User, Bot, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Message } from '../types';
 import messageApi from '../services/message';
+import { DMEnhancementButtons } from './DMEnhancementButtons';
 
 interface ChatMessageProps {
   message: Message;
@@ -381,6 +382,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, type,
               {formattedContent}
             </p>
           </div>
+          
+          {/* DM Enhancement Buttons - only show for assistant messages */}
+          <DMEnhancementButtons 
+            messageId={message.id}
+            activityTracker={activityTracker}
+          />
+          
           <div className="flex gap-2 mt-2 items-center">
             <button
               aria-label="Copy message"

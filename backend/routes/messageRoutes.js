@@ -13,6 +13,10 @@ router.post('/', validate(messageValidation.createMessage), messageController.cr
 router.post('/bulk', validate(messageValidation.createMessages), messageController.createMessages);
 router.get('/', authorize('admin'), messageController.getAllMessages);
 router.get('/chat/:chatId', validate(messageValidation.getMessages), messageController.getMessages);
+
+// Enhanced DM generation route - must come before :id route
+router.post('/:message_id/enhance', messageController.generateEnhancedDM);
+
 router.get('/:id', validate(messageValidation.getMessage), messageController.getMessage);
 router.patch('/:id', validate(messageValidation.updateMessage), messageController.updateMessage);
 router.delete('/:id', authorize('admin'), validate(messageValidation.deleteMessage), messageController.deleteMessage);

@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const { supabaseAdmin } = require('../config/supabase');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { generateOpenAIResponse } = require('../services/openaiService');
+const { generateOpenAIResponse, generateEnhancedDMVariations } = require('../services/openaiService');
 const { analyzeInstagramAccount } = require('../services/openaiService');
 const { getCampaignDM, replaceDMTemplate, isFirstDMRequest } = require('../services/campaignService');
 const { updateChatLastActivity, updateFundraiserLastActivity } = require('../services/notificationService');
@@ -909,6 +909,70 @@ const getAllMessages = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * Generate enhanced DM variations
+ */
+const generateEnhancedDM = catchAsync(async (req, res) => {
+  const { message_id } = req.params;
+  
+  if (!message_id) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Message ID is required');
+  }
+
+  // Get the original message
+  const { data: message, error: messageError } = await supabaseAdmin
+    .from('messages')
+    .select('*, chats(name, profession, product, user_id)')
+    .eq('id', message_id)
+    .single();
+
+  if (messageError || !message) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Message not found');
+  }
+
+  // Check if user has access to this message
+  if (req.user.role !== 'admin' && message.chats.user_id !== req.user.id) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
+  }
+
+  // Only allow enhancement of assistant messages that are DMs
+  if (message.sender !== 'assistant') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Only assistant messages can be enhanced');
+  }
+
+  // Get user details for volunteer name
+  const { data: userData, error: userError } = await supabaseAdmin
+    .from('users')
+    .select('name')
+    .eq('id', message.chats.user_id)
+    .single();
+
+  const volunteerName = userData?.name || 'Smart Spidy Team';
+  const chatName = message.chats.name;
+  const profession = message.chats.profession || 'general';
+  const campaign = message.chats.product || 'Pads For Freedom';
+
+  try {
+    // Generate enhanced variations
+    const variations = await generateEnhancedDMVariations(
+      message.content,
+      profession,
+      campaign,
+      chatName,
+      volunteerName
+    );
+
+    res.send({
+      success: true,
+      variations,
+      originalMessage: message
+    });
+  } catch (error) {
+    console.error('Error generating enhanced DM:', error);
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to generate enhanced DM variations');
+  }
+});
+
 module.exports = {
   createMessage,
   getMessages,
@@ -917,4 +981,5 @@ module.exports = {
   deleteMessage,
   createMessages,
   getAllMessages,
+  generateEnhancedDM,
 }; 

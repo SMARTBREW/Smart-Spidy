@@ -531,4 +531,158 @@ IMPORTANT: Respond with ONLY the JSON object, no markdown formatting, no code bl
   }
 }
 
-module.exports = { generateOpenAIResponse, analyzeInstagramAccount, generateEmbedding, getCampaignContext, testCampaignData }; 
+/**
+ * Generate enhanced DM variations with different word lengths
+ * @param {string} originalDM - Original DM content
+ * @param {string} profession - Target profession
+ * @param {string} campaign - Campaign name
+ * @param {string} chatName - Target person's name
+ * @param {string} volunteerName - Volunteer's name
+ * @returns {Object} - Enhanced DM variations
+ */
+async function generateEnhancedDMVariations(originalDM, profession, campaign, chatName, volunteerName) {
+  try {
+    console.log('=== Generating Enhanced DM Variations ===');
+    console.log('Original DM length:', originalDM.length);
+    console.log('Profession:', profession);
+    console.log('Campaign:', campaign);
+    
+    const systemPrompt = `You are an expert copywriter specializing in professional social impact campaigns. Your task is to enhance and create variations of a Direct Message (DM) for Instagram outreach campaigns.
+
+ORIGINAL DM:
+${originalDM}
+
+TARGET INFORMATION:
+- Profession: ${profession}
+- Campaign: ${campaign}
+- Target Name: ${chatName}
+- Volunteer Name: ${volunteerName}
+
+INSTRUCTIONS:
+1. Create THREE enhanced versions of this DM with different word counts
+2. Each version should be MORE FORMAL, CLEAN, and EFFECTIVE than the original
+3. Use proper paragraph structure - NOT single paragraphs
+4. Maintain the core message and call-to-action
+5. Use 𝐔𝐧𝐢𝐜𝐨𝐝𝐞 𝐛𝐨𝐥𝐝 𝐜𝐡𝐚𝐫𝐚𝐜𝐭𝐞𝐫𝐬 for emphasis on key terms
+6. Do NOT use markdown formatting
+7. Make each version feel professional and business-like
+8. Use proper greeting and closing formats
+
+FORMATTING REQUIREMENTS:
+- Use proper paragraph breaks with double line spacing
+- Start with a professional greeting
+- Include clear introduction, body, and conclusion
+- End with a professional closing and call-to-action
+- Use 𝐛𝐨𝐥𝐝 𝐭𝐞𝐱𝐭 for emphasis on important words
+
+WORD COUNT REQUIREMENTS:
+- Small (150 words): 2-3 paragraphs, concise but professional
+- Medium (200 words): 3-4 paragraphs, balanced and engaging
+- Large (250 words): 4-5 paragraphs, comprehensive and detailed
+
+TONE REQUIREMENTS:
+- Professional and formal
+- Clean and well-structured
+- Effective and persuasive
+- Respectful and courteous
+- Business-appropriate language
+
+Return ONLY a JSON object with this exact structure:
+{
+  "small": "150-word version with proper paragraphs",
+  "medium": "200-word version with proper paragraphs", 
+  "large": "250-word version with proper paragraphs"
+}`;
+
+    const apiUrl = 'https://api.openai.com/v1/chat/completions';
+    const body = {
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate the three enhanced DM variations as specified with proper paragraph structure.' }
+      ],
+      max_tokens: 1200,
+      temperature: 0.7
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${error}`);
+    }
+
+    const data = await response.json();
+    let content = data.choices[0].message.content.trim();
+    
+    // Try to parse JSON response
+    try {
+      const variations = JSON.parse(content);
+      
+      // Validate the response structure
+      if (!variations.small || !variations.medium || !variations.large) {
+        throw new Error('Invalid response structure');
+      }
+      
+      console.log('Enhanced DM variations generated successfully');
+      return variations;
+    } catch (parseError) {
+      console.error('Error parsing OpenAI response:', parseError);
+      console.log('Raw response:', content);
+      
+      // Fallback: create professional variations with proper paragraphs
+      return {
+        small: `Dear ${chatName},
+
+I hope this message finds you well. I'm ${volunteerName}, reaching out on behalf of our ${campaign} campaign. As a respected ${profession}, your expertise and influence could make a 𝐬𝐢𝐠𝐧𝐢𝐟𝐢𝐜𝐚𝐧𝐭 𝐢𝐦𝐩𝐚𝐜𝐭 on this important cause.
+
+We would be honored to have you join us as a campaign ambassador. Your voice could help 𝐬𝐩𝐫𝐞𝐚𝐝 𝐚𝐰𝐚𝐫𝐞𝐧𝐞𝐬𝐬 and 𝐜𝐫𝐞𝐚𝐭𝐞 𝐩𝐨𝐬𝐢𝐭𝐢𝐯𝐞 𝐜𝐡𝐚𝐧𝐠𝐞 in our community.
+
+Would you be interested in learning more about how you can contribute to this meaningful initiative?
+
+Best regards,
+${volunteerName}`,
+
+        medium: `Dear ${chatName},
+
+I hope this message finds you well. I'm ${volunteerName}, and I'm reaching out regarding our ${campaign} campaign. Your professional standing as a ${profession} and your commitment to community impact make you an ideal candidate for this initiative.
+
+Our campaign focuses on 𝐜𝐫𝐞𝐚𝐭𝐢𝐧𝐠 𝐩𝐨𝐬𝐢𝐭𝐢𝐯𝐞 𝐜𝐡𝐚𝐧𝐠𝐞 and 𝐛𝐮𝐢𝐥𝐝𝐢𝐧𝐠 𝐚 𝐛𝐞𝐭𝐭𝐞𝐫 𝐟𝐮𝐭𝐮𝐫𝐞 for our community. We believe that your expertise and influence could significantly amplify our message and reach.
+
+As a campaign ambassador, you would have the opportunity to 𝐥𝐞𝐚𝐝 𝐛𝐲 𝐞𝐱𝐚𝐦𝐩𝐥𝐞 and 𝐢𝐧𝐬𝐩𝐢𝐫𝐞 𝐨𝐭𝐡𝐞𝐫𝐬 to join this meaningful cause. Your professional network and credibility would be invaluable assets to our mission.
+
+I would love to discuss this opportunity with you in more detail. Would you be available for a brief conversation about how you can contribute to this important initiative?
+
+Best regards,
+${volunteerName}`,
+
+        large: `Dear ${chatName},
+
+I hope this message finds you well. I'm ${volunteerName}, and I'm reaching out regarding our ${campaign} campaign. Your distinguished career as a ${profession} and your demonstrated commitment to community service make you an exceptional candidate for this meaningful initiative.
+
+Our campaign represents a 𝐜𝐨𝐦𝐩𝐫𝐞𝐡𝐞𝐧𝐬𝐢𝐯𝐞 𝐞𝐟𝐟𝐨𝐫𝐭 to address critical social issues and 𝐜𝐫𝐞𝐚𝐭𝐞 𝐥𝐚𝐬𝐭𝐢𝐧𝐠 𝐩𝐨𝐬𝐢𝐭𝐢𝐯𝐞 𝐜𝐡𝐚𝐧𝐠𝐞 in our community. We believe that your professional expertise, leadership qualities, and established network would be 𝐢𝐧𝐯𝐚𝐥𝐮𝐚𝐛𝐥𝐞 𝐚𝐬𝐬𝐞𝐭𝐬 to our mission.
+
+As a campaign ambassador, you would have the opportunity to 𝐥𝐞𝐚𝐝 𝐛𝐲 𝐞𝐱𝐚𝐦𝐩𝐥𝐞, 𝐢𝐧𝐬𝐩𝐢𝐫𝐞 𝐨𝐭𝐡𝐞𝐫𝐬, and 𝐜𝐨𝐧𝐭𝐫𝐢𝐛𝐮𝐭𝐞 𝐭𝐨 𝐚 𝐜𝐚𝐮𝐬𝐞 that aligns with your values. Your involvement would not only amplify our message but also demonstrate your commitment to social responsibility and community leadership.
+
+We would be honored to have you join our team of dedicated professionals who are working together to 𝐦𝐚𝐤𝐞 𝐚 𝐝𝐢𝐟𝐟𝐞𝐫𝐞𝐧𝐜𝐞. Your participation would be instrumental in achieving our shared goals and creating a lasting impact.
+
+I would welcome the opportunity to discuss this role with you in detail and answer any questions you may have. Would you be available for a brief conversation about how you can contribute to this important initiative?
+
+Best regards,
+${volunteerName}`
+      };
+    }
+  } catch (error) {
+    console.error('Error generating enhanced DM variations:', error);
+    throw error;
+  }
+}
+
+module.exports = { generateOpenAIResponse, analyzeInstagramAccount, generateEmbedding, getCampaignContext, testCampaignData, generateEnhancedDMVariations }; 
