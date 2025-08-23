@@ -125,7 +125,7 @@ const getChats = catchAsync(async (req, res) => {
     query = query.lt('created_at', new Date(new Date(end_date).getTime() + 24 * 60 * 60 * 1000).toISOString());
   }
   
-  query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  query = query.order('updated_at', { ascending: false }).range(offset, offset + limit - 1);
   const { data: chats, count, error } = await query;
   if (error) {
     // Handle range error gracefully - return empty result if offset is beyond data
@@ -361,6 +361,45 @@ const pinChat = catchAsync(async (req, res) => {
   res.send(sanitizeChat(updatedChat));
 });
 
+const updateChatActivity = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  
+  // Check if chat exists and user has access
+  const { data: chat, error: fetchError } = await supabaseAdmin
+    .from('chats')
+    .select('user_id')
+    .eq('id', id)
+    .single();
+  
+  if (fetchError || !chat) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Chat not found');
+  }
+  
+  // Check if user has access to this chat
+  if (req.user.role !== 'admin' && chat.user_id !== req.user.id) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
+  }
+  
+  // Update the chat's activity timestamp to move it to the top
+  const updateData = {
+    updated_at: new Date().toISOString(),
+    last_activity: new Date().toISOString()
+  };
+  
+  const { data: updatedChat, error } = await supabaseAdmin
+    .from('chats')
+    .update(updateData)
+    .eq('id', id)
+    .select('*, users(id, name, email)')
+    .single();
+    
+  if (error || !updatedChat) {
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to update chat activity');
+  }
+  
+  res.send(sanitizeChat(updatedChat));
+});
+
 const searchChats = catchAsync(async (req, res) => {
   const { q: query, page = 1, limit = 20, include_messages = true } = req.query;
   const offset = (page - 1) * limit;
@@ -490,7 +529,7 @@ const getAllChatsForUser = catchAsync(async (req, res) => {
     query = query.eq('user_id', user_id);
   }
   
-  query = query.order('created_at', { ascending: false });
+  query = query.order('updated_at', { ascending: false });
   const { data: chats, error } = await query;
   
   if (error) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, error.message);
@@ -512,4 +551,5 @@ module.exports = {
   pinChat,
   searchChats,
   getAllChatsForUser,
+  updateChatActivity,
 };

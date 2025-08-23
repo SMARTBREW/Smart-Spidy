@@ -81,6 +81,13 @@ const pinChat = {
   }),
 };
 
+const updateChatActivity = {
+  params: Joi.object().keys({
+    id: Joi.string().custom(objectId),
+  }),
+  body: Joi.object().keys({}).min(0), // No body required, just updates timestamp
+};
+
 const searchChats = {
   query: Joi.object().keys({
     q: Joi.string().min(1).max(500).required(),
@@ -105,6 +112,7 @@ module.exports = {
   deleteChat,
   updateChatStatus,
   pinChat,
+  updateChatActivity,
   searchChats,
   getAllChatsForUser,
 }; 

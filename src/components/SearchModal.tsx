@@ -8,10 +8,17 @@ interface SearchModalProps {
   chats: Chat[];
   onClose: () => void;
   onSelectChat: (chatId: string) => void;
+  onUpdateChatActivity?: (chatId: string) => void;
   currentChatId: string | null;
 }
 
-export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSelectChat, currentChatId }) => {
+export const SearchModal: React.FC<SearchModalProps> = ({ 
+  chats, 
+  onClose, 
+  onSelectChat, 
+  onUpdateChatActivity,
+  currentChatId 
+}) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Array<{
     chat: Chat;
@@ -65,6 +72,17 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
 
     return () => clearTimeout(timeoutId);
   }, [query]);
+
+  const handleChatSelect = async (chatId: string) => {
+    // Update chat activity to move it to the top (only for search results)
+    if (onUpdateChatActivity) {
+      await onUpdateChatActivity(chatId);
+    }
+    
+    // Select the chat
+    onSelectChat(chatId);
+    onClose();
+  };
 
   return (
     <AnimatePresence>
@@ -122,10 +140,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ chats, onClose, onSele
               <div
                 key={chat.id}
                 className={`bg-gray-100 rounded-lg p-4 border border-gray-300 cursor-pointer transition-shadow hover:shadow-lg active:shadow-inner ${currentChatId === chat.id ? 'ring-2 ring-gray-400' : ''}`}
-                onClick={() => {
-                  onSelectChat(chat.id);
-                  onClose();
-                }}
+                onClick={() => handleChatSelect(chat.id)}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare className="w-4 h-4 text-gray-600" />

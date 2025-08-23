@@ -20,5 +20,6 @@ router.patch('/:id', validate(chatValidation.updateChat), chatController.updateC
 router.delete('/:id', authorize('admin'), validate(chatValidation.deleteChat), chatController.deleteChat);
 router.patch('/:id/status', validate(chatValidation.updateChatStatus), chatController.updateChatStatus);
 router.patch('/:id/pin', validate(chatValidation.pinChat), chatController.pinChat);
+router.patch('/:id/activity', validate(chatValidation.updateChatActivity), chatController.updateChatActivity);
 
 module.exports = router; 

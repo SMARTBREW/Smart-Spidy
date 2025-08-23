@@ -5,6 +5,7 @@ import authService from '../services/auth';
 import { chatApi } from '../services/chat';
 import { messageApi } from '../services/message';
 import { saveLastChoices } from '../utils/lastChoices';
+import { storage } from '../utils/storage';
 
 // Helper function to extract Instagram username from message content
 const extractInstagramUsername = (content: string): {username: string, forceLive?: boolean} | null => {
@@ -40,6 +41,89 @@ export const useChat = () => {
     return state.chats.find(chat => chat.id === state.currentChatId) || null;
   }, [state.chats, state.currentChatId]);
 
+  // Load messages for a specific chat
+  const loadMessagesForChat = useCallback(async (chatId: string) => {
+    try {
+      setMessagesLoading(chatId);
+      console.log(`Loading messages for chat ${chatId}...`);
+      const response = await messageApi.getMessages(chatId, { limit: 100 });
+      console.log('API Response:', response);
+      const { messages, instagramAccounts } = response;
+      console.log('Messages:', messages);
+      console.log('Instagram Accounts:', instagramAccounts);
+      
+      // Insert Instagram cards right after the messages that triggered them
+      let messagesWithInstagram = messages || [];
+      
+      if (instagramAccounts && instagramAccounts.length > 0) {
+        // Create a map of Instagram usernames to their accounts
+        const accountMap = new Map();
+        instagramAccounts.forEach(account => {
+          accountMap.set(account.username, account);
+        });
+        
+        // Track which Instagram cards we've already added to avoid duplicates
+        const addedAccounts = new Set();
+        
+        // Go through messages and insert Instagram cards after relevant messages
+        const finalMessages: Message[] = [];
+        
+        for (let i = 0; i < messagesWithInstagram.length; i++) {
+          const message = messagesWithInstagram[i];
+          finalMessages.push(message);
+          
+          // Check if this message mentions an Instagram username
+          const extractedUsername = extractInstagramUsername(message.content);
+          if (extractedUsername && accountMap.has(extractedUsername.username) && !addedAccounts.has(extractedUsername.username)) {
+            const instagramAccount = accountMap.get(extractedUsername.username);
+            console.log(`Adding Instagram card for ${extractedUsername.username} after message ${i}`);
+            
+            finalMessages.push({
+              id: `${chatId}-ig-${instagramAccount.username}-${Date.now()}`,
+              content: '',
+              sender: 'assistant' as 'assistant',
+              createdAt: new Date(message.createdAt || new Date()),
+              instagramAccount: {
+                ...instagramAccount,
+                followersCount: Number(instagramAccount.followersCount),
+                mediaCount: Number(instagramAccount.mediaCount)
+              }
+            } as Message);
+            
+            addedAccounts.add(extractedUsername.username);
+          }
+        }
+        
+        messagesWithInstagram = finalMessages;
+        console.log('Final messages with Instagram:', messagesWithInstagram);
+      }
+      
+      setState(prev => ({
+        ...prev,
+        chats: prev.chats.map(chat =>
+          chat.id === chatId
+            ? { ...chat, messages: messagesWithInstagram }
+            : chat
+        ),
+      }));
+      
+      console.log(`Successfully loaded ${messagesWithInstagram.length} messages for chat ${chatId}`);
+    } catch (error) {
+      console.error(`Error loading messages for chat ${chatId}:`, error);
+      // Set empty messages array to prevent repeated loading attempts
+      setState(prev => ({
+        ...prev,
+        chats: prev.chats.map(chat =>
+          chat.id === chatId
+            ? { ...chat, messages: [] }
+            : chat
+        ),
+      }));
+    } finally {
+      setMessagesLoading(null);
+    }
+  }, []);
+
   // Fetch chats from API
   const fetchChats = useCallback(async () => {
     // Removed local loading state - now handled globally
@@ -60,12 +144,30 @@ export const useChat = () => {
         is_gold: chat.is_gold ?? (chat as any).isGold ?? false,
       }));
 
+      // Get the saved current chat ID from localStorage
+      const savedChatId = storage.getCurrentChatId();
+      
+      // Determine which chat to select:
+      // 1. If there's a saved chat ID and it exists in the fetched chats, use it
+      // 2. Otherwise, use the first chat if available
+      let selectedChatId: string | null = null;
+      if (savedChatId && chatsWithoutMessages.find(chat => chat.id === savedChatId)) {
+        selectedChatId = savedChatId;
+      } else if (chatsWithoutMessages.length > 0) {
+        selectedChatId = chatsWithoutMessages[0].id;
+      }
+
       setState(prev => ({
         ...prev,
         user: currentUser,
         chats: chatsWithoutMessages,
-        currentChatId: chatsWithoutMessages.length > 0 ? chatsWithoutMessages[0].id : null,
+        currentChatId: selectedChatId,
       }));
+
+      // If we have a selected chat, load its messages
+      if (selectedChatId) {
+        await loadMessagesForChat(selectedChatId);
+      }
     } catch (error: any) {
       console.error('Error fetching chats:', error);
       // If it's an authentication error, redirect to login
@@ -74,7 +176,7 @@ export const useChat = () => {
         navigate('/');
       }
     }
-  }, [navigate]);
+  }, [navigate, loadMessagesForChat]);
 
   useEffect(() => {
     const initializeChats = async () => {
@@ -101,6 +203,8 @@ export const useChat = () => {
   const logout = useCallback(async () => {
     await authService.logout();
     setIsTyping(false);
+    // Clear the stored current chat ID
+    storage.setCurrentChatId(null);
     setState({
       user: null,
       chats: [],
@@ -135,6 +239,8 @@ export const useChat = () => {
       await fetchChats();
       if (typeof newChat?.id === 'string') {
         setState(prev => ({ ...prev, currentChatId: newChat.id }));
+        // Save the new chat ID to localStorage
+        storage.setCurrentChatId(newChat.id);
         
         // Trigger activity when user creates a new chat
         triggerActivity();
@@ -142,6 +248,7 @@ export const useChat = () => {
         return newChat.id;
       } else {
         setState(prev => ({ ...prev, currentChatId: null }));
+        storage.setCurrentChatId(null);
         return null;
       }
     } catch (error) {
@@ -155,93 +262,29 @@ export const useChat = () => {
     
     setState(prev => ({ ...prev, currentChatId: chatId }));
     
+    // Save the selected chat ID to localStorage
+    storage.setCurrentChatId(chatId);
+    
     // Trigger activity when user selects a chat
     triggerActivity();
     
     // Load messages for the selected chat if not already loaded
     const currentChat = state.chats.find(chat => chat.id === chatId);
     if (currentChat && (!currentChat.messages || currentChat.messages.length === 0)) {
-      try {
-        setMessagesLoading(chatId); // Set loading state
-        console.log(`Loading messages for chat ${chatId}...`);
-        const response = await messageApi.getMessages(chatId, { limit: 100 });
-        console.log('API Response:', response);
-        const { messages, instagramAccounts } = response;
-        console.log('Messages:', messages);
-        console.log('Instagram Accounts:', instagramAccounts);
-        
-        // Insert Instagram cards right after the messages that triggered them
-        let messagesWithInstagram = messages || [];
-        
-        if (instagramAccounts && instagramAccounts.length > 0) {
-          // Create a map of Instagram usernames to their accounts
-          const accountMap = new Map();
-          instagramAccounts.forEach(account => {
-            accountMap.set(account.username, account);
-          });
-          
-          // Track which Instagram cards we've already added to avoid duplicates
-          const addedAccounts = new Set();
-          
-          // Go through messages and insert Instagram cards after relevant messages
-          const finalMessages: Message[] = [];
-          
-          for (let i = 0; i < messagesWithInstagram.length; i++) {
-            const message = messagesWithInstagram[i];
-            finalMessages.push(message);
-            
-            // Check if this message mentions an Instagram username
-            const extractedUsername = extractInstagramUsername(message.content);
-            if (extractedUsername && accountMap.has(extractedUsername.username) && !addedAccounts.has(extractedUsername.username)) {
-              const instagramAccount = accountMap.get(extractedUsername.username);
-              console.log(`Adding Instagram card for ${extractedUsername.username} after message ${i}`);
-              
-              finalMessages.push({
-                id: `${chatId}-ig-${instagramAccount.username}-${Date.now()}`,
-                content: '',
-                sender: 'assistant' as 'assistant',
-                createdAt: new Date(message.createdAt || new Date()),
-                instagramAccount: {
-                  ...instagramAccount,
-                  followersCount: Number(instagramAccount.followersCount),
-                  mediaCount: Number(instagramAccount.mediaCount)
-                }
-              } as Message);
-              
-              addedAccounts.add(extractedUsername.username);
-            }
-          }
-          
-          messagesWithInstagram = finalMessages;
-          console.log('Final messages with Instagram:', messagesWithInstagram);
-        }
-        
-        setState(prev => ({
-          ...prev,
-          chats: prev.chats.map(chat =>
-            chat.id === chatId
-              ? { ...chat, messages: messagesWithInstagram }
-              : chat
-          ),
-        }));
-        
-        console.log(`Successfully loaded ${messagesWithInstagram.length} messages for chat ${chatId}`);
-      } catch (error) {
-        console.error(`Error loading messages for chat ${chatId}:`, error);
-        // Set empty messages array to prevent repeated loading attempts
-        setState(prev => ({
-          ...prev,
-          chats: prev.chats.map(chat =>
-            chat.id === chatId
-              ? { ...chat, messages: [] }
-              : chat
-          ),
-        }));
-      } finally {
-        setMessagesLoading(null); // Clear loading state
-      }
+      await loadMessagesForChat(chatId);
     }
-  }, [state.chats, triggerActivity]);
+  }, [state.chats, triggerActivity, loadMessagesForChat]);
+
+  // Separate function to update chat activity (used only for search results)
+  const updateChatActivity = useCallback(async (chatId: string) => {
+    try {
+      await chatApi.updateChatActivity(chatId);
+      // Refresh the chat list to show the updated order
+      await fetchChats();
+    } catch (error) {
+      console.error('Error updating chat activity:', error);
+    }
+  }, [fetchChats]);
 
   const deleteChat = useCallback(async (chatId: string) => {
     try {
@@ -250,10 +293,13 @@ export const useChat = () => {
       // If the deleted chat was current, select the first available chat
       if (state.currentChatId === chatId) {
         const remainingChats = state.chats.filter(chat => chat.id !== chatId);
+        const newCurrentChatId = remainingChats.length > 0 ? remainingChats[0].id : null;
         setState(prev => ({ 
           ...prev, 
-          currentChatId: remainingChats.length > 0 ? remainingChats[0].id : null 
+          currentChatId: newCurrentChatId 
         }));
+        // Update localStorage with the new current chat ID
+        storage.setCurrentChatId(newCurrentChatId);
       }
     } catch (error) {
       console.error('Error deleting chat:', error);
@@ -289,6 +335,8 @@ export const useChat = () => {
       console.error('Error updating chat status:', error);
     }
   }, [fetchChats, state.chats]);
+
+
 
   // Send message with backend integration
   const sendMessage = useCallback(async (query: string) => {
@@ -378,6 +426,7 @@ export const useChat = () => {
     deleteChat,
     pinChat,
     setChatStatus,
+    updateChatActivity,
   };
 };
 

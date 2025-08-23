@@ -29,6 +29,7 @@ interface ChatInterfaceProps {
   logout: () => void;
   pinChat: (chatId: string, pinned: boolean) => void;
   setChatStatus: (chatId: string, status: 'green' | 'yellow' | 'red' | 'gold' | null) => void;
+  updateChatActivity?: (chatId: string) => void;
   activityTracker?: any;
 }
 
@@ -46,6 +47,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   logout,
   pinChat,
   setChatStatus,
+  updateChatActivity,
   activityTracker,
 }) => {
 
@@ -538,6 +540,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           chats={chats}
           onClose={closeSearch}
           onSelectChat={selectChat}
+          onUpdateChatActivity={updateChatActivity}
           currentChatId={currentChatId}
         />
       )}

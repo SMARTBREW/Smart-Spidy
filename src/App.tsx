@@ -48,6 +48,7 @@ const App: React.FC = () => {
     deleteChat,
     pinChat,
     setChatStatus,
+    updateChatActivity,
   } = useChat();
 
   // Initialize activity tracker when user logs in
@@ -195,6 +196,7 @@ const App: React.FC = () => {
                   logout={logout}
                   pinChat={pinChat}
                   setChatStatus={setChatStatus}
+                  updateChatActivity={updateChatActivity}
                   activityTracker={activityTracker}
                 />
               </Suspense>

@@ -151,22 +151,31 @@ export const chatApi = {
   },
 
   async pinChat(id: string, pinned: boolean): Promise<Chat> {
-    const pinChatFn = async () => {
-      const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}/pin`, {
-        method: 'PATCH',
-        body: JSON.stringify({ pinned }),
-      });
-      return handleResponse(response);
-    };
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}/pin`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ pinned }),
+    });
+    return handleResponse(response);
+  },
 
-    if (withLoading) {
-      return withLoading('chat-pin', pinChatFn)();
-    }
-    return pinChatFn();
+  async updateChatActivity(id: string): Promise<Chat> {
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/${id}/activity`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+    return handleResponse(response);
   },
 
   async getChatStats(): Promise<any> {
-    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/stats`, { method: 'GET' });
+    const response = await authService.authenticatedRequest(`${API_BASE_URL}/chats/stats`, {
+      method: 'GET',
+    });
     return handleResponse(response);
   },
 
