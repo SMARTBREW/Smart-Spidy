@@ -20,6 +20,8 @@ const envVarsSchema = Joi.object()
     SMTP_PASSWORD: Joi.string().description('password for email server'),
     EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
     OPENAI_API_KEY: Joi.string().description('OpenAI API key'),
+    MISTRAL_API_KEY: Joi.string().description('Mistral API key'),
+    AI_PROVIDER: Joi.string().valid('mistral', 'openai').default('mistral').description('AI provider to use'),
     INSTAGRAM_ACCESS_TOKEN: Joi.string().description('Instagram Graph API access token'),
     INSTAGRAM_BUSINESS_ACCOUNT_ID: Joi.string().description('Instagram business account ID'),
   })
@@ -60,6 +62,10 @@ module.exports = {
   openai: {
     apiKey: envVars.OPENAI_API_KEY,
   },
+  mistral: {
+    apiKey: envVars.MISTRAL_API_KEY,
+  },
+  aiProvider: envVars.AI_PROVIDER || (envVars.MISTRAL_API_KEY ? 'mistral' : 'openai'),
   instagram: {
     accessToken: envVars.INSTAGRAM_ACCESS_TOKEN,
     businessAccountId: envVars.INSTAGRAM_BUSINESS_ACCOUNT_ID,
