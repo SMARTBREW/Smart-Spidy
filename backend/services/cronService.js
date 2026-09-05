@@ -31,53 +31,68 @@ const getSupabaseClient = () => {
   }
 };
 
+// Helper to stop the job automatically if an error bubbles up
+const createFailSafeJob = ({ name, expression, handler, options }) => {
+  const job = cron.schedule(expression, async () => {
+    try {
+      await handler(job);
+    } catch (error) {
+      console.error(`❌ ${name} failed:`, error);
+      console.warn(`🛑 Stopping "${name}" cron job due to the error.`);
+      job.stop();
+    }
+  }, options);
+
+  return job;
+};
+
 // Run daily at 9:00 AM
-cron.schedule('0 9 * * *', async () => {
-  console.log('🕐 Running scheduled notification generation...');
-  try {
+const dailyNotificationJob = createFailSafeJob({
+  name: 'Scheduled notification generation',
+  expression: '0 9 * * *',
+  options: { timezone: 'Asia/Kolkata' },
+  handler: async () => {
+    console.log('🕐 Running scheduled notification generation...');
     const result = await generateAllNotifications();
     console.log('✅ Scheduled notification generation completed successfully');
     console.log('📊 Results:', result);
-  } catch (error) {
-    console.error('❌ Scheduled notification generation failed:', error);
   }
-}, {
-  timezone: "Asia/Kolkata" // Adjust to your timezone
 });
 
 // Also run every 6 hours for testing (optional - remove in production)
-cron.schedule('0 */6 * * *', async () => {
-  console.log('🕐 Running test notification generation...');
-  try {
+const recurringNotificationJob = createFailSafeJob({
+  name: 'Test notification generation',
+  expression: '0 */6 * * *',
+  options: { timezone: 'Asia/Kolkata' },
+  handler: async () => {
+    console.log('🕐 Running test notification generation...');
     const result = await generateAllNotifications();
     console.log('✅ Test notification generation completed');
     console.log('📊 Results:', result);
-  } catch (error) {
-    console.error('❌ Test notification generation failed:', error);
   }
-}, {
-  timezone: "Asia/Kolkata"
 });
 
 // Process due reminders every 1 minute for more precise timing
-cron.schedule('* * * * *', async () => {
-  console.log('🕐 Running reminder processing...');
-  try {
+const reminderProcessingJob = createFailSafeJob({
+  name: 'Reminder processing',
+  expression: '* * * * *',
+  options: { timezone: 'Asia/Kolkata' },
+  handler: async () => {
+    console.log('🕐 Running reminder processing...');
     const result = await processDueRemindersCron();
-    if (result.count > 0) {
+    if (result?.count > 0) {
       console.log(`✅ Reminder processing completed - ${result.count} reminders processed`);
     }
-  } catch (error) {
-    console.error('❌ Reminder processing failed:', error);
   }
-}, {
-  timezone: "Asia/Kolkata"
 });
 
 // Clean up inactive sessions every 15 minutes (less aggressive)
-cron.schedule('*/15 * * * *', async () => {
-  console.log('🕐 Running session cleanup...');
-  try {
+const sessionCleanupJob = createFailSafeJob({
+  name: 'Session cleanup',
+  expression: '*/15 * * * *',
+  options: { timezone: 'Asia/Kolkata' },
+  handler: async () => {
+    console.log('🕐 Running session cleanup...');
     const supabaseAdmin = getSupabaseClient();
     if (!supabaseAdmin) {
       console.log('⚠️  Skipping session cleanup - Supabase not available');
@@ -95,14 +110,12 @@ cron.schedule('*/15 * * * *', async () => {
       .lt('updated_at', ninetyMinutesAgo);
 
     if (fetchError) {
-      console.error('❌ Error fetching inactive sessions:', fetchError);
-      return;
+      throw fetchError;
     }
 
     if (inactiveSessions && inactiveSessions.length > 0) {
       console.log(`🔍 Found ${inactiveSessions.length} inactive sessions to cleanup`);
       
-      const sessionIds = inactiveSessions.map(session => session.id);
       const currentTime = new Date().toISOString();
       
       // Update sessions to mark them as inactive with correct duration calculation
@@ -125,11 +138,7 @@ cron.schedule('*/15 * * * *', async () => {
     } else {
       console.log('✅ No inactive sessions found');
     }
-  } catch (error) {
-    console.error('❌ Session cleanup failed:', error);
   }
-}, {
-  timezone: "Asia/Kolkata"
 });
 
 console.log('✅ Cron jobs scheduled:');

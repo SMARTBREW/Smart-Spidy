@@ -197,7 +197,10 @@ const processDueRemindersCron = async () => {
 
   if (error) {
     console.error('Error fetching due reminders:', error);
-    return { processedReminders: [], createdNotifications: [], count: 0 };
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      error.message || 'Failed to fetch due reminders'
+    );
   }
 
   const processedReminders = [];
@@ -231,7 +234,10 @@ const processDueRemindersCron = async () => {
 
       if (notificationError) {
         console.error('Error creating notification for reminder:', notificationError);
-        continue;
+        throw new ApiError(
+          httpStatus.INTERNAL_SERVER_ERROR,
+          notificationError.message || 'Failed to create notification for reminder'
+        );
       }
 
       // Update reminder as sent
@@ -245,6 +251,10 @@ const processDueRemindersCron = async () => {
 
       if (updateError) {
         console.error('Error updating reminder status:', updateError);
+        throw new ApiError(
+          httpStatus.INTERNAL_SERVER_ERROR,
+          updateError.message || 'Failed to update reminder status'
+        );
       }
 
       // Handle recurring reminders
@@ -263,15 +273,19 @@ const processDueRemindersCron = async () => {
 
           if (recurringError) {
             console.error('Error updating recurring reminder:', recurringError);
+            throw new ApiError(
+              httpStatus.INTERNAL_SERVER_ERROR,
+              recurringError.message || 'Failed to update recurring reminder'
+            );
           }
         }
       }
 
       processedReminders.push(sanitizeReminder(reminder));
       createdNotifications.push(notification);
-
     } catch (error) {
       console.error('Error processing reminder:', error);
+      throw error;
     }
   }
 
