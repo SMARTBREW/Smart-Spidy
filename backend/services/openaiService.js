@@ -33,32 +33,47 @@ async function callChatCompletion({ messages, max_tokens = 500, temperature = 0.
 
   const tryMistral = async () => {
     if (!mistralKey) throw new Error('MISTRAL_API_KEY is not set');
-    const body = {
-      model: 'mistral-small-latest',
-      messages,
-      max_tokens,
-      temperature,
-    };
-    if (jsonMode) {
-      body.response_format = { type: 'json_object' };
+    const modelsToTry = ['open-mistral-nemo', 'ministral-8b-latest', 'open-mistral-7b'];
+    let lastError = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const body = {
+          model,
+          messages,
+          max_tokens,
+          temperature,
+        };
+        if (jsonMode) {
+          body.response_format = { type: 'json_object' };
+        }
+
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mistralKey}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Mistral API error (${response.status} on ${model}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content?.trim() || '';
+        if (content) {
+          return content;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`⚠️ Mistral model ${model} failed (${err.message}), trying next model...`);
+      }
     }
 
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mistralKey}`
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Mistral API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content?.trim() || '';
+    throw lastError || new Error('All Mistral models failed');
   };
 
   const tryOpenAI = async () => {
@@ -293,9 +308,11 @@ Use this conversation history to provide contextual responses and remember what 
 
     let contextualMessage = userMessage;
 
+    let context = '';
+    let campaign = '';
     if (chatDetails && chatDetails.product) {
-      const campaign = mapProductToCampaign(chatDetails.product);
-      const context = await getCampaignContext(userMessage, campaign);
+      campaign = mapProductToCampaign(chatDetails.product);
+      context = await getCampaignContext(userMessage, campaign);
 
       if (context) {
         systemPrompt += `Campaign Context:
@@ -312,13 +329,27 @@ Use this context to provide accurate, campaign-specific responses. Focus on info
       { role: 'user', content: contextualMessage }
     ];
 
-    const content = await callChatCompletion({
-      messages,
-      max_tokens: 500,
-      temperature: 0.7,
-    });
+    try {
+      const content = await callChatCompletion({
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
+      });
 
-    return convertMarkdownBoldToUnicode(content);
+      return convertMarkdownBoldToUnicode(content);
+    } catch (llmErr) {
+      console.warn('⚠️ All LLM API providers failed, generating intelligent knowledge base response:', llmErr.message);
+
+      const targetName = (chatDetails && chatDetails.name) ? chatDetails.name : 'there';
+      const campaignName = campaign || 'Wings Of Hope';
+
+      if (context) {
+        const keySnippet = context.split('\n---\n')[0]?.trim();
+        return `Hello ${targetName}! Regarding our **${campaignName}** initiative:\n\n${keySnippet}\n\nLet me know if you would like more details on how to get involved or support this cause!`;
+      }
+
+      return `Hello ${targetName}! Thank you for reaching out. We are actively working on the **${campaignName}** campaign to create positive social change. How can I assist you with this campaign today?`;
+    }
   } catch (error) {
     console.error('Error in generateOpenAIResponse:', error);
     throw error;
