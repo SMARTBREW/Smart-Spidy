@@ -33,7 +33,7 @@ VITE_MATCH_COUNT=5
 3. Note your project URL and service role key
 
 ### 2. Enable Vector Extension
-Run this SQL in your Supabase SQL editor:
+Run this SQL in your Supabase SQL e
 
 ```sql
 -- Enable the vector extension
